@@ -1,39 +1,32 @@
-// tetris-cinematic.js: the Tetris opening cinematic (60 seconds), rendered live in the page.
-//
-// Twenty shots in ten scenes, after Sean's direction (Hotline Miami grit, VHS, the game's own purple look):
-//   1  arcade cabinet in the dark, the camera dollies in; "tetris" flickers on its CRT, the subtitle fades in,
-//      the world goes dark around the words, silence, a spark streaks across and bursts into the drop
-//   2  real boards launch at the lens; a pixel car on a grid road with boards streaking past; one board blocks
-//      the road and the camera flies into it
-//   3  close on the game: a falling piece is followed down the well into a Tetris; the rows flash white
-//   4  streak ascension: 2x, 6x and 10x panels rushing at the camera
-//   5  multiplayer: four boards floating in space, an attack bolt, garbage, ELIMINATED, the board shatters,
-//      a second attack whips us out
-//   6  achievements unlocking, then the profile
-//   7  chat, friends and an invite
-//   8  mode select, then the skulls
-//   9  a montage of everything, then everything recedes into the shader on the final impact
-//   10 the logo returns and the real menu fades in under it, live and playable
+// tetris-cinematic.js: shared original opening and 137.976-second extended cut.
+// Both open on the arcade cabinet. The extended cut adds ignition, highway,
+// live skull demonstrations, Chess temple causeway, broken grid, black freefall,
+// hex portal, streak dimension, final battle and sunset arrival at the menu.
+// Driving and the portal are in tetris-cinematic-drive.js; sky/clouds/props are
+// extracted from the existing Chess cinematic in tetris-cinematic-scenery.js.
 //
 // How it is built (cheap to render, all in the page):
 //   - Boards are the real game: tetris.js lends its Player rules, board renderer and CPU through
-//     TetrisApp.cinematicKit(), and CPUs genuinely play every board. Nothing touches the running game.
+//     TetrisApp.cinematicKit(). CPUs play the filmed boards; beat demonstrations choreograph real Player.lock().
+//     Cinematic players are isolated from the running game.
 //   - 3D is CSS perspective: boards and panels are planes in a world div; a camera rig (x, y, z, yaw, pitch, roll,
 //     fov) moves it. The background is one WebGL shader that ray-casts with the same camera, so the hex sky and the
 //     road's floor sit in the same 3D space as the DOM planes.
 //   - The VHS layer (scanlines, grain, tracking noise, tearing, chromatic aberration) reacts to hits and speed.
 //   - Sparks, attack bolts, shatter fragments and speed lines are a 2D canvas over the top.
 //
-// Music: "tetrinomos" by MoneyRhy$, supplied by Sean, edited at its original 77 BPM.
-// The first full drum hit (source 24.965 s) lands on the launch at 12.5 s. The last 1.7 s blend into
-// the menu loop made from source 2:06-2:17. Music contains no added SFX: the independent sfxBus is switchable.
-// See TETRINOMOS_AUDIO.md and tools/build_tetrinomos_audio.py for the edit and loop provenance.
+// Music: both cuts use the unmodified "tetronimo$" by MoneyRhy$ recording at 77 BPM.
+// Original: source 0-60 s in order, with an exit fade; extended: the entire 137.976 s.
+// Extended source time is cinematic time: first drop 24.965 s; portal crossing 99.770 s.
+// The extended track has no skipped or stretched music. SFX use an independent bus.
+// The exact 2:06-2:17 menu loop follows the complete track on the same audio clock.
+// See TETRINOMOS_AUDIO.md for provenance, timing and verification.
 //
-// Playback: once per browser (localStorage games_tetris_cinematic_seen), then only from the menu's
-// "Watch cinematic" button. Skip button, Esc or Enter skip it. Testing aids: ?cinematic=SECONDS plays from there;
-// &hold=SECONDS freezes the clock at that moment.
+// Original playback: once per browser (localStorage tetris_cinematic_original_seen_v1).
+// Both cuts have menu replay buttons. Skip, Esc or Enter skip. Testing: ?cinematic=SECONDS
+// starts the original; &cut=extended selects the full cut; &hold=SECONDS freezes time.
 //
-// API (window.TetrisCinematic): play(fromSeconds), skip(), playing(), CUES
+// API: play(fromSeconds, 'short'|'extended'), playExtended(fromSeconds), cut(), skip(), playing(), CUES
 (function () {
   'use strict';
 
@@ -42,49 +35,57 @@
   if (!G || !App || !App.cinematicKit) return;
   var K = App.cinematicKit();
   var ACH = window.TetrisAchievements;
-  var STORE_SEEN = 'tetris_cinematic_seen';
+  var STORE_SEEN = 'tetris_cinematic_original_seen_v1';
+  var activeCut = 'short';
   var D2R = Math.PI / 180;
 
   /* =================================================================
      Cue sheet
      ================================================================= */
 
-  // Keep the intro compact; subsequent cuts follow the supplied song's 77 BPM grid.
+  // Phrase boundaries follow the full recording, not the earlier 60-second edit.
   var CUES = {
-    track: 'tetrinomos-cinematic.mp3',
-    credit: 'Music: "tetrinomos" by MoneyRhy$',
+    track: 'tetrinomos-full-track.mp3',
+    credit: 'Music: "tetronimo$" by MoneyRhy$',
     trackHasSfx: false,
     bpm: 77,
-    offset: 12.5,        // cinematic seconds of beat 0 (the drop's first hit)
-    end: 12.5 + 59 * 60 / 77 + 2,
+    offset: 24.965,        // cinematic seconds of beat 0 (the drop's first hit)
+    end: 137.976,
     volume: 0.9,
     sfx: 0.3,
     // Where the file plays: t0..t1 on the cinematic clock, from buffer second `at`.
-    segments: [{ t0: 0, t1: 12.5 + 59 * 60 / 77 + 2, at: 0, handoff: true }],
+    segments: [{ t0: 0, t1: 137.976, at: 0, handoff: true }],
     duck: [],
     spark: [11.14, 12.5],
     // nominal: the length each shot's internal moves were written for; they stretch or squeeze to the real slot
     shots: [
       { id: 'cabinet', at: 0, nominal: 4 },
-      { id: 'logo', at: 4.0, group: 'cabinet' },
-      { id: 'subtitle', at: 7.0, group: 'cabinet' },
-      { id: 'spark', at: 10.0, group: 'cabinet' },
-      { id: 'launch', beat: 0, nominal: 2.743 },
-      { id: 'road', beat: 4, nominal: 4.114 },
-      { id: 'gameplay', beat: 14, group: 'road' },
-      { id: 'clear', beat: 17, group: 'road', nominal: 2.743 },
-      { id: 'streak', beat: 19, nominal: 4.114 },
-      { id: 'multiplayer', beat: 24, nominal: 4.114 },
-      { id: 'eliminated', beat: 29, group: 'multiplayer', nominal: 1.372 },
-      { id: 'attack', beat: 31, group: 'multiplayer', nominal: 2.743 },
-      { id: 'achievements', beat: 33, nominal: 4.114 },
-      { id: 'profile', beat: 37, group: 'achievements', nominal: 1.372 },
-      { id: 'chat', beat: 40, group: 'achievements', nominal: 2.743 },
-      { id: 'friends', beat: 43, group: 'achievements', nominal: 2.743 },
-      { id: 'modes', beat: 46, nominal: 2.743 },
-      { id: 'skulls', beat: 50, group: 'modes', nominal: 2.743 },
-      { id: 'montage', beat: 54, nominal: 4.262 },
-      { id: 'menu', beat: 59, group: 'montage' }
+      { id: 'logo', at: 4, group: 'cabinet' },
+      { id: 'subtitle', at: 7, group: 'cabinet' },
+      { id: 'spark', at: 10, group: 'cabinet' },
+      { id: 'ignition', at: 12.5 },
+      { id: 'highway', beat: 0, group: 'ignition' },
+      { id: 'road', beat: 16, nominal: 4.114 },
+      { id: 'gameplay', beat: 24, group: 'road' },
+      { id: 'clear', beat: 28, group: 'road', nominal: 2.743 },
+      { id: 'tunnel', beat: 32, group: 'ignition' },
+      { id: 'showcase', beat: 36 },
+      { id: 'temple', beat: 48, group: 'ignition' },
+      { id: 'collapse', beat: 64, group: 'ignition' },
+      { id: 'fall', beat: 80, group: 'ignition' },
+      { id: 'portal', beat: 88, group: 'ignition' },
+      { id: 'streak', beat: 96, nominal: 4.114 },
+      { id: 'multiplayer', beat: 112, nominal: 4.114 },
+      { id: 'eliminated', beat: 120, group: 'multiplayer', nominal: 1.372 },
+      { id: 'attack', beat: 122, group: 'multiplayer', nominal: 2.743 },
+      { id: 'montage', beat: 124, nominal: 4.262 },
+      { id: 'home', beat: 128, group: 'ignition' },
+      { id: 'achievements', at: 127, nominal: 4.114 },
+      { id: 'profile', at: 129, group: 'achievements', nominal: 1.372 },
+      { id: 'chat', at: 130.4, group: 'achievements', nominal: 2.743 },
+      { id: 'friends', at: 132.3, group: 'achievements', nominal: 2.743 },
+      { id: 'menu', at: 134, group: 'montage', nominal: 2 }
+
     ]
   };
 
@@ -100,8 +101,18 @@
   }
   var IMPACT = cueTime('menu');
   // Shared by visual events and the effects score, so retiming cannot separate a hit from its sound.
-  var MOMENTS = { attack: cueTime('multiplayer', 0.62), eliminated: cueTime('eliminated', 0.65),
+  var MOMENTS = { star: cueTime('multiplayer',0.32), attack: cueTime('multiplayer', 0.62), eliminated: cueTime('eliminated', 0.65),
     shatter: cueTime('eliminated', 0.84), exitAttack: cueTime('attack', 0.2) };
+  var EXTENDED_CUES = CUES;
+  function configureCut(name) {
+    activeCut = name === 'extended' ? 'extended' : 'short';
+    CUES = activeCut === 'extended' ? EXTENDED_CUES : window.TetrisCinematicCuts.shortCues;
+    SPB=60/CUES.bpm; IMPACT=cueTime('menu');
+    MOMENTS={star:cueTime('multiplayer',0.32),attack:cueTime('multiplayer',0.62),
+      eliminated:cueTime('eliminated',0.65),shatter:cueTime('eliminated',0.84),exitAttack:cueTime('attack',0.2)};
+    Cine.cut=activeCut;
+    if(window.TetrisCinematic)window.TetrisCinematic.CUES=CUES;
+  }
   // The painted cabinet (shader pattern 3): camera eye height, where the dolly stops, the CRT's centre height.
   var CAB_EYE = 1.24, CAB_STOP = 0.9, CAB_SCREEN_Y = 1.305;
 
@@ -403,6 +414,8 @@
     '}'
   ].join('\n');
 
+  if (window.TetrisCinematicDrive) FRAG = window.TetrisCinematicDrive.extendShader(FRAG);
+
   var Bg = {
     gl: null, u: {}, canvas: null,
     mount: function (canvas) {
@@ -426,7 +439,7 @@
       gl.enableVertexAttribArray(loc);
       gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
       var self = this;
-      ['u_res', 'u_css', 'u_time', 'u_pat', 'u_level', 'u_beat', 'u_flash', 'u_env', 'u_tear', 'u_speed', 'u_var', 'u_P', 'u_cpos', 'u_crot', 'u_dist', 'u_eye', 'u_crt']
+      ['u_res', 'u_css', 'u_time', 'u_pat', 'u_level', 'u_beat', 'u_flash', 'u_env', 'u_tear', 'u_speed', 'u_var', 'u_P', 'u_cpos', 'u_crot', 'u_dist', 'u_eye', 'u_crt', 'u_route', 'u_routePhase', 'u_portal', 'u_lens', 'u_extended']
         .forEach(function (n) { self.u[n] = gl.getUniformLocation(prog, n); });
       this.gl = gl;
     },
@@ -436,7 +449,7 @@
       if (!gl) return;
       var cw = cv.clientWidth || 640, ch = cv.clientHeight || 360;
       // the warehouse (pattern 3) renders sharper, so the cabinet's detail holds up
-      var w = Math.round(Math.max(Math.min(cw, 180), (s.pat > 2.5 ? Math.min(1280, cw / 1.5) : Math.min(720, cw / 3)) * [1, 0.7, 0.5][Q.level])), h = Math.round(w * ch / cw);   // (never below 180 across, or a portrait phone gets mush)
+      var w = Math.round(Math.max(Math.min(cw, 180), (s.pat === 3 ? Math.min(1280, cw / 1.5) : Math.min(720, cw / 3)) * [1, 0.7, 0.5][Q.level])), h = Math.round(w * ch / cw);   // (never below 180 across, or a portrait phone gets mush)
       if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
       gl.viewport(0, 0, w, h);
       gl.uniform2f(u.u_res, w, h);
@@ -450,6 +463,8 @@
       gl.uniform1f(u.u_tear, s.tear);
       gl.uniform1f(u.u_speed, s.speed);
       gl.uniform1f(u.u_var, s.variant);
+      gl.uniform1f(u.u_extended, activeCut==='extended'?1:0); gl.uniform1f(u.u_route, s.route || 0); gl.uniform1f(u.u_routePhase, s.routePhase || 0);
+      gl.uniform1f(u.u_portal, s.portal || 0); gl.uniform1f(u.u_lens, s.lens || 0);
       gl.uniform1f(u.u_P, s.P);
       gl.uniform3f(u.u_cpos, s.cam.x, s.cam.y, s.cam.z);
       gl.uniform3f(u.u_crot, s.cam.yaw, s.cam.pitch, s.cam.roll);
@@ -459,7 +474,7 @@
   };
 
   /* =================================================================
-     Audio: the cut track (decoded, played as spliced segments) plus synthesised effects for the game's moments
+     Audio: source-clock music playback plus independent synthesised effects for the game's moments
      ================================================================= */
 
   var Audio = {
@@ -486,12 +501,12 @@
       var len = ctx.sampleRate * 2, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
       for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
       this.noise = buf;
-      this.events = CUES.trackHasSfx ? [] : sfxScore();
+      this.events = CUES.trackHasSfx && !CUES.transitionSfx ? [] : sfxScore();
       if (CUES.track) {
         fetch(CUES.track).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
           .then(function (ab) { return new Promise(function (ok, no) { ctx.decodeAudioData(ab, ok, no); }); })
-          .then(function (b) { if (self.ctx !== ctx) return; self.buffer = b; if (self.on) self.start(Cine.t); })
-          .catch(function (e) { console.warn('[tetris-cinematic] track', e); });
+          .then(function (b) { if (self.ctx !== ctx) return; self.buffer = b; Cine.loadingTrack = false; if (self.on) self.start(Cine.t); })
+          .catch(function (e) { Cine.loadingTrack = false; console.warn('[tetris-cinematic] track', e); });
       }
     },
 
@@ -523,7 +538,7 @@
             g.gain.linearRampToValueAtTime(0.0001, Math.max(when + 0.1, b2));
             stopAt = Math.min(stopAt, Math.max(when + 0.1, b2) + 0.1);
           } else if (sg.handoff) {
-            // The asset already blends into the loop; fading here would add a dip at the join.
+            // Stop on the shared-clock handoff; the cue sheet controls any exit fade.
             stopAt = now + (sg.t1 - t);
           } else {
             g.gain.setValueAtTime(1, Math.max(when + xf, stopAt - xf * 2));
@@ -538,7 +553,7 @@
         mg.setValueAtTime(CUES.volume * duckAt(t), now);
         CUES.duck.forEach(function (d) { if (d[0] > t) mg.linearRampToValueAtTime(CUES.volume * d[1], now + d[0] - t); });
         // the menu loop picks up exactly where the cinematic's track ends
-        if (window.TetrisMenuMusic && t < CUES.end) window.TetrisMenuMusic.cue(now + (CUES.end - t));
+        if (window.TetrisMenuMusic && t < CUES.end) window.TetrisMenuMusic.cue(now + (CUES.end - t), activeCut==='short'?0.8:0.35);
       }
       return ctx.state === 'running';
     },
@@ -631,6 +646,30 @@
       var n = this.filter(this.noiseSrc(t, dur), 'bandpass', 600, 1.5); n.frequency.exponentialRampToValueAtTime(5000, t + dur * 0.6); n.frequency.exponentialRampToValueAtTime(300, t + dur);
       this.out(n, t, 0.35 * v, dur * 0.5, dur * 0.5);
     },
+    // Original console-era sound: airy motion resolves into a C-minor/add-nine
+    // glass chord that decays over the first menu-loop notes. No sampled boot audio.
+    consoleSwish: function(t,v) {
+      var self=this,ctx=this.ctx;
+      var air=this.filter(this.noiseSrc(t,2.6),'bandpass',180,0.7);
+      air.frequency.exponentialRampToValueAtTime(5200,t+0.75);
+      air.frequency.exponentialRampToValueAtTime(320,t+2.5);
+      this.out(air,t,0.48*v,0.75,1.85);
+      [72,79,86,87].forEach(function(note,i){
+        var at=t+0.3+i*0.12,pan=ctx.createStereoPanner();pan.pan.setValueAtTime(-0.7+i*0.46,at);
+        var tone=self.osc('sine',midi(note)*2.002,at,3.05);
+        tone.frequency.exponentialRampToValueAtTime(midi(note),at+0.9);
+        tone.connect(pan);self.out(pan,at,0.11*v,0.45,2.5);
+        // Quiet, alternating echoes give the chord space without a permanent feedback graph.
+        [0.24,0.48].forEach(function(delay,j){
+          var echoPan=ctx.createStereoPanner();echoPan.pan.value=j?0.55:-0.55;
+          var echo=self.osc('sine',midi(note),at+delay,2.5);
+          echo.connect(echoPan);self.out(echoPan,at+delay,0.025*v/(j+1),0.3,2.1);
+        });
+      });
+      var low=this.osc('sine',130.813,t+0.55,2.8);
+      low.frequency.exponentialRampToValueAtTime(65.406,t+1.6);
+      this.out(low,t+0.55,0.2*v,0.55,2.1);
+    },
     crackle: function (t, v, dur) {
       for (var i = 0; i < dur * 30; i++) { var tt = t + Math.random() * dur; this.out(this.filter(this.noiseSrc(tt, 0.02), 'highpass', 4000), tt, 0.25 * v * Math.random() + 0.01, 0.001, 0.015); }
     },
@@ -652,44 +691,49 @@
 
   // Effects follow the same cue times as the pictures, not a stale track's beat numbers.
   function sfxScore() {
-    var ev = [];
-    function at(t, f) { ev.push({ t: t, f: f }); }
-    at(cueTime('logo'), function (a, t) { a.crackle(t, 0.4, 0.3); a.chime(t, 72, 0.4); });
-    at(CUES.spark[0], function (a, t) { a.crackle(t, 0.7, 0.8); a.whoosh(t, 0.7, CUES.spark[1] - CUES.spark[0]); });
-    at(cueTime('launch'), function (a, t) { a.impact(t, 0.8); });
-    at(cueTime('road'), function (a, t) { a.whoosh(t, 0.6, 0.6); });
-    at(cueTime('gameplay'), function (a, t) { a.whoosh(t, 0.4, 0.4); });
-    at(cueTime('clear'), function (a, t) { a.impact(t, 0.8); a.chime(t, 72, 0.7); a.chime(t + 0.08, 79, 0.6); });
-    [0.2, 0.5, 0.8].forEach(function (f, i) {
-      at(cueTime('streak', f), function (a, t) { a.chime(t, [72, 75, 79][i], 0.7); a.zap(t, 0.3, 0.25); });
+    if(activeCut==='short')return window.TetrisCinematicCuts.shortScore({CUES:CUES,cueTime:cueTime,moments:MOMENTS,impact:IMPACT});
+    var ev=[];
+    function at(t,f){if(t>=0&&t<CUES.end)ev.push({t:t,f:f});}
+    function engine(a,t,v,dur){
+      var o=a.osc('triangle',52,t,dur);o.frequency.exponentialRampToValueAtTime(150,t+dur);
+      a.out(a.filter(o,'lowpass',500),t,0.12*v,0.15,dur-0.15);
+    }
+    at(0.7,function(a,t){a.crackle(t,0.2,0.2);});
+    at(11.14,function(a,t){a.crackle(t,0.4,0.8);a.whoosh(t,0.4,1.36);});
+    at(cueTime('ignition'),function(a,t){engine(a,t,0.7,2.4);a.blip(t,60,0.5);});
+    at(cueTime('ignition',0.72),function(a,t){engine(a,t,0.9,2.2);});
+    at(cueTime('highway'),function(a,t){a.impact(t,0.65);a.whoosh(t,0.6,0.7);});
+    [0.25,0.65].forEach(function(f){at(cueTime('highway',f),function(a,t){a.whoosh(t,0.22,0.5);});});
+    at(cueTime('road'),function(a,t){a.whoosh(t,0.35,0.6);});
+    at(cueTime('gameplay'),function(a,t){a.whoosh(t,0.4,0.45);});
+    at(cueTime('clear'),function(a,t){a.impact(t,0.75);a.chime(t,72,0.7);a.chime(t+0.08,79,0.6);});
+    at(cueTime('tunnel'),function(a,t){a.whoosh(t,0.3,0.8);});
+    at(cueTime('tunnel',0.55),function(a,t){a.blip(t,60,0.4);});
+    at(cueTime('temple'),function(a,t){a.whoosh(t,0.45,0.65);a.chime(t,75,0.4);});
+    [0.15,0.4,0.7,0.91].forEach(function(f){at(cueTime('collapse',f),function(a,t){a.crackle(t,0.5,0.35);});});
+    at(cueTime('fall'),function(a,t){a.impact(t,0.5);a.whoosh(t,0.3,1.2);});
+    at(cueTime('portal'),function(a,t){a.chime(t,60,0.3);});
+    at(cueTime('portal',0.65),function(a,t){a.whoosh(t,0.65,cueTime('streak')-cueTime('portal',0.65));});
+    at(cueTime('streak'),function(a,t){a.impact(t,0.85);a.zap(t,0.5,0.5);});
+    [0.2,0.5,0.8].forEach(function(f,i){at(cueTime('streak',f),function(a,t){a.chime(t,[72,75,79][i],0.7);a.zap(t,0.3,0.3);});});
+    at(MOMENTS.star,function(a,t){a.chime(t,84,0.7);a.zap(t,0.5,0.8);});
+    at(MOMENTS.attack,function(a,t){a.zap(t,0.7,0.9);});
+    at(MOMENTS.attack+0.9,function(a,t){a.impact(t,0.6);});
+    at(MOMENTS.eliminated,function(a,t){a.impact(t,0.6);a.glitch(t,0.6);});
+    at(MOMENTS.shatter,function(a,t){a.crackle(t,0.7,0.5);});
+    at(MOMENTS.exitAttack,function(a,t){a.zap(t,0.6,1);});
+    [0,0.4,0.7].forEach(function(f){at(cueTime('montage',f),function(a,t){a.zap(t,0.35,0.3);});});
+    at(cueTime('home'),function(a,t){a.whoosh(t,0.25,0.8);});
+    [0.6,1.5,2.3].forEach(function(local,i){
+      at(cueTime('achievements')+local/4.114*(cueTime('profile')-cueTime('achievements')),function(a,t){a.chime(t,[72,79,84][i],0.45);});
     });
-    at(MOMENTS.attack, function (a, t) { a.zap(t, 0.7, 0.9); });
-    at(MOMENTS.attack + 0.9, function (a, t) { a.impact(t, 0.6); });
-    at(MOMENTS.eliminated, function (a, t) { a.impact(t, 0.6); a.glitch(t, 0.6); });
-    at(MOMENTS.shatter, function (a, t) { a.crackle(t, 0.8, 0.5); });
-    at(MOMENTS.exitAttack, function (a, t) { a.zap(t, 0.7, 1); });
-    at(MOMENTS.exitAttack + 1, function (a, t) { a.impact(t, 0.5); });
-    [0.6, 1.5, 2.3].forEach(function (local, i) {
-      var duration = cueTime('profile') - cueTime('achievements');
-      at(cueTime('achievements') + local / 4.114 * duration, function (a, t) { a.chime(t, [72, 79, 84][i], 0.55); });
-    });
-    at(cueTime('profile'), function (a, t) { a.whoosh(t, 0.3, 0.4); });
-    var socialStart = cueTime('achievements'), socialDuration = cueTime('modes') - socialStart;
-    for (var k = 0; k < 6; k++) (function (i) {
-      at(Math.max(cueTime('chat'), socialStart + (0.56 + i * 0.045) * socialDuration),
-        function (a, t) { a.blip(t, [72, 75, 79][i % 3], 0.45); });
+    var socialStart=cueTime('achievements'),socialDuration=cueTime('menu')-socialStart;
+    for(var k=0;k<6;k++)(function(i){
+      at(Math.max(cueTime('chat'),socialStart+(0.56+i*0.033)*socialDuration),function(a,t){a.blip(t,[72,75,79][i%3],0.35);});
     })(k);
-    at(socialStart + 0.95 * socialDuration, function (a, t) { a.blip(t, 79, 0.6); a.chime(t + 0.1, 84, 0.4); });
-    for (k = 0; k < 8; k++) (function (i) {
-      at(cueTime('modes', i / 8), function (a, t) { a.tick(t, 0.5); });
-    })(k);
-    for (k = 0; k < 8; k++) (function (i) {
-      at(cueTime('skulls') + i * SPB / 2, function (a, t) { a.tick(t, 0.5); });
-    })(k);
-    [0, 0.25, 0.5].forEach(function (f) { at(cueTime('montage', f), function (a, t) { a.zap(t, 0.4, 0.3); }); });
-    at(IMPACT, function (a, t) { a.impact(t, 0.6); a.chime(t, 72, 0.5); });
-    ev.sort(function (a, b) { return a.t - b.t; });
-    return ev;
+    at(socialStart+0.95*socialDuration,function(a,t){a.blip(t,79,0.5);});
+    at(cueTime('menu'),function(a,t){a.chime(t,72,0.4);});
+    ev.sort(function(a,b){return a.t-b.t;});return ev;
   }
 
   /* =================================================================
@@ -743,10 +787,10 @@
   };
 
   function buildStage() {
-    var root = el('div', 'cine');
+    var root = el('div', 'cine tetris-page');
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
-    root.setAttribute('aria-label', 'Tetris opening cinematic');
+    root.setAttribute('aria-label', activeCut==='extended'?'Tetris extended cut':'Tetris original cut');
     var stage = el('div', 'cine-stage', root);
     Cine.bgCanvas = el('canvas', 'cine-bg', stage);
     Cine.view = el('div', 'cine-view', stage);
@@ -765,7 +809,7 @@
     Cine.logo = { box: logo, art: lc, sub: sub };
     Cine.caption = el('div', 'cine-caption', root);
     Cine.vhsEl = el('div', 'cine-vhs', root);
-    if (CUES.credit) el('div', 'cine-credit', root).textContent = CUES.credit;
+    if (CUES.credit) el('div', 'cine-credit', root).textContent = CUES.credit + (activeCut==='extended'?' · Extended cut':' · Original cut');
     var ui = el('div', 'cine-ui', root);
     Cine.hint = el('button', 'cine-btn cine-hint hidden', ui);
     Cine.hint.type = 'button';
@@ -885,7 +929,7 @@
   function makePlayer(o) {
     o = o || {};
     var p = new K.Player({ id: 'cine' + botCount, name: o.name || BOT_NAMES[botCount % BOT_NAMES.length], palette: o.palette || K.randomPalette(),
-      local: true, controls: K.NO_KEYS, lives: 1, versus: !!o.versus, skulls: [] });
+      local: true, controls: K.NO_KEYS, lives: 1, versus: !!o.versus, skulls: o.skulls || [] });
     botCount++;
     var cv = document.createElement('canvas');
     cv.width = BW; cv.height = BH;
@@ -895,6 +939,7 @@
     if (o.level !== null) p.cpu = K.cpuBrain(o.level || 'ultra');
     p.f.noStreaks = !o.streaks;   // the No Streaks rule flag: streak effects only where a shot wants them
     p.speed = o.speed || 1.5;
+    p.beatPlayback = true;
     if (o.warm) warm(p, o.warm);
     if (o.stack) stageStack(p, o.stack);
     return p;
@@ -926,6 +971,8 @@
   }
 
   function onLock(p, res) {
+    p.cineLocks=(p.cineLocks||0)+1;
+    if(Cine.features)Cine.features.notify(p,res);
     if (p.keepTall) return;
     // A board that tops out (or gets too tall to look good) quietly starts over; cinematics have no game over.
     if (res.toppedOut || stackTop(p) < 5) { var keep = p.score; p.reset(true); p.score = keep; stageStack(p, 5); }
@@ -993,8 +1040,8 @@
   }
 
   function panel(cls, title) {
-    var p = el('div', 'cine-panel ' + (cls || ''));
-    if (title) el('div', 'cine-panel-title', p).textContent = title;
+    var p = el('div', 'panel cine-panel ' + (cls || ''));
+    if (title) el('div', 'panel-title cine-panel-title', p).textContent = title;
     return p;
   }
 
@@ -1201,7 +1248,7 @@
 
     // The dolly: from a small silhouette at the far end of the warehouse, easing to a dead stop with the
     // controls on the bottom edge of the frame. Straight in: no sideways drift, no roll.
-    function dolly(t) { return lerp(15, CAB_STOP, easeOut(span(t, 0, 3.9))); }
+    function dolly(t) { return lerp(15, CAB_STOP, easeInOut(span(t, 0, 4))); }
 
     S.cabinet = { pat: 3, update: function (t, lt) {
       Cine.dist = dolly(lt); Cine.crt = 0;
@@ -1241,7 +1288,7 @@
       Cine.env = 0.2 + 0.8 * easeOut(span(lt, 0, 0.5));
       Cine.speed = 0.6 + u * 0.6; Cine.streaks = 0.5 + u;
       var nearest = 1e9;
-      S.launch.group.items.forEach(function (it) { it.ry += it.spin * 0.016; var d = camDepth(it.x, it.y, it.z).d; if (d > 0) nearest = Math.min(nearest, d); });
+      S.launch.group.items.forEach(function (it) { if(it.launchRy==null)it.launchRy=it.ry;it.ry=it.launchRy+it.spin*(t-shotStart(S.launch.cue)); var d = camDepth(it.x, it.y, it.z).d; if (d > 0) nearest = Math.min(nearest, d); });
       Cine.aberration = Math.max(Cine.aberration, clamp01(1 - nearest / 1300));
       if (lt > 2.5) Cine.tear = Math.max(Cine.tear, 0.8);
     } };
@@ -1317,7 +1364,7 @@
       lookAt(lerp(from.tx, 0, k), lerp(from.ty, -420, k), -12600);
       // the flash swells into a white-out that hands over to the streaks
       Cine.flash = Math.max(Cine.flash, smooth(span(lt, 2.0, 2.743)) * 1.1);
-    }, enter: function () { S.clear.done = false; }, exit: function () { rowFlash(S.heroItem, [], 1); } };
+    }, enter: function () { S.clear.done = false; if (!S.hero.scripted) prepTetris(S.hero); }, exit: function () { rowFlash(S.heroItem, [], 1); } };
 
     /* ---------- Scene 4: streak ascension ---------- */
 
@@ -1328,6 +1375,11 @@
         var it = plane(g, cv, 520, 340, { x: b[4], y: b[5], z: b[2], s: b[3], ry: (i - 1) * 12, cull: false });
         it.heat = i / 2;
         return it;
+      });
+      if(activeCut==='extended') [2,6,12].forEach(function(tier,i){
+        var p=makePlayer({name:'STREAK '+tier+'x',warm:6,stack:5,streaks:true});p.lockStreak=tier;
+        var badge=S.badges[i];
+        boardPlane(g,p,{x:badge.x+(i%2?850:-850),y:badge.y+160,z:badge.z-800,s:0.8,cull:false});
       });
     }, update: function (t, lt) {
       // ease up to each panel, then lunge past it: faster every time
@@ -1363,11 +1415,16 @@
         return boardPlane(g, p, { x: s[0], y: s[1], z: s[2], ry: s[3], color: pal.top });
       });
     }, enter: function () {
-      S.multiplayer.fired = false;
+      S.multiplayer.fired = false; S.multiplayer.star = false;
       var b = S.mp[1]; b.board.keepTall = true; b.board.alive = true; b.board.eliminated = false; b.hidden = false; b.el.classList.remove('out');
       if (!b.board.cpu) { b.board.cpu = K.cpuBrain('ultra'); b.board.level = 1; b.board.speed = 1.6; }
     }, update: function (t, lt) {
       var A = S.mp[0], Bb = S.mp[1];
+      if (activeCut==='extended' && !S.multiplayer.star && t >= MOMENTS.star) {
+        S.multiplayer.star = true; Bb.board.scatterJunk(6,12,5);
+        caption('STAR BOMB','six junk blocks incoming');
+      }
+      if (S.multiplayer.star && t > MOMENTS.star + 1.2) caption();
       // close on player one, pull back and swing round to reveal the other three, then chase the attack
       path([
         { t: 0, x: -760, y: -60, z: 80, tx: -900, ty: -60, tz: -400, fov: 50 },
@@ -1422,13 +1479,13 @@
       var grid = el('div', 'cine-grid', wall);
       var items = [];
       (ACH && ACH.list ? ACH.list() : []).forEach(function (a) {
-        var card = el('div', 'cine-card tier-' + a.tier, grid);
+        var card = el('div', 'mode-card cine-card tier-' + a.tier, grid);
         card.appendChild(ACH.badge(a.id, 56, false));
         el('span', 'cine-card-name', card).textContent = a.secret ? '???' : a.name;
         items.push(card);
       });
       S.achItems = items; S.achCount = count;
-      S.achWall = plane(g, wall, 1900, 980, { x: 0, y: 0, z: 0, ry: 14, rx: 6, cull: false });
+      S.achWall = plane(g, wall, 1900, 980, { x: 0, y: 0, z: 0, ry: 14, rx: 6, s:0.82, cull: false });
 
       var prof = panel('cine-profile', 'PROFILE');
       var row = el('div', 'cine-prof-row', prof);
@@ -1440,7 +1497,7 @@
       var bar = el('div', 'cine-prof-bar', info); S.profBar = el('i', '', bar);
       el('div', 'cine-panel-label', prof).textContent = 'THEME';
       var themes = el('div', 'cine-chips', prof);
-      S.profThemes = ['Neon', 'Arcade', 'Midnight', 'Vapor', 'Static'].map(function (n) { var c = el('span', 'cine-chip', themes); c.textContent = n; return c; });
+      S.profThemes = ['Neon', 'Arcade', 'Midnight', 'Vapor', 'Static'].map(function (n) { var c = el('span', 'chip cine-chip', themes); c.textContent = n; return c; });
       el('div', 'cine-panel-label', prof).textContent = 'COLOUR';
       var sw = el('div', 'cine-swatches', prof);
       S.profSw = ['#c77dff', '#a020ff', '#7c6cff', '#4cc9ff', '#3d8bff', '#ff2fa6', '#28e8ff'].map(function (c) { var s = el('span', 'cine-sw', sw); s.style.background = c; return s; });
@@ -1469,8 +1526,8 @@
       el('div', 'cine-prof-name', iw).textContent = 'Lunar';
       el('div', 'cine-prof-lvl', iw).textContent = 'invited you to Versus · Elimination';
       var btns = el('div', 'cine-invite-btns', inv);
-      el('span', 'cine-accept', btns).textContent = 'Accept';
-      el('span', 'cine-decline', btns).textContent = 'Decline';
+      el('span', 'btn btn-primary cine-accept', btns).textContent = 'Accept';
+      el('span', 'btn btn-outline cine-decline', btns).textContent = 'Decline';
       S.invite = plane(g, inv, 860, 420, { x: 400, y: 0, z: -6000, cull: false, op: 0 });
     }, update: function (t, lt) {
       socialCam(socialU(S, t));
@@ -1492,7 +1549,7 @@
       [0.30, -100, -60, -700, 300, 80, -2600, 56], [0.40, 500, 110, -1450, 300, 80, -2600, 54], [0.48, 680, 140, -1700, 320, 80, -2600, 54],
       [0.60, -500, 30, -3600, -900, 0, -4800, 54], [0.70, -620, 40, -3800, -900, 0, -4800, 54],
       [0.80, -100, 0, -4300, 500, 30, -6300, 54], [0.88, 380, -40, -5300, 700, 40, -6600, 54], [1.00, 420, 0, -5450, 420, 0, -6000, 54]];
-    function socialU(S, t) { var t0 = shotStart(S.achievements.cue), t1 = shotStart(S.modes.cue); return clamp01((t - t0) / (t1 - t0)); }
+    function socialU(S, t) { var t0 = shotStart(S.achievements.cue), t1 = activeCut==='extended'?cueTime('menu'):shotStart(S.modes.cue); return clamp01((t - t0) / (t1 - t0)); }
     function socialCam(u) {
       var K = SOCIAL_KEYS, i = 0;
       while (i < K.length - 2 && u > K[i + 1][0]) i++;
@@ -1515,14 +1572,14 @@
     S.profile = { pat: 0, update: function (t) {
       var u = socialU(S, t); socialCam(u); socialPanels(S, u);
       var beat = Math.floor(beatAt(t));
-      S.profThemes.forEach(function (c, i) { c.classList.toggle('on', i === beat % S.profThemes.length); });
+      S.profThemes.forEach(function (c, i) { c.classList.toggle('active', i === beat % S.profThemes.length); });
       S.profSw.forEach(function (c, i) { c.classList.toggle('on', i === (beat * 3) % S.profSw.length); });
       S.profBar.style.width = (40 + 50 * smooth(span(u, 0.32, 0.5))) + '%';
     } };
     S.chat = { pat: 0, update: function (t) {
       var u = socialU(S, t); socialCam(u); socialPanels(S, u);
       // messages arrive one at a time and stay (appended, not rebuilt), the newest one popping in
-      var shown = Math.max(0, Math.min(S.chatMsgs.length, Math.floor((u - 0.56) / 0.045) + 1));
+      var shown = Math.max(0, Math.min(S.chatMsgs.length, Math.floor((u - 0.56) / (activeCut==='extended'?0.033:0.045)) + 1));
       if (S.chatList.childElementCount > shown) S.chatList.textContent = '';
       while (S.chatList.childElementCount < shown) {
         var m = S.chatMsgs[S.chatList.childElementCount];
@@ -1556,7 +1613,7 @@
       } else {
         var cp = panel('cine-modes', 'PICK A MODE');
         var grid = el('div', 'cine-mode-grid', cp);
-        S.modeCards = MODES.map(function (m) { var c = el('div', 'cine-mode', grid); el('strong', '', c).textContent = m[0]; el('span', '', c).textContent = m[1]; return c; });
+        S.modeCards = MODES.map(function (m) { var c = el('div', 'mode-card cine-mode', grid); el('strong', '', c).textContent = m[0]; el('span', '', c).textContent = m[1]; return c; });
         S.modePanel = plane(g, cp, 1500, 700, { x: 0, y: 0, z: 0, ry: -8, cull: false });
       }
       S.modeBoard = makePlayer({ warm: 8, stack: 5, speed: 1.8 });
@@ -1566,7 +1623,7 @@
       S.skullMult = el('div', 'cine-panel-sub', wall);
       var sg = el('div', 'cine-grid', wall);
       S.skullCards = (App.skulls ? App.skulls() : []).map(function (s) {
-        var card = el('div', 'cine-card cat-' + s.cat, sg);
+        var card = el('div', 'skull-card cine-card cat-' + s.cat, sg);
         card.appendChild(App.skullIcon(s.id));
         el('span', 'cine-card-name', card).textContent = s.name;
         el('span', 'cine-card-eff', card).textContent = (s.eff > 0 ? '+' : '') + s.eff;
@@ -1669,6 +1726,18 @@
       if (window.TetrisBG && window.TetrisBG.show) window.TetrisBG.show(13, violetSeed());
     } };
 
+    Cine.drive=null; Cine.features=null;
+    if (activeCut==='extended' && window.TetrisCinematicDrive) {
+      Cine.drive = window.TetrisCinematicDrive.create({state:Cine, plane:plane, makePlayer:makePlayer,
+        boardPlane:boardPlane, drawPlayer:K.drawPlayer, lookAt:lookAt, hideLogo:hideLogo, caption:caption,beatAt:beatAt});
+      Cine.drive.install(S);
+      if(window.TetrisCinematicFeatures){
+        Cine.features=window.TetrisCinematicFeatures.create({state:Cine,K:K,App:App,makePlayer:makePlayer,
+          beatAt:beatAt,cueTime:cueTime,drawPlayer:K.drawPlayer,drive:Cine.drive,audio:Audio});
+        Cine.features.install(S);
+      }
+    }
+
     // Shots that name a group share the planes of the shot that built it.
     var shots = CUES.shots.map(function (s) {
       var shot = S[s.id];
@@ -1678,7 +1747,9 @@
       if (shot.build && !s.group) shot.build(shot.group);
       return shot;
     });
-    S.mp[1].board.noBake = true; S.modeBoard.noBake = true;   // the buried board and the modes board are scripted live
+    S.mp[1].board.noBake = true; if (S.modeBoard) S.modeBoard.noBake = true;   // the buried board and the modes board are scripted live
+    var social=Cine.groups.achievements;
+    if(social)social.items.forEach(function(it){if(it!==S.achWall)it.y-=160;});
     bakeBoards(shots);
     return shots;
   }
@@ -1725,6 +1796,11 @@
     job.snaps.push(snapPlayer(p)); sim(p, 0.5 / BAKE_HZ); sim(p, 0.5 / BAKE_HZ);
     if (job.snaps.length >= job.n) {
       p.baked = { t0: job.t0, snaps: job.snaps, i: -1 }; p.bakeJob = null;
+      if(p.beatPlayback){
+        var locks=[];
+        for(var n=1;n<job.snaps.length;n++)if(job.snaps[n].cineLocks!==job.snaps[n-1].cineLocks)locks.push(n);
+        if(locks.length)p.baked.beat={frames:locks,spb:SPB,first:CUES.offset+(Math.floor((job.t0-CUES.offset)/SPB+1e-8)+1)*SPB};
+      }
       var k = Cine.bakeJobs.indexOf(job); if (k >= 0) Cine.bakeJobs.splice(k, 1);
       return true;
     }
@@ -1736,6 +1812,15 @@
   }
   function replayBoard(p, t) {
     var B = p.baked, i = Math.max(0, Math.min(B.snaps.length - 1, Math.floor((t - B.t0) * BAKE_HZ)));
+    // Retiming the recorded Player states puts real locks on music beats without
+    // changing game rules or advancing simulation on extra display frames.
+    if(B.beat){
+      var beat=B.beat,position=(t-beat.first)/beat.spb,k=Math.floor(position+1e-8),from,to,phase;
+      if(k<0){from=0;to=beat.frames[0];phase=(t-B.t0)/(beat.first-B.t0);}
+      else if(k<beat.frames.length-1){from=beat.frames[k];to=beat.frames[k+1];phase=position-k;}
+      else{from=beat.frames[beat.frames.length-1];to=B.snaps.length-1;phase=(t-(beat.first+(beat.frames.length-1)*beat.spb))*BAKE_HZ/Math.max(1,to-from);}
+      i=Math.max(0,Math.min(B.snaps.length-1,Math.floor(from+(to-from)*Math.max(0,Math.min(1,phase))+1e-8)));
+    }
     if (i === B.i) return;
     B.i = i;
     var snap = B.snaps[i];
@@ -1930,7 +2015,9 @@
     var dt = Math.min(0.05, Math.max(0, (now - Cine.lastNow) / 1000));
     Cine.lastNow = now;
     var audioT = Cine.hold == null ? Audio.clock() : null;
-    if (audioT != null) { Cine.t = audioT; Cine.clockBase = now - audioT * 1000; }
+    if (Cine.loadingTrack && Audio.on && !Audio.buffer && Cine.hold == null) {
+      Cine.t = Cine.startT; Cine.clockBase = now - Cine.t * 1000;
+    } else if (audioT != null) { Cine.t = audioT; Cine.clockBase = now - audioT * 1000; }
     else Cine.t = Cine.hold != null ? Cine.hold : (now - Cine.clockBase) / 1000;
     var t = Cine.t;
     if (t >= CUES.end) { finish(false); return; }
@@ -1959,6 +2046,7 @@
     Cine.tear = Math.max(0, Cine.tear - dt * 3);
 
     Cine.env = 1; Cine.speed = 0; Cine.streaks = 0; Cine.variant = 0; Cine.eye = CAB_EYE;
+    Cine.route = 0; Cine.routePhase = 0; Cine.portal = 0; Cine.lens = 0;
     shot.update(t, lt, u, dt);
     // hit-stop: on a big impact the camera holds still for a beat (Cine.hitStop seconds) while the effects play on,
     // then eases back onto its path over a fifth of a second (no snap: the path kept moving underneath)
@@ -1975,9 +2063,11 @@
     bakeStep(Q.level ? 4 : 6);
     drawBoards(shot.group, dt);
     Bg.draw({ time: t, pat: shot.pat, level: Cine.level, beat: Cine.beat, flash: Math.min(0.14, Cine.flash * 0.45), env: Cine.env, tear: Cine.tear,
-      speed: Cine.speed, variant: Cine.variant, P: view.P, cam: Cine.cam, dist: Cine.dist, eye: Cine.eye, crt: Cine.crt });
+      speed: Cine.speed, variant: Cine.variant, route:Cine.route, routePhase:Cine.routePhase, portal:Cine.portal, lens:Cine.lens, P: view.P, cam: Cine.cam, dist: Cine.dist, eye: Cine.eye, crt: Cine.crt });
     drawFx(dt, t);
     drawSpark(t);
+    if (Cine.drive) Cine.drive.draw(Cine.fxCtx, t, shot);
+    if (Cine.features) Cine.features.update(t,shot);
     // VHS: the chromatic split and tearing grow with hits and speed; a calm floor of it is always there
     // (the last shot settles: no split while the live menu fades in, which also keeps that hand-over smooth)
     // (two full-screen drop-shadows are costly, so the split is only on during hits and fast moves, never idling)
@@ -1997,9 +2087,11 @@
     if (Cine.soundWanted && !Audio.on) setSound(true);
   }
 
-  function play(fromSeconds) {
+  function play(fromSeconds, cut) {
     if (Cine.running) return;
-    G.Store.set(STORE_SEEN, Date.now());
+    configureCut(cut);
+    if (activeCut==='extended' && !window.TetrisCinematicDrive) { console.warn('[tetris-cinematic] driving scenery not loaded'); return; }
+    if(activeCut==='short')G.Store.set(STORE_SEEN, Date.now());
     botCount = 0;
     window.scrollTo(0, 0);
     buildStage();
@@ -2017,7 +2109,7 @@
     if (G.Sound) { Cine.beepWas = G.Sound.beep; G.Sound.beep = function () {}; }
     document.addEventListener('keydown', onKey, true);
     var startT = +fromSeconds || 0;
-    Cine.t = startT;
+    Cine.t = startT; Cine.startT = startT; Cine.loadingTrack = true;
     Cine.lastNow = performance.now();
     Cine.clockBase = Cine.lastNow - startT * 1000;
     setSound(!(G.Sound && G.Sound.isMuted && G.Sound.isMuted()));
@@ -2032,7 +2124,8 @@
     Cine.running = false;
     cancelAnimationFrame(Cine.raf);
     var last = CUES.segments[CUES.segments.length - 1];
-    Audio.close(skipped ? 0.3 : Math.max(0.5, (last.fadeOut ? last.fadeOut[1] : CUES.end) - CUES.end), !skipped);
+    var tail=activeCut==='short'?2.2:Math.max(0.5,(last.fadeOut?last.fadeOut[1]:CUES.end)-CUES.end);
+    Audio.close(skipped?0.3:tail,!skipped);
     // the menu loop: already cued on the audio clock if the film ran to the end with sound; otherwise start it now
     if (window.TetrisMenuMusic) { window.TetrisMenuMusic.hold(false); window.TetrisMenuMusic.startNow(skipped ? 1.2 : 1.5); }
     if (G.Sound && Cine.beepWas) G.Sound.beep = Cine.beepWas;
@@ -2042,16 +2135,18 @@
     setTimeout(function () { root.remove(); }, skipped ? 450 : 50);
     document.documentElement.classList.remove('cine-open');
     Cine.groups = {}; Cine.shots = null; Cine.bolts = []; Cine.sparks = []; Cine.frags = [];
-    var btn = document.getElementById('cinematicBtn');
+    var btn = document.getElementById(activeCut==='extended'?'extendedCinematicBtn':'cinematicBtn');
     if (btn && skipped) btn.focus({ preventScroll: true });
   }
 
   function init() {
     var btn = document.getElementById('cinematicBtn');
-    if (btn) btn.addEventListener('click', function () { play(0); });
+    if (btn) btn.addEventListener('click', function () { play(0,'short'); });
+    var extended=document.getElementById('extendedCinematicBtn');
+    if(extended)extended.addEventListener('click',function(){play(0,'extended');});
     var forced = location.search.match(/[?&]cinematic(?:=(\d+(?:\.\d+)?))?(?:&|$)/);
     if (forced) {
-      play(forced[1] || 0);
+      play(forced[1] || 0, /[?&]cut=extended(?:&|$)/.test(location.search)?'extended':'short');
       // ?cinematic=A&hold=B: run from A seconds and freeze the clock at B seconds (for checking one frame)
       var hold = location.search.match(/[?&]hold=(\d+(?:\.\d+)?)/);
       if (hold) setTimeout(function () { Cine.hold = +hold[1]; setSound(false); }, Math.max(0, (+hold[1] - (+forced[1] || 0)) * 1000));
@@ -2062,7 +2157,8 @@
     if (!G.Store.get(STORE_SEEN, 0) && !reduced && !(App.busy && App.busy())) play(0);
   }
 
-  window.TetrisCinematic = { play: play, skip: function () { finish(true); }, playing: function () { return Cine.running; }, CUES: CUES };
-  if (/[?&]cinematic\b/.test(location.search)) window.TetrisCinematic.state = function () { Cine.bgDraw = Bg; Cine.audio = Audio; return Cine; };   // testing aid
+  window.TetrisCinematic = { play: play, playExtended:function(t){play(t,'extended');}, cut:function(){return activeCut;}, skip: function () { finish(true); }, playing: function () { return Cine.running; }, CUES: CUES };
+  if (/[?&](?:cinematic|debug)\b/.test(location.search)) window.TetrisCinematic.state = function () { Cine.bgDraw = Bg; Cine.audio = Audio; return Cine; };   // testing aid
+  configureCut('short');
   init();
 })();

@@ -1,0 +1,13 @@
+{
+  "originalAutomatic": true,
+  "originalTrack": "tetrinomos-full-track.mp3",
+  "originalDuration": 60,
+  "originalBpm": 77,
+  "cabinetOpening": true,
+  "extendedButton": true,
+  "fullDuration": 137.976,
+  "featureClears": true,
+  "pillButtons": true,
+  "swishCount": 1,
+  "errors": []
+}

@@ -1,0 +1,455 @@
+{
+  "report": [
+    {
+      "cut": "short",
+      "t": 2,
+      "shot": "cabinet",
+      "gl": true,
+      "feature": null,
+      "view": null
+    },
+    {
+      "cut": "short",
+      "t": 16,
+      "shot": "road",
+      "gl": true,
+      "feature": null,
+      "view": null
+    },
+    {
+      "cut": "short",
+      "t": 44,
+      "shot": "chat",
+      "gl": true,
+      "feature": null,
+      "view": null
+    },
+    {
+      "cut": "extended",
+      "t": 2,
+      "shot": "cabinet",
+      "gl": true,
+      "feature": {
+        "clears": 0,
+        "failedClears": 0,
+        "powers": {},
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": []
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 14,
+      "shot": "ignition",
+      "gl": true,
+      "feature": {
+        "clears": 0,
+        "failedClears": 0,
+        "powers": {},
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": []
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 18,
+      "shot": "ignition",
+      "gl": true,
+      "feature": {
+        "clears": 0,
+        "failedClears": 0,
+        "powers": {},
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": []
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 22,
+      "shot": "ignition",
+      "gl": true,
+      "feature": {
+        "clears": 0,
+        "failedClears": 0,
+        "powers": {},
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": []
+      },
+      "view": "profile"
+    },
+    {
+      "cut": "extended",
+      "t": 27,
+      "shot": "highway",
+      "gl": true,
+      "feature": {
+        "clears": 1,
+        "failedClears": 0,
+        "powers": {
+          "4": 1
+        },
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": [
+          {
+            "beat": 2,
+            "t": 27,
+            "player": 2,
+            "rows": 1,
+            "powers": [
+              4
+            ],
+            "out": {
+              "freeze": 0,
+              "shell": 0,
+              "curse": 0
+            }
+          }
+        ]
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 30.5,
+      "shot": "highway",
+      "gl": true,
+      "feature": {
+        "clears": 1,
+        "failedClears": 0,
+        "powers": {
+          "6": 1
+        },
+        "freeze": 0,
+        "shell": 1,
+        "curse": 0,
+        "history": [
+          {
+            "beat": 7,
+            "t": 30.5,
+            "player": 1,
+            "rows": 4,
+            "powers": [
+              6
+            ],
+            "out": {
+              "freeze": 0,
+              "shell": 1,
+              "curse": 0
+            }
+          }
+        ]
+      },
+      "view": "wheel"
+    },
+    {
+      "cut": "extended",
+      "t": 34,
+      "shot": "highway",
+      "gl": true,
+      "feature": {
+        "clears": 1,
+        "failedClears": 0,
+        "powers": {
+          "4": 1
+        },
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": [
+          {
+            "beat": 11,
+            "t": 34,
+            "player": 2,
+            "rows": 4,
+            "powers": [
+              4
+            ],
+            "out": {
+              "freeze": 0,
+              "shell": 0,
+              "curse": 0
+            }
+          }
+        ]
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 36,
+      "shot": "highway",
+      "gl": true,
+      "feature": {
+        "clears": 1,
+        "failedClears": 0,
+        "powers": {
+          "10": 1
+        },
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": [
+          {
+            "beat": 14,
+            "t": 36,
+            "player": 2,
+            "rows": 1,
+            "powers": [
+              10
+            ],
+            "out": {
+              "freeze": 0,
+              "shell": 0,
+              "curse": 0
+            }
+          }
+        ]
+      },
+      "view": "roof"
+    },
+    {
+      "cut": "extended",
+      "t": 55,
+      "shot": "showcase",
+      "gl": true,
+      "feature": {
+        "clears": 1,
+        "failedClears": 0,
+        "powers": {
+          "4": 1
+        },
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": [
+          {
+            "beat": 38,
+            "t": 55,
+            "player": 2,
+            "rows": 1,
+            "powers": [
+              4
+            ],
+            "out": {
+              "freeze": 0,
+              "shell": 0,
+              "curse": 0
+            }
+          }
+        ]
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 58,
+      "shot": "showcase",
+      "gl": true,
+      "feature": {
+        "clears": 1,
+        "failedClears": 0,
+        "powers": {
+          "5": 1
+        },
+        "freeze": 1,
+        "shell": 0,
+        "curse": 0,
+        "history": [
+          {
+            "beat": 42,
+            "t": 58,
+            "player": 0,
+            "rows": 1,
+            "powers": [
+              5
+            ],
+            "out": {
+              "freeze": 1,
+              "shell": 0,
+              "curse": 0
+            }
+          }
+        ]
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 65,
+      "shot": "temple",
+      "gl": true,
+      "feature": {
+        "clears": 1,
+        "failedClears": 0,
+        "powers": {
+          "5": 1
+        },
+        "freeze": 1,
+        "shell": 0,
+        "curse": 0,
+        "history": [
+          {
+            "beat": 51,
+            "t": 65,
+            "player": 0,
+            "rows": 4,
+            "powers": [
+              5
+            ],
+            "out": {
+              "freeze": 1,
+              "shell": 0,
+              "curse": 0
+            }
+          }
+        ]
+      },
+      "view": "profile"
+    },
+    {
+      "cut": "extended",
+      "t": 69,
+      "shot": "temple",
+      "gl": true,
+      "feature": {
+        "clears": 1,
+        "failedClears": 0,
+        "powers": {
+          "4": 1
+        },
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": [
+          {
+            "beat": 56,
+            "t": 69,
+            "player": 2,
+            "rows": 1,
+            "powers": [
+              4
+            ],
+            "out": {
+              "freeze": 0,
+              "shell": 0,
+              "curse": 0
+            }
+          }
+        ]
+      },
+      "view": "roof"
+    },
+    {
+      "cut": "extended",
+      "t": 73,
+      "shot": "temple",
+      "gl": true,
+      "feature": {
+        "clears": 1,
+        "failedClears": 0,
+        "powers": {
+          "6": 1
+        },
+        "freeze": 0,
+        "shell": 1,
+        "curse": 0,
+        "history": [
+          {
+            "beat": 61,
+            "t": 73,
+            "player": 1,
+            "rows": 1,
+            "powers": [
+              6
+            ],
+            "out": {
+              "freeze": 0,
+              "shell": 1,
+              "curse": 0
+            }
+          }
+        ]
+      },
+      "view": "bonnet"
+    },
+    {
+      "cut": "extended",
+      "t": 90,
+      "shot": "fall",
+      "gl": true,
+      "feature": {
+        "clears": 0,
+        "failedClears": 0,
+        "powers": {},
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": []
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 96,
+      "shot": "portal",
+      "gl": true,
+      "feature": {
+        "clears": 0,
+        "failedClears": 0,
+        "powers": {},
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": []
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 128,
+      "shot": "achievements",
+      "gl": true,
+      "feature": {
+        "clears": 0,
+        "failedClears": 0,
+        "powers": {},
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": []
+      },
+      "view": "rear"
+    },
+    {
+      "cut": "extended",
+      "t": 131,
+      "shot": "chat",
+      "gl": true,
+      "feature": {
+        "clears": 0,
+        "failedClears": 0,
+        "powers": {},
+        "freeze": 0,
+        "shell": 0,
+        "curse": 0,
+        "history": []
+      },
+      "view": "rear"
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}

@@ -1,0 +1,164 @@
+{
+  "report": [
+    {
+      "width": 390,
+      "t": 30,
+      "gl": true,
+      "failed": 0,
+      "panels": [
+        {
+          "x": 248,
+          "y": 75.953125,
+          "right": 378,
+          "bottom": 355.609375
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "t": 55,
+      "gl": true,
+      "failed": 0,
+      "panels": [
+        {
+          "x": 12,
+          "y": 84.390625,
+          "right": 190,
+          "bottom": 417.609375
+        },
+        {
+          "x": 200,
+          "y": 84.390625,
+          "right": 378,
+          "bottom": 417.609375
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "t": 58,
+      "gl": true,
+      "failed": 0,
+      "panels": [
+        {
+          "x": 12,
+          "y": 84.390625,
+          "right": 190,
+          "bottom": 417.609375
+        },
+        {
+          "x": 200,
+          "y": 84.390625,
+          "right": 378,
+          "bottom": 417.609375
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "t": 131,
+      "gl": true,
+      "failed": 0,
+      "panels": [],
+      "overflow": false
+    },
+    {
+      "width": 2560,
+      "t": 30,
+      "gl": true,
+      "failed": 0,
+      "panels": [
+        {
+          "x": 2350,
+          "y": 129.59375,
+          "right": 2540,
+          "bottom": 473.640625
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "width": 2560,
+      "t": 55,
+      "gl": true,
+      "failed": 0,
+      "panels": [
+        {
+          "x": 790,
+          "y": 86.390625,
+          "right": 1104.65625,
+          "bottom": 552.46875
+        },
+        {
+          "x": 1122.65625,
+          "y": 86.390625,
+          "right": 1437.328125,
+          "bottom": 552.46875
+        },
+        {
+          "x": 1455.328125,
+          "y": 86.390625,
+          "right": 1769.984375,
+          "bottom": 552.46875
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "width": 2560,
+      "t": 58,
+      "gl": true,
+      "failed": 0,
+      "panels": [
+        {
+          "x": 790,
+          "y": 86.390625,
+          "right": 1104.65625,
+          "bottom": 552.46875
+        },
+        {
+          "x": 1122.65625,
+          "y": 86.390625,
+          "right": 1437.328125,
+          "bottom": 552.46875
+        },
+        {
+          "x": 1455.328125,
+          "y": 86.390625,
+          "right": 1769.984375,
+          "bottom": 552.46875
+        }
+      ],
+      "overflow": false
+    },
+    {
+      "width": 2560,
+      "t": 131,
+      "gl": true,
+      "failed": 0,
+      "panels": [],
+      "overflow": false
+    }
+  ],
+  "game": {
+    "mode": "cpu",
+    "players": [
+      {
+        "name": "You",
+        "score": 0,
+        "lines": 0,
+        "cpu": false
+      },
+      {
+        "name": "Blocky · Normal CPU",
+        "score": 1428,
+        "lines": 6,
+        "cpu": true
+      }
+    ],
+    "isolated": true
+  }
+}

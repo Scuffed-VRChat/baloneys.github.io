@@ -517,7 +517,7 @@
     var empty = this.board.every(function (row) { return row.every(function (v) { return !v; }); });
     var fired = powers.map(function (p) { return p.kind === PU.BOMB ? 'bomb' : p.kind === PU.STAR_BOMB ? 'starbomb' : p.kind === PU.QUAKE ? 'quake' : ''; });
     return { cleared: cleared, attack: attack, toppedOut: !ok, tetris: tetris, levelUp: levelUp, out: out,
-      b2b: tetris && wasB2b, perfect: cleared > 0 && empty, powers: fired };
+      clearedPowers: powers.map(function(p){return p.kind;}), b2b: tetris && wasB2b, perfect: cleared > 0 && empty, powers: fired };
   };
 
   Player.prototype.recordStreak = function (cleared) {
@@ -2793,6 +2793,8 @@
     // Players (with a p.ui like buildBoards makes) and never touches the running game. busy: a game is on screen.
     cinematicKit: function () {
       return { Player: Player, drawPlayer: drawPlayer, cpuTick: Cpu.tick, cpuBrain: Cpu.brain, NO_KEYS: Cpu.NO_KEYS, gravity: gravity,
+        cellPowerBase:CELL_POWER, powerTypes:Object.assign({},PU), powerEffects:{freeze:FREEZE_SECONDS,shell:SHELL_LINES,haste:HASTE_SECONDS},
+        powerSkulls:SKULLS.filter(function(s){return s.kind;}).map(function(s){return {id:s.id,name:s.name,kind:s.kind,cat:s.cat,body:s.body};}),
         randomPalette: randomPalette, myPalette: myPalette, STREAK: STREAK, COLS: COLS, ROWS: ROWS, CELL: CELL, SIDE: SIDE, GARBAGE: GARBAGE };
     },
     busy: function () { return !!game || currentScreen !== 'menuPanel'; }

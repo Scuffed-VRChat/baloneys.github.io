@@ -1,0 +1,55 @@
+{
+  "report": [
+    {
+      "cut": "short",
+      "at": 17.172792207792206,
+      "before": 8,
+      "after": 9
+    },
+    {
+      "cut": "short",
+      "at": 17.952012987012985,
+      "before": 9,
+      "after": 10
+    },
+    {
+      "cut": "short",
+      "at": 18.731233766233764,
+      "before": 10,
+      "after": 11
+    },
+    {
+      "cut": "short",
+      "at": 19.510454545454543,
+      "before": 11,
+      "after": 12
+    },
+    {
+      "cut": "extended",
+      "at": 30.419545454545453,
+      "before": 32,
+      "after": 33
+    },
+    {
+      "cut": "extended",
+      "at": 31.198766233766232,
+      "before": 33,
+      "after": 34
+    },
+    {
+      "cut": "extended",
+      "at": 31.977987012987015,
+      "before": 34,
+      "after": 35
+    },
+    {
+      "cut": "extended",
+      "at": 32.757207792207794,
+      "before": 35,
+      "after": 36
+    }
+  ],
+  "rainBeatBurst": true,
+  "bothCutsTrack": "tetrinomos-full-track.mp3",
+  "bpm": 77
+}

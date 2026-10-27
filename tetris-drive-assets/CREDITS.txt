@@ -1,0 +1,27 @@
+TETRIS-MOBILE CAR SPRITES
+
+Free Racing Car #1 (64x64) by Pay 'n' Sprite
+https://patricio449.itch.io/free-racing-car-1-64x64
+Source archive: mstg_gtd.zip
+Retrieved 28 October 2026.
+
+Included files are unmodified source sprites with opaque windows:
+car-rear.png  <- gtd_op_frame_0.png
+car-front.png <- gtd_op_front_view.png
+car-left.png  <- gtd_op_turn_left.png
+car-right.png <- gtd_op_turn_right.png
+
+The creator permits use in commercial and non-commercial projects and permits
+colour changes and variants. Redistribution or resale as an asset on other
+marketplaces, NFT projects, and generative AI training are prohibited. The
+creator's page above contains the complete current terms. These sprites are
+included as part of the cinematic, not as a standalone asset pack.
+
+The Tetris trim, scanner, night tint and light animations are separate rendering
+layers. A simple original pixel car is retained as an image-load fallback.
+
+CHESS SCENERY
+
+Sky, clouds, columns, ivy, ruins, temple, dolphin and beach props are reused
+from the existing chess-cinematic.js. The Deep-Fold MIT notice is preserved
+in tetris-cinematic-scenery.js alongside the extracted shader.

@@ -1,0 +1,55 @@
+{
+  "setup": {
+    "duration": 137.976,
+    "end": 60,
+    "startT": 0,
+    "start": 4.7219999999999995,
+    "track": "tetrinomos-full-track.mp3",
+    "segments": [
+      {
+        "t0": 0,
+        "t1": 60,
+        "at": 0,
+        "handoff": true,
+        "fadeOut": [
+          58.5,
+          60
+        ]
+      }
+    ],
+    "rate": 1
+  },
+  "samples": [
+    {
+      "t": 18.019333333333336,
+      "shot": "road",
+      "gl": true,
+      "restoredJobs": 0,
+      "features": null
+    },
+    {
+      "t": 40.00866666666666,
+      "shot": "achievements",
+      "gl": true,
+      "restoredJobs": 0,
+      "features": null
+    },
+    {
+      "t": 58.00866666666666,
+      "shot": "montage",
+      "gl": true,
+      "restoredJobs": 0,
+      "features": null
+    }
+  ],
+  "handoff": {
+    "trackStart": 4.7219999999999995,
+    "offset": 0,
+    "loopStart": 64.722,
+    "loopEnd": 11,
+    "loopLive": true,
+    "menuVisible": true
+  },
+  "errors": [],
+  "missing": []
+}

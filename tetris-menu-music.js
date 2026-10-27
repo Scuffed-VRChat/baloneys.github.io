@@ -1,6 +1,6 @@
 // tetris-menu-music.js: the Tetris menu's ambient music loop.
 //
-// The loop ("tetrinomos" by MoneyRhy$, source 2:06-2:17) hooks onto the end of the opening cinematic: the cinematic
+// The loop ("tetronimo$" by MoneyRhy$, source 2:06-2:17) hooks onto the end of the opening cinematic: the cinematic
 // borrows this module's AudioContext and cues the loop for its own end on the audio clock, so the hand-over
 // is gapless. Without the cinematic the loop starts on the menu (on the first click or key if the browser is
 // holding audio back). It plays only on the menu screens: starting a game plays a short sound and stops it, and
@@ -19,7 +19,7 @@
   if (!G) return;
   var LOOP = 'tetrinomos-menu-loop.wav', LOOP_FALLBACK = 'tetrinomos-menu-loop.ogg', LOOP_LEN = 11;
   var VOLUME = 0.55, STORE = 'tetris_menu_music';
-  var CREDIT = 'Music: "tetrinomos" by MoneyRhy$ (2:06-2:17 loop)';
+  var CREDIT = 'Music: "tetronimo$" by MoneyRhy$ (2:06-2:17 loop)';
   var MENU_SCREENS = { menuPanel: 1, skullsPanel: 1, onlinePanel: 1, lobbyPanel: 1 };
 
   var M = {
@@ -226,7 +226,7 @@
   window.TetrisMenuMusic = {
     context: context,
     // The cinematic cues its actual end on our shared audio clock, so the loop follows with no gap.
-    cue: function (when) { if (!M.wanted) return; M.cue = when; context(); begin(when, 0); },
+    cue: function (when, fade) { if (!M.wanted) return; M.cue = when; context(); begin(when, fade==null?0.35:fade); },
     cancelCue: function () { if (M.cue != null) stop(0.2); M.cue = null; },
     // Keep quiet while the cinematic plays (unless it has cued us for its last moment).
     hold: function (on) { M.held = !!on; if (on && M.cue == null && M.playing) stop(0.3); },
