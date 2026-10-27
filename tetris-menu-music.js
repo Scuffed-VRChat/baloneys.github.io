@@ -1,14 +1,14 @@
 // tetris-menu-music.js: the Tetris menu's ambient music loop.
 //
-// The loop (Balcade_Menu_Ambient_Seamless_Loop) hooks straight onto the end of the opening cinematic: the cinematic
-// borrows this module's AudioContext and cues the loop for its own t = 60 s on the audio clock, so the hand-over
+// The loop ("tetrinomos" by MoneyRhy$, source 2:06-2:17) hooks onto the end of the opening cinematic: the cinematic
+// borrows this module's AudioContext and cues the loop for its own end on the audio clock, so the hand-over
 // is gapless. Without the cinematic the loop starts on the menu (on the first click or key if the browser is
 // holding audio back). It plays only on the menu screens: starting a game plays a short sound and stops it, and
 // coming back to the menu fades it back in. A Music button (bottom left) mutes it and remembers the choice. While
 // it plays, its low end drives the page background (TetrisBG energy and pulses).
 //
 // The loop is decoded once and looped on the audio clock (AudioBufferSourceNode loop, trimmed to LOOP_LEN), which
-// is what the track's README asks for: no encoder padding, no gap at the seam.
+// avoids encoder padding and gaps at the seam. See TETRINOMOS_AUDIO.md for the circular crossfade.
 //
 // API (window.TetrisMenuMusic): context(), cue(ctxTime), cancelCue(), hold(on), startNow(fadeSeconds), screen(id),
 // level()
@@ -17,9 +17,9 @@
 
   var G = window.Games;
   if (!G) return;
-  var LOOP = 'Balcade_Menu_Ambient_Seamless_Loop.ogg', LOOP_FALLBACK = 'Balcade_Menu_Ambient_Loop.mp3', LOOP_LEN = 21.3333;
+  var LOOP = 'tetrinomos-menu-loop.wav', LOOP_FALLBACK = 'tetrinomos-menu-loop.ogg', LOOP_LEN = 11;
   var VOLUME = 0.55, STORE = 'tetris_menu_music';
-  var CREDIT = 'Music: "runner2088" by wekont (CC BY 4.0), edited into an ambient loop';
+  var CREDIT = 'Music: "tetrinomos" by MoneyRhy$ (2:06-2:17 loop)';
   var MENU_SCREENS = { menuPanel: 1, skullsPanel: 1, onlinePanel: 1, lobbyPanel: 1 };
 
   var M = {
@@ -53,7 +53,7 @@
   function load() {
     if (M.loading || M.buf) return;
     M.loading = true;
-    // Ogg is the gapless master; a browser that can't decode it falls back to the MP3 (trimmed to LOOP_LEN anyway).
+    // PCM WAV preserves the conditioned boundary samples exactly. Ogg is the smaller fallback.
     decode(LOOP).catch(function () { return decode(LOOP_FALLBACK); }).then(function (b) {
       M.loading = false; M.buf = b;
       if (M.pending != null) { var at = M.pending; M.pending = null; begin(at, 0); }
@@ -225,7 +225,7 @@
 
   window.TetrisMenuMusic = {
     context: context,
-    // The cinematic: cue the loop for an audio-clock time (its own t = 60 s), so it follows with no gap.
+    // The cinematic cues its actual end on our shared audio clock, so the loop follows with no gap.
     cue: function (when) { if (!M.wanted) return; M.cue = when; context(); begin(when, 0); },
     cancelCue: function () { if (M.cue != null) stop(0.2); M.cue = null; },
     // Keep quiet while the cinematic plays (unless it has cued us for its last moment).
@@ -245,7 +245,7 @@
 
   function init() {
     buildButton();
-    // Decode the loop ahead of the cinematic's 60-second hand-off.
+    // Decode the loop ahead of the cinematic hand-off.
     context();
     // Returning visitors (no cinematic): start on the menu, or as soon as the browser allows audio.
     setTimeout(function () {
