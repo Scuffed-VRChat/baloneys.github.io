@@ -733,6 +733,7 @@
     })(k);
     at(socialStart+0.95*socialDuration,function(a,t){a.blip(t,79,0.5);});
     at(cueTime('menu'),function(a,t){a.chime(t,72,0.4);});
+    for(var menuBeat=Math.ceil(beatAt(cueTime('menu'))-1e-8);B(menuBeat)<CUES.end;menuBeat++)at(B(menuBeat),function(a,t){a.tick(t,0.35);});
     ev.sort(function(a,b){return a.t-b.t;});return ev;
   }
 
@@ -1241,6 +1242,23 @@
      The shots
      ================================================================= */
 
+  // The real menu is already visible under the final fade. Preview its modes
+  // on drum beats, then remove all decoration before normal menu use resumes.
+  function previewMenu(t) {
+    if(!Cine.menuPreview){
+      var panel=document.getElementById('menuPanel');if(!panel)return;
+      Cine.menuPreview={panel:panel,items:Array.prototype.slice.call(panel.querySelectorAll('.mode-card'))};
+      panel.classList.add('cine-live-menu');
+    }
+    var list=Cine.menuPreview.items,beat=Math.floor(beatAt(t)+1e-8)-Math.ceil(beatAt(cueTime('menu'))-1e-8);
+    list.forEach(function(item,i){item.classList.toggle('cine-hl',beat>=0&&i===beat%list.length);});
+  }
+  function clearMenuPreview(){
+    if(!Cine.menuPreview)return;
+    Cine.menuPreview.items.forEach(function(item){item.classList.remove('cine-hl');});
+    Cine.menuPreview.panel.classList.remove('cine-live-menu');Cine.menuPreview=null;
+  }
+
   function makeShots() {
     var S = {}, me = (G.Profile && G.Profile.get()) || { name: 'Player' };
 
@@ -1640,7 +1658,7 @@
       var top = S.modeReal ? -S.modePanel.h * 0.5 : -40, bottom = S.modeReal ? S.modePanel.h * 0.2 : 60;
       path([{ t: 0, x: -700, y: top - 150, z: 1000, tx: -150, ty: top + 250, tz: 0, fov: 52 }, { t: 2.3, x: 600, y: bottom, z: 1150, tx: 250, ty: bottom, tz: 0, fov: 52 },
         { t: 2.743, x: 300, y: 0, z: -300, tx: 0, ty: 0, tz: -2200, fov: 56, e: easeIn }], lt);
-      var n = S.modeCards.length, i = Math.max(0, Math.floor((t - shotStart(S.modes.cue)) / (SPB / 2))) % n;
+      var n = S.modeCards.length, i = Math.max(0,Math.floor(beatAt(t)+1e-8)-Math.floor(beatAt(shotStart(S.modes.cue))+1e-8)) % n;
       S.modeCards.forEach(function (c, j) { c.classList.toggle('on', j === i); c.classList.toggle('cine-hl', j === i); });
       i = i % MODES.length;
       if (S.modeShown !== i) {
@@ -1658,7 +1676,7 @@
     S.skulls = { pat: 0, update: function (t, lt) {
       path([{ t: 0, x: 300, y: 0, z: -300, tx: 0, ty: 0, tz: -2200, fov: 56 }, { t: 2.4, x: -500, y: -150, z: -1100, tx: -300, ty: -40, tz: -2200, fov: 54 },
         { t: 2.743, x: -200, y: 0, z: -1700, tx: -100, ty: 0, tz: -2200, fov: 60, e: easeIn }], lt);
-      var b = Math.floor((t - shotStart(S.skulls.cue)) / (SPB / 2)), m = 1, n = S.skullCards.length;
+      var b = Math.floor(beatAt(t)+1e-8)-Math.floor(beatAt(shotStart(S.skulls.cue))+1e-8), m = 1, n = S.skullCards.length;
       S.skullCards.forEach(function (c, j) {
         var order = (j * 7) % n, on = order <= b && c.eff > 0;
         c.el.classList.toggle('on', on);
@@ -1710,6 +1728,7 @@
 
     // Scene 10: the logo returns, the real menu fades in under it, and the overlay lets go.
     S.menu = { pat: 0, update: function (t, lt) {
+      previewMenu(t);
       var c = Cine.cam; c.x = 0; c.y = 0; c.z = 23000; c.fov = 40; c.roll = 0; lookAt(0, 0, 0);
       S.mon.forEach(function (it) { it.op = 0; });
       if (!S.menu.hit) { S.menu.hit = true; Cine.flash = 1; burst(innerWidth / 2, innerHeight / 2, 200, [285, 320, 190], 1.6); caption(); }
@@ -2121,6 +2140,7 @@
   // music's tail keeps fading out under it.
   function finish(skipped) {
     if (!Cine.running) return;
+    clearMenuPreview();
     Cine.running = false;
     cancelAnimationFrame(Cine.raf);
     var last = CUES.segments[CUES.segments.length - 1];

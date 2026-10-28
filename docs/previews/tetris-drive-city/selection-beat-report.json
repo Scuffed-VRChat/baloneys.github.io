@@ -1,0 +1,498 @@
+[
+  {
+    "cut": "short",
+    "start": 46,
+    "end": 60,
+    "changes": [
+      {
+        "type": "mode",
+        "t": 48.35
+      },
+      {
+        "type": "mode",
+        "t": 49.12866666666667
+      },
+      {
+        "type": "mode",
+        "t": 49.91
+      },
+      {
+        "type": "mode",
+        "t": 50.68866666666667
+      },
+      {
+        "type": "skull",
+        "t": 51.45933333333333
+      },
+      {
+        "type": "skull",
+        "t": 52.238
+      },
+      {
+        "type": "skull",
+        "t": 53.019333333333336
+      },
+      {
+        "type": "skull",
+        "t": 53.798
+      },
+      {
+        "type": "landing",
+        "t": 58.478
+      },
+      {
+        "type": "landing",
+        "t": 59.25933333333333
+      }
+    ],
+    "features": null,
+    "landingLeft": 0,
+    "playing": false,
+    "events": [
+      48.341623376623374,
+      49.12084415584415,
+      49.90006493506493,
+      50.67928571428571,
+      51.45850649350649,
+      52.23772727272727,
+      53.01694805194805,
+      53.79616883116883,
+      58.4714935064935,
+      59.25071428571428
+    ],
+    "errors": []
+  },
+  {
+    "cut": "extended",
+    "start": 51,
+    "end": 62.5,
+    "changes": [
+      {
+        "type": "feature-skull",
+        "t": 51.45933333333333
+      },
+      {
+        "type": "beat-clear",
+        "t": 51.45933333333333
+      },
+      {
+        "type": "feature-skull",
+        "t": 52.24066666666667
+      },
+      {
+        "type": "beat-clear",
+        "t": 52.24066666666667
+      },
+      {
+        "type": "feature-skull",
+        "t": 53.019333333333336
+      },
+      {
+        "type": "beat-clear",
+        "t": 53.019333333333336
+      },
+      {
+        "type": "feature-skull",
+        "t": 53.800666666666665
+      },
+      {
+        "type": "beat-clear",
+        "t": 53.800666666666665
+      },
+      {
+        "type": "feature-skull",
+        "t": 54.57933333333333
+      },
+      {
+        "type": "beat-clear",
+        "t": 54.57933333333333
+      },
+      {
+        "type": "feature-skull",
+        "t": 55.36066666666667
+      },
+      {
+        "type": "beat-clear",
+        "t": 55.36066666666667
+      },
+      {
+        "type": "feature-skull",
+        "t": 56.13933333333333
+      },
+      {
+        "type": "beat-clear",
+        "t": 56.13933333333333
+      },
+      {
+        "type": "feature-skull",
+        "t": 56.92066666666667
+      },
+      {
+        "type": "beat-clear",
+        "t": 56.92066666666667
+      },
+      {
+        "type": "beat-clear",
+        "t": 57.699333333333335
+      },
+      {
+        "type": "feature-skull",
+        "t": 58.480666666666664
+      },
+      {
+        "type": "beat-clear",
+        "t": 58.480666666666664
+      },
+      {
+        "type": "feature-skull",
+        "t": 59.251333333333335
+      },
+      {
+        "type": "feature-skull",
+        "t": 59.251333333333335
+      },
+      {
+        "type": "beat-clear",
+        "t": 59.251333333333335
+      },
+      {
+        "type": "feature-skull",
+        "t": 60.03
+      },
+      {
+        "type": "beat-clear",
+        "t": 60.03
+      },
+      {
+        "type": "feature-skull",
+        "t": 60.81133333333334
+      },
+      {
+        "type": "beat-clear",
+        "t": 60.81133333333334
+      },
+      {
+        "type": "feature-skull",
+        "t": 61.59
+      },
+      {
+        "type": "beat-clear",
+        "t": 61.59
+      },
+      {
+        "type": "feature-skull",
+        "t": 62.37133333333333
+      },
+      {
+        "type": "beat-clear",
+        "t": 62.37133333333333
+      }
+    ],
+    "features": {
+      "clears": 16,
+      "failedClears": 0,
+      "powers": {
+        "1": 2,
+        "2": 2,
+        "3": 2,
+        "4": 2,
+        "5": 2,
+        "6": 1,
+        "7": 2,
+        "9": 2,
+        "10": 1
+      },
+      "freeze": 2,
+      "shell": 1,
+      "curse": 2,
+      "history": [
+        {
+          "beat": 33,
+          "t": 51,
+          "player": 0,
+          "rows": 1,
+          "powers": [
+            5
+          ],
+          "out": {
+            "freeze": 1,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 34,
+          "t": 51.45933333333333,
+          "player": 0,
+          "rows": 1,
+          "powers": [
+            1
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 35,
+          "t": 52.24066666666667,
+          "player": 2,
+          "rows": 4,
+          "powers": [
+            7
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 1
+          }
+        },
+        {
+          "beat": 36,
+          "t": 53.019333333333336,
+          "player": 0,
+          "rows": 1,
+          "powers": [
+            3
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 37,
+          "t": 53.800666666666665,
+          "player": 0,
+          "rows": 6,
+          "powers": [
+            9
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 38,
+          "t": 54.57933333333333,
+          "player": 2,
+          "rows": 1,
+          "powers": [
+            4
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 39,
+          "t": 55.36066666666667,
+          "player": 0,
+          "rows": 2,
+          "powers": [
+            2
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 40,
+          "t": 56.13933333333333,
+          "player": 1,
+          "rows": 1,
+          "powers": [
+            6
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 1,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 41,
+          "t": 56.92066666666667,
+          "player": 2,
+          "rows": 1,
+          "powers": [
+            10
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 42,
+          "t": 57.699333333333335,
+          "player": 0,
+          "rows": 1,
+          "powers": [
+            5
+          ],
+          "out": {
+            "freeze": 1,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 43,
+          "t": 58.480666666666664,
+          "player": 0,
+          "rows": 1,
+          "powers": [
+            1
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 44,
+          "t": 59.251333333333335,
+          "player": 2,
+          "rows": 1,
+          "powers": [
+            7
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 1
+          }
+        },
+        {
+          "beat": 45,
+          "t": 60.03,
+          "player": 0,
+          "rows": 1,
+          "powers": [
+            3
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 46,
+          "t": 60.81133333333334,
+          "player": 0,
+          "rows": 3,
+          "powers": [
+            9
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 47,
+          "t": 61.59,
+          "player": 2,
+          "rows": 4,
+          "powers": [
+            4
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        },
+        {
+          "beat": 48,
+          "t": 62.37133333333333,
+          "player": 0,
+          "rows": 2,
+          "powers": [
+            2
+          ],
+          "out": {
+            "freeze": 0,
+            "shell": 0,
+            "curse": 0
+          }
+        }
+      ]
+    },
+    "landingLeft": 0,
+    "playing": true,
+    "events": [
+      134.0559090909091,
+      134.83512987012986,
+      135.61435064935065,
+      136.39357142857142,
+      137.1727922077922,
+      137.95201298701298
+    ],
+    "errors": []
+  },
+  {
+    "cut": "extended",
+    "start": 133,
+    "end": 137.976,
+    "changes": [
+      {
+        "type": "landing",
+        "t": 134.05933333333334
+      },
+      {
+        "type": "landing",
+        "t": 134.838
+      },
+      {
+        "type": "landing",
+        "t": 135.61933333333334
+      },
+      {
+        "type": "landing",
+        "t": 136.398
+      },
+      {
+        "type": "landing",
+        "t": 137.17933333333335
+      },
+      {
+        "type": "landing",
+        "t": 137.958
+      }
+    ],
+    "features": {
+      "clears": 0,
+      "failedClears": 0,
+      "powers": {},
+      "freeze": 0,
+      "shell": 0,
+      "curse": 0,
+      "history": []
+    },
+    "landingLeft": 0,
+    "playing": false,
+    "events": [
+      134.0559090909091,
+      134.83512987012986,
+      135.61435064935065,
+      136.39357142857142,
+      137.1727922077922,
+      137.95201298701298
+    ],
+    "errors": []
+  }
+]

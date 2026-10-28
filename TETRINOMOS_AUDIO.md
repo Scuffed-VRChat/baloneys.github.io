@@ -29,17 +29,17 @@ including the purple road, game modes and skull selection wall.
 | Source time / cinematic time | Scene |
 | --- | --- |
 | 0:00-0:12.5 | Original arcade cabinet, logo, subtitle and sparks |
-| 0:12.5-0:24.965 | Front scanner close-up, dashboard play, side departure |
-| 0:24.965-0:37.433 | Rear acceleration, wheel close-up, front quarter, aerial |
+| 0:12.5-0:24.965 | Front scanner close-up, dashboard play, side departure through the tetromino city |
+| 0:24.965-0:37.433 | Rear acceleration, city wheel close-up, front quarter, aerial |
 | 0:37.433-0:49.900 | Coast, live board billboards, falling I and four-line clear |
 | 0:49.900-0:53.017 | Low front view into the underpass |
 | 0:53.017-1:02.368 | Side-by-side multiplayer boards and active skull/power demonstrations |
-| 1:02.368-1:14.835 | Side, aerial and bonnet views through Chess temple scenery |
+| 1:02.368-1:14.835 | Side-view city, then aerial/bonnet views through Chess temple scenery |
 | 1:14.835-1:27.303 | The grid breaks away beneath the car |
-| 1:27.303-1:33.536 | Freefall into black toward a box containing hexagonal space |
+| 1:27.303-1:33.536 | Side-profile car falls from above, wheels facing right, toward the hexagonal space box |
 | 1:33.536-1:39.770 | Dive through a hex portal with separated colour fringes |
-| 1:39.770-1:52.238 | Main return: real boards and streak ascension |
-| 1:52.238-2:04.705 | Multiplayer, Star Bomb junk scatter, elimination and montage |
+| 1:39.770-1:52.238 | Main return: real boards and streak ascension, with no car |
+| 1:52.238-2:04.705 | Multiplayer, Star Bomb junk scatter, elimination and montage, with no car |
 | 2:04.705-2:17.976 | Sunset return, achievements/profile/chat/invite and live menu |
 
 The first full drum hit anchors beat zero at 24.965 s. The portal crossing is
@@ -53,7 +53,8 @@ strongest during surges, leaving the sunset and scenery readable between them.
 - `tetris-cinematic.js`: cue sheet, real Player boards, camera and playback clock,
   effects bus, social UI, skip/replay and menu handoff.
 - `tetris-cinematic-drive.js`: highway, tunnel, collapse, black box/hex portal,
-  scenery placement, camera angles, tetromino rain, car and dashboard inserts.
+  scenery placement, camera angles, pixel tetromino city, dark foreground rooftops,
+  direction-aware road flow, tetromino rain, car and dashboard inserts.
 - `tetris-cinematic-cuts.js`: short-cut cue sheet on the same 77 BPM source grid,
   a single continuous 0-60 second music segment, and separate generated effects.
   It shares the renderer/player engine rather than duplicating the cinematic.
@@ -118,6 +119,27 @@ provide the retiming anchors; saved Player snapshots remain immutable. Rain
 drops move in short bursts on beats and settle between them. Dedicated scripted
 clear/attack shots keep their soundtrack cue hits. Driving demonstration boards
 already lock and clear their power rows on the 77 BPM grid.
+
+Mode and skull selections now advance on whole drum beats rather than half-beat
+timers. Their tick sounds use those same absolute beat times. The extended
+feature boards also restage skull selections on beats, retaining Star Bomb's
+junk animation for three beats. Both closing menus briefly highlight the real
+mode buttons on beats; all preview classes are removed at finish/skip, leaving
+normal menu input unchanged.
+
+## Driving direction and ultrawide framing
+
+Front-facing shots reverse the shader camera's longitudinal travel and the
+world props' flow. Side shots use an original low-resolution pixel city with
+neon tetromino-shaped buildings across the road, palms and dark camera-side
+rooftops along the bottom. All street layers move right with the car; foreground
+rooftops move faster than the opposite buildings and distant skyline.
+
+Car sizing follows viewport height, preserving the composition at 2560x1080
+and 3440x1440. Extra width reveals more street. The fall uses side-profile art
+rotated -90 degrees, entering from above with its wheels on screen-right.
+The car disappears before the portal crossing and is never drawn in the streak,
+multiplayer, attack or montage dimension shots.
 Held previews do not advance live boards. The initial soundtrack decode holds
 the opening clock, allowing the full recording to begin at sample zero.
 
@@ -126,6 +148,7 @@ the opening clock, allowing the full recording to begin at sample zero.
 ```text
 python tools/build_tetrinomos_audio.py "PATH/TO/SYNTHWAVE 4 SEAN Cmin 77.mp3" --ffmpeg "PATH/TO/ffmpeg" --out "OUTPUT_DIRECTORY"
 node tools/test-tetris-cinematic.cjs
+node tools/test-tetris-cinematic-drive.cjs
 ```
 
 The menu loop still contains exactly 528,000 stereo samples (11 s at 48 kHz)
@@ -197,3 +220,12 @@ clear at source 24.965 seconds, and later shots use that same 77 BPM grid.
 Beat tests check actual CPU locks immediately before/after musical beats in
 both cuts. Frame-rate checks preserve snapshot immutability and lock timing
 at 30, 60, 144, 240 and 360 Hz.
+
+Driving geometry checks cover reversed front flow, rightward street parallax,
+bottom-edge foreground roofs, wheels-right top entry and no cyberspace car.
+Browser scene captures and control bounds passed at 390x844, 1920x1080,
+2560x1080 and 3440x1440. Actual menu/skull selection changes and tick times were
+checked against the music clock in both cuts, including finale cleanup.
+Continuous playback of the driving section also passed with all nine power
+types, one clear per drum beat, and zero failed clears after the timing changes.
+Review captures and reports are in `docs/previews/tetris-drive-city/`.

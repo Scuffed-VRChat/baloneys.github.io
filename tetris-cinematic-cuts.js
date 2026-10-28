@@ -67,14 +67,11 @@
         function (a, t) { a.blip(t, [72, 75, 79][i % 3], 0.45); });
     })(k);
     at(socialStart + 0.95 * socialDuration, function (a, t) { a.blip(t, 79, 0.6); a.chime(t + 0.1, 84, 0.4); });
-    for (k = 0; k < 8; k++) (function (i) {
-      at(cueTime('modes', i / 8), function (a, t) { a.tick(t, 0.5); });
-    })(k);
-    for (k = 0; k < 8; k++) (function (i) {
-      at(cueTime('skulls') + i * SPB / 2, function (a, t) { a.tick(t, 0.5); });
-    })(k);
+    for(var mt=cueTime('modes');mt<cueTime('skulls')-1e-8;mt+=SPB)at(mt,function(a,t){a.tick(t,0.5);});
+    for(var st=cueTime('skulls');st<cueTime('montage')-1e-8;st+=SPB)at(st,function(a,t){a.tick(t,0.5);});
     [0, 0.25, 0.5].forEach(function (f) { at(cueTime('montage', f), function (a, t) { a.zap(t, 0.4, 0.3); }); });
     at(cueTime('menu'),function(a,t){a.consoleSwish(t,0.7);});
+    for(var mb=Math.ceil((cueTime('menu')-CUES.offset)/SPB-1e-8);CUES.offset+mb*SPB<CUES.end;mb++)at(CUES.offset+mb*SPB,function(a,t){a.tick(t,0.35);});
     ev.sort(function (a, b) { return a.t - b.t; });
     return ev;
   }

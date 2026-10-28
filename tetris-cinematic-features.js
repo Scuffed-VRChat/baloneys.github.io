@@ -86,7 +86,8 @@
       if(out.curse){other.pendingCurses+=out.curse;stats.curse++;}
       cards[i].node.classList.add('clearing');cards[i].clearUntil=t+0.25;
       var star=powerList.find(function(info){return info.id==='pStarBomb';});
-      cards[i].nextAt=t+(star&&(res.clearedPowers||[]).indexOf(star.kind)>=0?1.6:0.38);cards[i].nextBeat=beat+players.length;
+      var holdBeats=star&&(res.clearedPowers||[]).indexOf(star.kind)>=0?3:1;
+      cards[i].nextAt=api.cueTime('highway')+(beat+holdBeats)*(60/77);cards[i].nextBeat=beat+players.length;
       pending[i]=null;
       displayPower(p,res,t);
       stats.history.push({beat:beat,t:t,player:i,rows:res.cleared,powers:(res.clearedPowers||[]).slice(),out:out});

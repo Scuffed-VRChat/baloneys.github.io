@@ -176,6 +176,70 @@ vec3 drivePortal(vec2 screen){
   }
 
   var RAIN_SHAPES=[[[0,0],[1,0],[2,0],[3,0]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[2,0],[1,1]],[[1,0],[2,0],[0,1],[1,1]],[[0,0],[1,0],[1,1],[2,1]],[[0,0],[0,1],[1,1],[2,1]],[[2,0],[0,1],[1,1],[2,1]]];
+  var CITY_SHAPES=[[[0,0],[0,1],[0,2],[0,3]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[0,1],[0,2],[1,1]],[[0,0],[0,1],[1,1],[1,2]],[[1,0],[1,1],[0,1],[0,2]],[[0,0],[0,1],[0,2],[1,2]],[[1,0],[1,1],[1,2],[0,2]]];
+  function mod(x,n){return ((x%n)+n)%n;}
+  // Side-view street, drawn on a small pixel canvas. All layers scroll right,
+  // matching the requested car direction; nearby rooftops move fastest.
+  function cityStreet(c,t,w,h,foreground){
+    function r(x,y,ww,hh,color){c.fillStyle=color;c.fillRect(Math.round(x),Math.round(y),Math.ceil(ww),Math.ceil(hh));}
+    if(foreground){
+      var roofCell=Math.max(18,Math.round(h*.12)),roofSlot=roofCell*4.8,roofScroll=t*h*.48;
+      var roofTurn=Math.floor(roofScroll/roofSlot),roofOffset=mod(roofScroll,roofSlot);
+      for(var q=-1;q<Math.ceil(w/roofSlot)+1;q++){
+        var id=q-roofTurn,shape=CITY_SHAPES[mod(id,7)],ox=q*roofSlot+roofOffset;
+        shape.forEach(function(p){
+          var x=ox+p[0]*roofCell,y=h*(.93+mod(id,3)*.012)+p[1]*roofCell*.18,deep=roofCell*.28;
+          r(x,y,roofCell,h-y,'#080b19');
+          c.fillStyle='#14182d';c.beginPath();c.moveTo(Math.round(x),Math.round(y));c.lineTo(Math.round(x+deep),Math.round(y-deep*.5));c.lineTo(Math.round(x+roofCell+deep),Math.round(y-deep*.5));c.lineTo(Math.round(x+roofCell),Math.round(y));c.closePath();c.fill();
+          r(x+2,y,roofCell-3,1,'#29314c');
+        });
+      }
+      return;
+    }
+    var haze=c.createLinearGradient(0,h*.46,0,h*.70);haze.addColorStop(0,'#472b50');haze.addColorStop(1,'#17172e');
+    c.fillStyle=haze;c.fillRect(0,Math.floor(h*.48),w,Math.ceil(h*.25));
+    function buildings(base,cell,speed,far){
+      var slot=cell*4,scroll=t*h*speed,turn=Math.floor(scroll/slot),offset=mod(scroll,slot);
+      for(var i=-1;i<Math.ceil(w/slot)+1;i++){
+        var id=i-turn,shape=CITY_SHAPES[mod(id,7)],x=i*slot+offset;
+        var rows=1+Math.max.apply(null,shape.map(function(p){return p[1];})),top=base-rows*cell;
+        var colors=far?['#392b57','#352b50','#26364d']:['#623451','#304d66','#51406b'];
+        var front=colors[mod(id,colors.length)],edge=far?'#674368':mod(id,2)?'#67b7ca':'#e181b9';
+        shape.forEach(function(p){
+          var bx=Math.round(x+p[0]*cell),by=Math.round(top+p[1]*cell),d=Math.max(2,Math.round(cell*.16));
+          r(bx+d,by-d,cell,cell,'#202439');
+          r(bx,by,cell,cell,front);
+          r(bx,by,cell,1,edge);r(bx,by,1,cell,edge);
+          r(bx+cell-2,by,2,cell,far?'#2b2544':'#25283d');r(bx,by+cell-2,cell,2,'#211a34');
+          if(!far){
+            for(var wy=1;wy<5;wy++)for(var wx=1;wx<4;wx++){
+              if(mod(id+wy*3+wx*5+p[1],5)===0)continue;
+              r(bx+wx*cell*.22,by+wy*cell*.16,cell*.085,cell*.045,mod(id+wx,3)?'#72baca':'#ed8fbc');
+            }
+            // Art-deco light bands keep the facades legible as joined Tetris cells.
+            r(bx+2,by+cell*.80,cell-5,1,edge);
+          }
+        });
+      }
+    }
+    buildings(h*.61,Math.max(11,Math.round(h*.045)),.045,true);
+    buildings(h*.69,Math.max(18,Math.round(h*.076)),.16,false);
+    r(0,h*.69,w,h*.022,'#41405a');r(0,h*.69,w,1,'#efa0c1');
+    var asphalt=c.createLinearGradient(0,h*.71,0,h);asphalt.addColorStop(0,'#14172b');asphalt.addColorStop(1,'#0b1020');
+    c.fillStyle=asphalt;c.fillRect(0,Math.round(h*.712),w,h);
+    r(0,h*.719,w,1,'#39798c');r(0,h*.914,w,1,'#c56eab');
+    var dash=Math.max(24,h*.14),offset=mod(t*h*.31,dash*2);
+    for(var x=-dash*2+offset;x<w;x+=dash*2)r(x,h*.825,dash,1,'#baadc7');
+    // Pixel palms along the opposite sidewalk, between the block facades.
+    var palmSlot=h*.48,palmOffset=mod(t*h*.16,palmSlot);
+    for(var px=-palmSlot+palmOffset;px<w;px+=palmSlot){
+      var py=h*.695,ph=h*.19;c.strokeStyle='#172839';c.lineWidth=Math.max(2,h*.009);c.beginPath();c.moveTo(px,py);c.lineTo(px+ph*.12,py-ph);c.stroke();
+      var crownX=px+ph*.12,crownY=py-ph;
+      for(var f=0;f<6;f++){
+        var a=(f-2.5)*.48;c.strokeStyle=f%2?'#31506b':'#28435d';c.lineWidth=Math.max(2,h*.008);c.beginPath();c.moveTo(crownX,crownY);c.lineTo(crownX+Math.sin(a)*ph*.46,crownY-Math.cos(a)*ph*.15);c.lineTo(crownX+Math.sin(a)*ph*.70,crownY+ph*.07);c.stroke();
+      }
+    }
+  }
   function tetrominoRain(ctx,t,w,h,beat){
     var count=w<620?15:30,colors=['#74cbe0','#b18cdb','#e28ab9','#a092df'];
     var whole=Math.floor(beat),phase=beat-whole,burst=Math.min(1,phase/0.22);
@@ -193,9 +257,9 @@ vec3 drivePortal(vec2 screen){
   }
 
   function create(api) {
-    var C = api.state, S, props = [], dashboard, carLayer = document.createElement('canvas');
+    var C = api.state, S, props = [], dashboard, carLayer = document.createElement('canvas'),cityLayer=document.createElement('canvas');
     carLayer.width = 128; carLayer.height = 64;
-    var drive = { scene: 'dusk', car: 1, dash: 0, turn: 0, front: false, u: 0, view:'rear', x:0.5, y:0.75, scale:1, fallback: false };
+    var drive = { scene: 'dusk', car: 1, dash: 0, turn: 0, front: false, u: 0, view:'rear', x:0.5, y:0.75, scale:1, fallback: false,city:false,backgroundDirection:'toward',rendered:false,renderAngle:0 };
     function camera(t, u, speed, route) {
       C.route = route || 0; C.routePhase = u; C.portal = 0;
       var c = C.cam, z = -t * speed;
@@ -211,7 +275,8 @@ vec3 drivePortal(vec2 screen){
       props.forEach(function (it, i) {
         var temple = route === 3, coast = route === 1, visible = temple ? it.kind.indexOf('col') === 0 || it.kind === 'temple' || it.kind === 'ruin' : coast ? ['dolphin','flamingo','beachball','swimring'].indexOf(it.kind) >= 0 : it.kind === 'arcade';
         it.op = visible ? 1 : 0;
-        var distance = temple ? 700 + ((Math.floor(it.slot/2)*1450-t*950)%8200+8200)%8200 : 800 + ((it.slot*1500-t*850)%6500+6500)%6500;
+        var motion=drive.front?1:-1;
+        var distance = temple ? 700 + mod(Math.floor(it.slot/2)*1450+motion*t*950,8200) : 800 + mod(it.slot*1500+motion*t*850,6500);
         it.z = c.z - distance;
         it.x = it.side * (temple ? 820 : 1050) + (it.side > 0 ? 0 : -180);
         it.y = -it.h * it.s / 2;
@@ -222,7 +287,7 @@ vec3 drivePortal(vec2 screen){
     }
     function update(kind, t, lt, u) {
       drive.scene = kind; drive.u = u; drive.car = 1; drive.dash = 0; drive.front = false;
-      drive.view='rear';drive.x=.5;drive.y=.75;drive.scale=1;
+      drive.view='rear';drive.x=.5;drive.y=.75;drive.scale=1;drive.city=false;drive.backgroundDirection='toward';
       C.lens = 0; api.hideLogo();
       if (kind === 'dusk') {
         camera(t, u, 65, 0); C.cam.fov = 45; C.speed = 0.02;
@@ -253,17 +318,28 @@ vec3 drivePortal(vec2 screen){
         camera(t,u,1900,4); C.cam.fov=74+u*12; C.lens=0.14+u*0.22;
         C.speed=0.12+u*0.3; C.streaks=0.08+u*0.15; drive.turn=Math.sin(t*1.3)*0.8;
       } else if (kind === 'fall') {
+        drive.view='profile';
         C.route=0; C.portal=0.015+u*0.2; C.lens=0.05+u*0.08; C.speed=0; C.streaks=0;
         C.cam.x=0; C.cam.y=0; C.cam.z=1000; C.cam.fov=62; C.cam.roll=0; api.lookAt(0,0,-1000);
         props.forEach(function(it){it.op=0;});
       } else if (kind === 'portal') {
+        drive.view='profile';
         C.portal=0.215+u*0.785; C.lens=0.12+u*u*0.48; C.speed=Math.pow(u,8)*0.4; C.streaks=Math.pow(u,6)*0.15;
         C.cam.x=0; C.cam.y=0; C.cam.z=1000; C.cam.fov=65+u*23; C.cam.roll=0; api.lookAt(0,0,-1000);
         props.forEach(function(it){it.op=0;});
       } else if (kind === 'home') {
         camera(t,u,230*(1-u)+35,0); C.cam.fov=56; C.speed=0; C.streaks=0; drive.car=0.65;
       }
-      if (kind !== 'fall' && kind !== 'portal') scenery(t,C.route);
+      if (kind !== 'fall' && kind !== 'portal') {
+        // A front-facing car needs the inverse road flow. The camera's orientation
+        // is already set, so reflecting its longitudinal position reverses travel
+        // without turning the sky upside down or changing the car sprite.
+        if(drive.front){C.cam.z=1600-C.cam.z;drive.backgroundDirection='away';}
+        drive.city=drive.view==='profile'||drive.view==='wheel';
+        if(drive.city){C.cam.yaw=0;C.cam.pitch=0;C.cam.roll=0;drive.backgroundDirection='right';}
+        scenery(t,C.route);
+        if(drive.city)props.forEach(function(it){it.op=0;});
+      }
     }
     function install(shots) {
       S=shots;
@@ -293,7 +369,7 @@ vec3 drivePortal(vec2 screen){
       // sky instead of switching to space before the portal has been crossed.
       ['road','gameplay','clear'].forEach(function(id){
         var base=S[id].update;S[id].pat=1;
-        S[id].update=function(t,lt,u,dt){base(t,lt,u,dt);C.route=1;C.routePhase=u;C.lens=id==='road'?0.07:0;C.portal=0;drive.scene=id;drive.u=u;drive.dash=0;drive.view='rear';drive.x=.5;drive.y=.78;drive.scale=1;drive.car=id==='road'?1-smooth(span(u,0.55,0.86)):0;drive.front=false;scenery(t,1);};
+        S[id].update=function(t,lt,u,dt){base(t,lt,u,dt);C.route=1;C.routePhase=u;C.lens=id==='road'?0.07:0;C.portal=0;drive.scene=id;drive.u=u;drive.dash=0;drive.view='rear';drive.x=.5;drive.y=.78;drive.scale=1;drive.city=false;drive.backgroundDirection='toward';drive.car=id==='road'?1-smooth(span(u,0.55,0.86)):0;drive.front=false;scenery(t,1);};
       });
       // Home and the social run share the same sunset, while the real profile,
       // messages and invite remain the existing game UI rather than new facsimiles.
@@ -306,19 +382,29 @@ vec3 drivePortal(vec2 screen){
     }
     function draw(ctx,t,shot){
       var w=innerWidth,h=innerHeight,id=shot.id;
+      drive.rendered=false;drive.renderAngle=0;
       var roadIds=['dusk','ignition','highway','road','tunnel','showcase','temple','collapse','fall','portal','home'];
       var inRoad=roadIds.indexOf(id)>=0;
-      var spaceCar=id==='streak' ? 1-smooth(span(t,99.77,103.5)) : ['multiplayer','attack','montage'].indexOf(id)>=0 ? 0.65 : 0;
-      if(!inRoad&&!spaceCar)return;
+      // The car belongs to the road and the fall into the portal, never cyberspace.
+      if(!inRoad)return;
+      function cityPass(foreground){
+        var cw=Math.ceil(w/3),ch=Math.ceil(h/3);
+        if(cityLayer.width!==cw||cityLayer.height!==ch){cityLayer.width=cw;cityLayer.height=ch;}
+        var cc=cityLayer.getContext('2d');cc.clearRect(0,0,cw,ch);cityStreet(cc,t,cw,ch,foreground);
+        ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(cityLayer,0,0,w,h);ctx.restore();
+      }
+      if(drive.city)cityPass(false);
       if(inRoad&&id!=='fall'&&id!=='portal')tetrominoRain(ctx,t,w,h,api.beatAt(t));
-      var u=drive.u, alpha=inRoad?drive.car:spaceCar;
-      var size=Math.min(w*0.25,h*0.53,460)*(drive.scale||1), x=w*(drive.x||.5), y=h*(drive.y||.75), angle=0;
+      var u=drive.u, alpha=drive.car;
+      // Height-based sizing preserves the framing on 2560x1080 / 3440x1440.
+      // Extra ultrawide width reveals more street instead of shrinking the car.
+      var size=Math.min(w*.25,h*(460/1080))*(drive.scale||1), x=w*(drive.x||.5), y=h*(drive.y||.75), angle=0;
       if(id==='dusk'){size*=0.6;x=w*0.68;y=h*0.72;}
-      if(id==='fall'){size*=mix(0.85,0.32,u);x=w/2+Math.sin(u*5)*w*0.08;y=mix(h*0.75,h*0.65,u);angle=mix(0,0.55,u);}
-      if(id==='portal'){size*=mix(0.32,0.06,smooth(u));y=mix(h*0.65,h*0.51,smooth(u));alpha*=1-smooth(span(u,0.88,1));angle=0.55*(1-u);}
+      if(id==='fall'){size*=mix(0.85,0.32,u);x=w/2;y=mix(-size*.75,h*.56,u*u);angle=-Math.PI/2;}
+      if(id==='portal'){size*=mix(0.32,0.06,smooth(u));y=mix(h*.56,h*.51,smooth(u));alpha*=1-smooth(span(u,.65,.85));angle=-Math.PI/2;}
       if(id==='home'){size*=0.7;x=w*0.65;y=h*0.78;}
-      if(spaceCar){size*=0.6;y=h*0.84;}
       if(alpha>0.01){
+        drive.rendered=true;drive.renderAngle=angle;drive.renderPosition={x:x,y:y,size:size};
         var art=drive.view==='profile'||drive.view==='wheel'?profileCar():carCanvas(drive.front,drive.turn,t);
         ctx.save();ctx.imageSmoothingEnabled=false;ctx.globalAlpha=alpha;ctx.translate(x,y);ctx.rotate(angle);
         if(id!=='fall'&&id!=='portal'){
@@ -332,6 +418,7 @@ vec3 drivePortal(vec2 screen){
         }else ctx.drawImage(art,-size/2,-size/4,size,size/2);
         ctx.restore();
       }
+      if(drive.city)cityPass(true);
       if(id==='collapse'){
         ctx.save();ctx.imageSmoothingEnabled=false;
         for(var i=0;i<18;i++){

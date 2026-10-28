@@ -1,0 +1,124 @@
+{
+  "report": [
+    {
+      "cut": "short",
+      "t": 49,
+      "track": "tetrinomos-full-track.mp3",
+      "drive": null,
+      "modeHighlights": 1,
+      "liveHighlights": 0,
+      "gl": true
+    },
+    {
+      "cut": "extended",
+      "t": 22,
+      "track": "tetrinomos-full-track.mp3",
+      "drive": {
+        "scene": "ignition",
+        "car": 1,
+        "dash": 0,
+        "turn": 0.26643308161825036,
+        "front": false,
+        "u": 0.7621339751303651,
+        "view": "profile",
+        "x": 0.2715476775919875,
+        "y": 0.75,
+        "scale": 1.1,
+        "fallback": false,
+        "city": true,
+        "backgroundDirection": "right",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 934.124010916437,
+          "y": 1080,
+          "size": 674.6666666666667
+        }
+      },
+      "modeHighlights": 0,
+      "liveHighlights": 0,
+      "gl": true
+    },
+    {
+      "cut": "extended",
+      "t": 93,
+      "track": "tetrinomos-full-track.mp3",
+      "drive": {
+        "scene": "fall",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0.9139479166666664,
+        "view": "profile",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": true,
+        "renderAngle": -1.5707963267948966,
+        "renderPosition": {
+          "x": 1720,
+          "y": 645.8875308789432,
+          "size": 224.23933055555563
+        }
+      },
+      "modeHighlights": 0,
+      "liveHighlights": 0,
+      "gl": true
+    },
+    {
+      "cut": "extended",
+      "t": 102,
+      "track": "tetrinomos-full-track.mp3",
+      "drive": {
+        "scene": "dusk",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0,
+        "view": "rear",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": false,
+        "renderAngle": 0
+      },
+      "modeHighlights": 0,
+      "liveHighlights": 0,
+      "gl": true
+    },
+    {
+      "cut": "extended",
+      "t": 136,
+      "track": "tetrinomos-full-track.mp3",
+      "drive": {
+        "scene": "menu",
+        "car": 0,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0,
+        "view": "rear",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": false,
+        "renderAngle": 0
+      },
+      "modeHighlights": 0,
+      "liveHighlights": 1,
+      "gl": true
+    }
+  ],
+  "errors": []
+}

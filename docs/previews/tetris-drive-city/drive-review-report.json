@@ -1,0 +1,556 @@
+{
+  "report": [
+    {
+      "width": 1920,
+      "t": 14,
+      "shot": "ignition",
+      "gl": true,
+      "camZ": 2962.733719396259,
+      "drive": {
+        "scene": "ignition",
+        "car": 1,
+        "dash": 0,
+        "turn": 0.3845695086397262,
+        "front": true,
+        "u": 0.12033694344163659,
+        "view": "rear",
+        "x": 0.5,
+        "y": 0.67,
+        "scale": 1.55,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "away",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 960,
+          "y": 723.6,
+          "size": 713
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 22,
+      "shot": "ignition",
+      "gl": true,
+      "camZ": -15058.660313056262,
+      "drive": {
+        "scene": "ignition",
+        "car": 1,
+        "dash": 0,
+        "turn": 0.26643308161825036,
+        "front": false,
+        "u": 0.7621339751303651,
+        "view": "profile",
+        "x": 0.2715476775919875,
+        "y": 0.75,
+        "scale": 1.1,
+        "fallback": false,
+        "city": true,
+        "backgroundDirection": "right",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 521.371540976616,
+          "y": 810,
+          "size": 506.00000000000006
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 27,
+      "shot": "highway",
+      "gl": true,
+      "camZ": -42400,
+      "drive": {
+        "scene": "highway",
+        "car": 1,
+        "dash": 0,
+        "turn": -0.21258989387930977,
+        "front": false,
+        "u": 0.16322395833333334,
+        "view": "rear",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 960,
+          "y": 810,
+          "size": 460
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 30.5,
+      "shot": "highway",
+      "gl": true,
+      "camZ": -48000,
+      "drive": {
+        "scene": "highway",
+        "car": 1,
+        "dash": 0,
+        "turn": -0.2350388653320292,
+        "front": false,
+        "u": 0.443953125,
+        "view": "wheel",
+        "x": 0.23,
+        "y": 0.75,
+        "scale": 2,
+        "fallback": false,
+        "city": true,
+        "backgroundDirection": "right",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 441.6,
+          "y": 810,
+          "size": 920
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 34,
+      "shot": "highway",
+      "gl": true,
+      "camZ": 55200,
+      "drive": {
+        "scene": "highway",
+        "car": 1,
+        "dash": 0,
+        "turn": 0.44990680506420117,
+        "front": true,
+        "u": 0.7246822916666666,
+        "view": "rear",
+        "x": 0.5557139423076922,
+        "y": 0.75,
+        "scale": 1.12,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "away",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 1066.970769230769,
+          "y": 810,
+          "size": 515.2
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 51,
+      "shot": "tunnel",
+      "gl": true,
+      "camZ": 44150,
+      "drive": {
+        "scene": "tunnel",
+        "car": 1,
+        "dash": 0,
+        "turn": -0.3277623455242181,
+        "front": true,
+        "u": 0.35289583333333424,
+        "view": "rear",
+        "x": 0.5,
+        "y": 0.7,
+        "scale": 1.35,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "away",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 960,
+          "y": 756,
+          "size": 621
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 65,
+      "shot": "temple",
+      "gl": true,
+      "camZ": -93450,
+      "drive": {
+        "scene": "temple",
+        "car": 1,
+        "dash": 0,
+        "turn": 0.4337079238278395,
+        "front": false,
+        "u": 0.21114062499999936,
+        "view": "profile",
+        "x": 0.5589797369344338,
+        "y": 0.75,
+        "scale": 1.1,
+        "fallback": false,
+        "city": true,
+        "backgroundDirection": "right",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 1073.2410949141129,
+          "y": 810,
+          "size": 506.00000000000006
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 69,
+      "shot": "temple",
+      "gl": true,
+      "camZ": -99250,
+      "drive": {
+        "scene": "temple",
+        "car": 1,
+        "dash": 0,
+        "turn": -0.23876512998759164,
+        "front": false,
+        "u": 0.5319739583333327,
+        "view": "roof",
+        "x": 0.5,
+        "y": 0.63,
+        "scale": 0.8,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 960,
+          "y": 680.4,
+          "size": 368
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 87.4,
+      "shot": "fall",
+      "gl": true,
+      "camZ": 1000,
+      "drive": {
+        "scene": "fall",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0.01561458333333379,
+        "view": "profile",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": true,
+        "renderAngle": -1.5707963267948966,
+        "renderPosition": {
+          "x": 960,
+          "y": -290.1766113090484,
+          "size": 387.1931645833332
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 90,
+      "shot": "fall",
+      "gl": true,
+      "camZ": 1000,
+      "drive": {
+        "scene": "fall",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0.4326979166666663,
+        "view": "profile",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": true,
+        "renderAngle": -1.5707963267948966,
+        "renderPosition": {
+          "x": 960,
+          "y": -60.804757896693786,
+          "size": 285.50824791666673
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 93,
+      "shot": "fall",
+      "gl": true,
+      "camZ": 1000,
+      "drive": {
+        "scene": "fall",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0.9139479166666664,
+        "view": "profile",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": true,
+        "renderAngle": -1.5707963267948966,
+        "renderPosition": {
+          "x": 960,
+          "y": 484.4156481592074,
+          "size": 168.17949791666672
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 96,
+      "shot": "portal",
+      "gl": true,
+      "camZ": 1000,
+      "drive": {
+        "scene": "portal",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0.39519791666666565,
+        "view": "profile",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": true,
+        "renderAngle": -1.5707963267948966,
+        "renderPosition": {
+          "x": 960,
+          "y": 586.1646508963647,
+          "size": 105.92615272602256
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 102,
+      "shot": "streak",
+      "gl": true,
+      "camZ": -641.9213129528689,
+      "drive": {
+        "scene": "dusk",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0,
+        "view": "rear",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": false,
+        "renderAngle": 0
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 115,
+      "shot": "multiplayer",
+      "gl": true,
+      "camZ": 2255.304797150126,
+      "drive": {
+        "scene": "dusk",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0,
+        "view": "rear",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": false,
+        "renderAngle": 0
+      },
+      "failed": 0
+    },
+    {
+      "width": 1920,
+      "t": 123,
+      "shot": "montage",
+      "gl": true,
+      "camZ": 852.0581289660695,
+      "drive": {
+        "scene": "dusk",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0,
+        "view": "rear",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": false,
+        "renderAngle": 0
+      },
+      "failed": 0
+    },
+    {
+      "width": 390,
+      "t": 22,
+      "shot": "ignition",
+      "gl": true,
+      "camZ": -15058.660313056262,
+      "drive": {
+        "scene": "ignition",
+        "car": 1,
+        "dash": 0,
+        "turn": 0.26643308161825036,
+        "front": false,
+        "u": 0.7621339751303651,
+        "view": "profile",
+        "x": 0.2715476775919875,
+        "y": 0.75,
+        "scale": 1.1,
+        "fallback": false,
+        "city": true,
+        "backgroundDirection": "right",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 105.90359426087512,
+          "y": 633,
+          "size": 107.25000000000001
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 390,
+      "t": 65,
+      "shot": "temple",
+      "gl": true,
+      "camZ": -93450,
+      "drive": {
+        "scene": "temple",
+        "car": 1,
+        "dash": 0,
+        "turn": 0.4337079238278395,
+        "front": false,
+        "u": 0.21114062499999936,
+        "view": "profile",
+        "x": 0.5589797369344338,
+        "y": 0.75,
+        "scale": 1.1,
+        "fallback": false,
+        "city": true,
+        "backgroundDirection": "right",
+        "rendered": true,
+        "renderAngle": 0,
+        "renderPosition": {
+          "x": 218.00209740442918,
+          "y": 633,
+          "size": 107.25000000000001
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 390,
+      "t": 90,
+      "shot": "fall",
+      "gl": true,
+      "camZ": 1000,
+      "drive": {
+        "scene": "fall",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0.4326979166666663,
+        "view": "profile",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": true,
+        "renderAngle": -1.5707963267948966,
+        "renderPosition": {
+          "x": 195,
+          "y": 51.602298728610165,
+          "size": 60.51533515625001
+        }
+      },
+      "failed": 0
+    },
+    {
+      "width": 390,
+      "t": 102,
+      "shot": "streak",
+      "gl": true,
+      "camZ": -641.9213129528689,
+      "drive": {
+        "scene": "dusk",
+        "car": 1,
+        "dash": 0,
+        "turn": 0,
+        "front": false,
+        "u": 0,
+        "view": "rear",
+        "x": 0.5,
+        "y": 0.75,
+        "scale": 1,
+        "fallback": false,
+        "city": false,
+        "backgroundDirection": "toward",
+        "rendered": false,
+        "renderAngle": 0
+      },
+      "failed": 0
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}
