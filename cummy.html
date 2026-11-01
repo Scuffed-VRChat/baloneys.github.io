@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GnomeGPT - Nightwave Pixel Secure</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #05010a; overflow: hidden; display: flex; justify-content: center; align-items: center; font-family: 'Courier New', Courier, monospace; color: #00ffcc; user-select: none; box-sizing: border-box; }
+        
+        /* --- Pixelated Nightwave Environment Layer (baloneys.github.io style) --- */
+        .sky-background { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 50vh; 
+            background: linear-gradient(to bottom, #04010d 0%, #4c005c 60%, #ff0055 100%); 
+            z-index: 1; 
+            image-rendering: pixelated; /* Sharp pixel scaling filter */
+        }
+        .grid-floor { 
+            position: fixed; bottom: 0; left: 0; width: 100vw; height: 50vh; background-color: #05010a; 
+            background-image: linear-gradient(to bottom, rgba(255, 0, 127, 0) 0%, rgba(255, 0, 127, 0.6) 100%); 
+            z-index: 2; perspective: 200px; overflow: hidden; 
+            image-rendering: pixelated; /* Sharp pixel scaling filter */
+        }
+        .grid-matrix { 
+            position: absolute; top: -100%; left: -50%; width: 200%; height: 400%; 
+            background-image: linear-gradient(to bottom, #ff007f 4px, transparent 4px), linear-gradient(to right, #00eaff 4px, transparent 4px); 
+            background-size: 32px 32px; /* Thickened grid sizing to maximize the retro pixel step */
+            transform: rotateX(75deg); transform-origin: center center; animation: scrollGrid 1.5s linear infinite; 
+        }
+        
+        /* --- Console Layout Module --- */
+        .console-mainframe { position: relative; z-index: 10; width: 310px; padding: 20px; background: rgba(10, 3, 20, 0.96); border: 3px solid #ff007f; box-shadow: 0 0 30px rgba(255, 0, 127, 0.5), inset 0 0 15px rgba(255, 0, 127, 0.2); border-radius: 8px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .system-banner { font-size: 13px; letter-spacing: 4px; color: #ff007f; text-shadow: 0 0 8px #ff007f; margin: 0; text-transform: uppercase; }
+        .target-containment-bay { position: relative; width: 220px; height: 220px; border: 2px solid #00eaff; box-shadow: 0 0 15px rgba(0, 234, 255, 0.3), inset 0 0 10px rgba(0, 234, 255, 0.1); background: #090514; border-radius: 4px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        .vector-target { position: relative; width: 160px; height: 160px; display: flex; justify-content: center; align-items: center; transform: scale(1) rotate(0deg); }
+        .vector-target.active-spiral { animation: hardwareTwirl 3s cubic-bezier(0.5, 0, 0.5, 1) infinite; }
+        .target-core-silhouette { position: absolute; width: 60px; height: 60px; background: #ff007f; border-radius: 50%; box-shadow: 0 0 20px #ff007f; overflow: hidden; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .uploaded-mask-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: none; }
+        .target-ring { position: absolute; width: 120px; height: 120px; border: 2px dashed #00eaff; border-radius: 50%; animation: spinRing 8s linear infinite; pointer-events: none; }
+        .target-text { position: absolute; bottom: 10px; color: #00eaff; font-size: 10px; font-weight: bold; letter-spacing: 2px; pointer-events: none; }
+        .ai-overview-panel { width: 100%; padding: 10px; background: rgba(0, 234, 255, 0.05); border: 1px solid rgba(0, 234, 255, 0.2); border-radius: 4px; font-size: 9px; color: #00eaff; line-height: 1.4; box-sizing: border-box; text-align: left; }
+        .ai-overview-header { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; color: #ffffff; display: flex; align-items: center; gap: 4px; }
+        .ai-sparkle { color: #00eaff; animation: pulseSparkle 1s ease-in-out infinite alternate; }
+        .action-trigger-btn { width: 100%; padding: 14px; background: #ff007f; border: none; border-radius: 4px; color: #ffffff; font-family: 'Courier New', Courier, monospace; font-size: 13px; font-weight: bold; letter-spacing: 4px; cursor: pointer; box-shadow: 0 0 15px rgba(255, 0, 127, 0.5); text-transform: uppercase; }
+        #filePayloadInput { display: none; }
+        
+        /* --- Animation Configurations --- */
+        @keyframes scrollGrid { 0% { transform: rotateX(75deg) translateY(0); } 100% { transform: rotateX(75deg) translateY(32px); } }
+        @keyframes spinRing { 100% { transform: rotate(360deg); } }
+        @keyframes pulseSparkle { 0% { opacity: 0.4; } 100% { opacity: 1; } }
+        @keyframes hardwareTwirl { 0% { transform: scale(1) rotate(0deg); filter: blur(0px) hue-rotate(0deg); } 50% { transform: scale(0.15) rotate(1080deg); filter: blur(2px) hue-rotate(180deg); opacity: 0.5; } 75% { opacity: 0; transform: scale(0) rotate(1440deg); } 100% { transform: scale(1) rotate(0deg); filter: blur(0px) hue-rotate(360deg); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="sky-background"></div>
+    <div class="grid-floor"><div class="grid-matrix"></div></div>
+    <div class="console-mainframe">
+        <h2 class="system-banner">// NTWV_SECURE //</h2>
+        <div class="target-containment-bay">
+            <div class="vector-target" id="targetEntity">
+                <div class="target-ring"></div>
+                <label for="filePayloadInput" class="target-core-silhouette" id="coreSilhouette">
+                    <img id="maskPreview" class="uploaded-mask-preview" alt="Target Payload">
+                </label>
+                <div class="target-text" id="targetLabel">TAP TO UPLOAD</div>
+            </div>
+        </div>
+        <input type="file" id="filePayloadInput" accept="image/*">
+        <div class="ai-overview-panel">
+            <div class="ai-overview-header"><span class="ai-sparkle">✦</span> Created by Google AI Overview</div>
+            Engineered via GnomeGPT Work Protocol. Compiled natively using hardware-accelerated CSS 3D transforms with pixel-art rendering maps to match reference project visual aesthetics.
+        </div>
+        <button class="action-trigger-btn" id="spiralTrigger">[ SPIRAL ]</button>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const trg = document.getElementById('spiralTrigger');
+            const ent = document.getElementById('targetEntity');
+            const inp = document.getElementById('filePayloadInput');
+            const prv = document.getElementById('maskPreview');
+            const lbl = document.getElementById('targetLabel');
+            inp.addEventListener('change', (e) => {
+                const f = e.target.files;
+                if (f && f[0]) {
+                    const r = new FileReader();
+                    r.onload = (ex) => { prv.src = ex.target.result; prv.style.display = 'block'; lbl.innerText = "READY"; };
+                    r.readAsDataURL(f[0]);
+                }
+            });
+            trg.addEventListener('click', () => {
+                ent.classList.add('active-spiral');
+                trg.innerText = "[ HARVESTING ]";
+                trg.style.background = "#00eaff";
+                trg.style.color = "#05010a";
+                trg.style.boxShadow = "0 0 20px #00eaff";
+            });
+        });
+    </script>
+</body>
+</html>
