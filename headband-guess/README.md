@@ -1,11 +1,18 @@
 # Headband Guess character artwork
 
-592 numbered PNGs cover all 73 categories. Every image is 400 x 460 pixels, matching
+592 numbered PNGs cover all 73 categories. Every runtime image is 200 x 230 pixels, matching
 the card image area's 20:23 aspect ratio. Artwork is fitted without stretching and
-with 16 pixels of padding; original backgrounds are retained. This is a mixed
+with 8 pixels of runtime padding (16 in the originals); backgrounds are retained. This is a mixed
 collection of renders, portraits, sprites and game stills, not a uniformly transparent
 or uniformly licensed art set. `sources.json` records the original page/image URLs
 and hashes for every file.
+
+The unchanged 400 x 460 authoring cards are retained under `originals/NNNN.png`.
+Both the master inventory and source index record their paths, dimensions and hashes.
+The existing baked `images/NNNN.png` URLs now serve the smaller cards; the runtime
+never loads archival originals. At RGBA32 without mipmaps, ten current card textures
+contain approximately 1.75 MiB of base pixels, 75% less than the former 7.02 MiB.
+This is an estimate, not a measurement of total RAM/VRAM or decoding buffers.
 
 The master uses permanent character IDs and image indices. Slots 0000 through 0591
 are populated. All 8,192 image URL slots remain reserved in the world; unused links

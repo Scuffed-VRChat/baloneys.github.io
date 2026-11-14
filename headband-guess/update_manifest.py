@@ -63,6 +63,14 @@ for character in characters:
         if width > 1 and height > 1:
             row['state'] = 'ready'; available.append(index)
         else: row['state'] = 'placeholder'
+    # Archival originals are indexed for authoring, never separate runtime slots.
+    original_relative = f'originals/{index:04d}.png'
+    original = ROOT / original_relative
+    if original.exists():
+        width, height = png_size(original)
+        row['original'] = {'file': original_relative, 'width': width, 'height': height,
+                           'bytes': original.stat().st_size,
+                           'sha256': hashlib.sha256(original.read_bytes()).hexdigest()}
     inventory.append(row)
 master.update(characterCount=len(characters), categoryCount=len(categories), images=inventory,
     availableImageIndices=sorted(available), availableImageCount=len(available),
