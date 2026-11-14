@@ -36,6 +36,7 @@ and review/commit only the intended files. The updater skips absent/one-pixel fi
 validates PNG CRCs and dimensions up to 2048 pixels, supports sparse indices, and
 changes the content version when image hashes or catalog data change.
 
-Cache defaults: 24 resident images, 32 MiB, 8 warm images, bounded by Inspector caps.
-Current cards have priority. VRChat multiplayer, headset behaviour, persistence and
+Cache policy: only current round cards, up to 10 images across five games, 32 MiB,
+zero preloading. Images are released when a round ends, a card changes or a player
+leaves; spectators inside the area load every active table's cards. VRChat multiplayer, headset behaviour, persistence and
 currency payout execution require in-client verification.
