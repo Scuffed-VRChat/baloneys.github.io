@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "imageCount": 5,
+  "selection": "Australian comedy relevant to someone growing up in Australia during the 2000s and 2010s.",
+  "rights": "Promotional artwork belongs to its respective owners. Source links are provenance, not a reuse licence.",
+  "images": [
+    {
+      "title": "The Dish",
+      "scenePath": "/soup67/Zone - Basement/basement test/pCube124 (26)",
+      "componentId": "9761704",
+      "previousUrl": "https://kanaris-beans.com/straya-posters/MV5BYWYwODcxZDEtMDZjZi00OGMyLThkMjItYTNmYmZiMThjNDA2XkEyXkFqcGc@._V1_FMjpg_UX1000_.png",
+      "url": "https://kanaris-beans.com/straya-posters/aussie-comedy/the-dish-405x720.png",
+      "file": "the-dish-405x720.png",
+      "width": 405,
+      "height": 720,
+      "sourcePage": "https://www.impawards.com/2001/dish_ver1_xlg.html",
+      "sourceImageUrl": "https://www.impawards.com/2001/posters/dish_ver1_xlg.jpg",
+      "sourceDimensions": [
+        1016,
+        1500
+      ],
+      "originalSha256": "4af55eb4a50124126449ba52a4ee9925dbe06a6420ea55102a8c5f5656541088",
+      "sha256": "881c84b13a5a1790ed75f7e380cde47d7aa6293b5e77460ea6fd0bd192a30be4",
+      "bytes": 511270,
+      "surfaceAspect": 0.6711291670799255,
+      "visibleUvMin": {
+        "x": 0.0009458065032958984,
+        "y": 0.002897142432630062
+      },
+      "visibleUvMax": {
+        "x": 0.9990541934967041,
+        "y": 0.9971028566360474
+      },
+      "fittedPixelDimensions": [
+        403,
+        707
+      ],
+      "fitting": "Full artwork retained with matte padding; pixels precompensated for the measured, unchanged poster submesh/UV aspect."
+    },
+    {
+      "title": "Angry Boys",
+      "scenePath": "/soup67/Zone - Basement/basement test/pCube124 (25)",
+      "componentId": "1740086649",
+      "previousUrl": "https://kanaris-beans.com/straya-posters/910p8WYb3hL._AC_UF1000,1000_QL80_.png",
+      "url": "https://kanaris-beans.com/straya-posters/aussie-comedy/angry-boys-405x720.png",
+      "file": "angry-boys-405x720.png",
+      "width": 405,
+      "height": 720,
+      "sourcePage": "https://www.imdb.com/title/tt1596589/",
+      "sourceImageUrl": "https://m.media-amazon.com/images/M/MV5BYzkyMzEzZjItMjlmYS00YjA3LTlkMjQtOGE1NDQyNjEzMDA5XkEyXkFqcGc%40._V1_.jpg",
+      "sourceDimensions": [
+        1063,
+        1594
+      ],
+      "originalSha256": "5096e68d8ccf479be66267228f9f3296e1304926f991efba3875826357e4380f",
+      "sha256": "28f1563c701e185e07ae8a7a4aeb122547e0003fcae6ab26ec275788e0e78eac",
+      "bytes": 361865,
+      "surfaceAspect": 0.6711291670799255,
+      "visibleUvMin": {
+        "x": 0.0009458065032958984,
+        "y": 0.002897142432630062
+      },
+      "visibleUvMax": {
+        "x": 0.9990541934967041,
+        "y": 0.9971028566360474
+      },
+      "fittedPixelDimensions": [
+        401,
+        714
+      ],
+      "fitting": "Full artwork retained with matte padding; pixels precompensated for the measured, unchanged poster submesh/UV aspect."
+    },
+    {
+      "title": "Kenny",
+      "scenePath": "/soup67/Zone - Private Rooms/Private Room/pCube124 (28)",
+      "componentId": "666950984",
+      "previousUrl": "https://kanaris-beans.com/straya-posters/nic-cage-moonstruck.png",
+      "url": "https://kanaris-beans.com/straya-posters/aussie-comedy/kenny-454x650.png",
+      "file": "kenny-454x650.png",
+      "width": 454,
+      "height": 650,
+      "sourcePage": "https://www.impawards.com/intl/australia/2006/kenny.html",
+      "sourceImageUrl": "https://www.impawards.com/intl/australia/2006/posters/kenny.jpg",
+      "sourceDimensions": [
+        507,
+        755
+      ],
+      "originalSha256": "6fce9fa16d137e5edf3b9ccba7e8446cd461df7f7c2ef4c0b225bf86f2aa68f4",
+      "sha256": "5838277b4ac381293602dbe2ea2df449c109fb1d59572c5e8a2a7eaa5deb83b4",
+      "bytes": 338436,
+      "surfaceAspect": 0.6711293458938599,
+      "visibleUvMin": {
+        "x": 0.0009458065032958984,
+        "y": 0.002897142432630062
+      },
+      "visibleUvMax": {
+        "x": 0.9990541934967041,
+        "y": 0.9971028566360474
+      },
+      "fittedPixelDimensions": [
+        452,
+        644
+      ],
+      "fitting": "Full artwork retained with matte padding; pixels precompensated for the measured, unchanged poster submesh/UV aspect."
+    },
+    {
+      "title": "Crackerjack",
+      "scenePath": "/soup67/Zone - Private Rooms/Private Room/pCube124 (29)",
+      "componentId": "1959058298",
+      "previousUrl": "https://kanaris-beans.com/straya-posters/nic-cage-moonstruck.png",
+      "url": "https://kanaris-beans.com/straya-posters/aussie-comedy/crackerjack-454x650.png",
+      "file": "crackerjack-454x650.png",
+      "width": 454,
+      "height": 650,
+      "sourcePage": "https://www.imdb.com/title/tt0291832/mediaviewer/rm4243986944",
+      "sourceImageUrl": "https://m.media-amazon.com/images/M/MV5BMjI4YzBhZDMtOWU4MS00YjRmLTgwNGMtOTA3OThjY2U4NzMxXkEyXkFqcGdeQXVyNDc3MTE2MA%40%40._V1_.jpg",
+      "sourceDimensions": [
+        500,
+        701
+      ],
+      "originalSha256": "48243a4e3f20617de74928dfcfbb0f7bbedf66ba2755bf456b2ef95a84bfc8c3",
+      "sha256": "a478978acdcfa47fcece575e9043646897ac233d6c3c3af3c8f979bfa4bc5d21",
+      "bytes": 469645,
+      "surfaceAspect": 0.6711293458938599,
+      "visibleUvMin": {
+        "x": 0.0009458065032958984,
+        "y": 0.002897142432630062
+      },
+      "visibleUvMax": {
+        "x": 0.9990541934967041,
+        "y": 0.9971028566360474
+      },
+      "fittedPixelDimensions": [
+        452,
+        607
+      ],
+      "fitting": "Full artwork retained with matte padding; pixels precompensated for the measured, unchanged poster submesh/UV aspect."
+    },
+    {
+      "title": "Swift and Shift Couriers",
+      "scenePath": "/soup67/Zone - Private Rooms/Private Room/pCube124 (30)",
+      "componentId": "1094337533",
+      "previousUrl": "https://kanaris-beans.com/straya-posters/nic-cage-moonstruck.png",
+      "url": "https://kanaris-beans.com/straya-posters/aussie-comedy/swift-and-shift-couriers-454x650.png",
+      "file": "swift-and-shift-couriers-454x650.png",
+      "width": 454,
+      "height": 650,
+      "sourcePage": "https://www.ebay.com.au/itm/186685063096",
+      "sourceImageUrl": "https://i.ebayimg.com/images/g/oNoAAOSwXtFhuiPf/s-l1200.jpg",
+      "sourceDimensions": [
+        500,
+        705
+      ],
+      "originalSha256": "85b0fc5d1291f8ef1f8b8903d7522affc229a76ab1bbe78d1a10444aaaf21689",
+      "sha256": "238313f85d6de18814a9a13814a0286754aa3c94e09de17aaf63528616075a0c",
+      "bytes": 424810,
+      "surfaceAspect": 0.6711267828941345,
+      "visibleUvMin": {
+        "x": 0.0009458065032958984,
+        "y": 0.002897142432630062
+      },
+      "visibleUvMax": {
+        "x": 0.9990541934967041,
+        "y": 0.9971028566360474
+      },
+      "fittedPixelDimensions": [
+        452,
+        610
+      ],
+      "fitting": "Full artwork retained with matte padding; pixels precompensated for the measured, unchanged poster submesh/UV aspect."
+    }
+  ]
+}
