@@ -58,7 +58,8 @@ for character in characters:
            'iconImageIndex': index, 'state': 'reserved'}
     if file.exists():
         width, height = png_size(file)
-        row.update(width=width, height=height, bytes=file.stat().st_size)
+        row.update(width=width, height=height, bytes=file.stat().st_size,
+                   sha256=hashlib.sha256(file.read_bytes()).hexdigest())
         if width > 1 and height > 1:
             row['state'] = 'ready'; available.append(index)
         else: row['state'] = 'placeholder'
