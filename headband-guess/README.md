@@ -1,6 +1,6 @@
 # Headband Guess character artwork
 
-592 numbered PNGs cover all 73 categories. Every runtime image is 200 x 230 pixels, matching
+687 numbered PNGs cover all 88 categories. Every runtime image is 200 x 230 pixels, matching
 the card image area's 20:23 aspect ratio. Artwork is fitted without stretching and
 with 8 pixels of runtime padding (16 in the originals); backgrounds are retained. This is a mixed
 collection of renders, portraits, sprites and game stills, not a uniformly transparent
@@ -14,8 +14,7 @@ never loads archival originals. At RGBA32 without mipmaps, ten current card text
 contain approximately 1.75 MiB of base pixels, 75% less than the former 7.02 MiB.
 This is an estimate, not a measurement of total RAM/VRAM or decoding buffers.
 
-The master uses permanent character IDs and image indices. Slots 0000 through 0591
-are populated. All 8,192 image URL slots remain reserved in the world; unused links
+The master uses permanent character IDs and image indices. Slots 0000 through 0686 are populated. All 8,192 image URL slots remain reserved in the world; unused links
 require no placeholder files. `availableImageIndices`, `availableImageCount`, highest
 indices, PNG dimensions/bytes and SHA-256 hashes are maintained by
 `python headband-guess/update_manifest.py` from the website repository root.

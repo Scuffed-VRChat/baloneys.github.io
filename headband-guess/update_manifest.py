@@ -12,6 +12,9 @@ capacity = master['slotCapacity']
 if not 1 <= capacity <= 8192:
     raise ValueError('Capacity must fit the world’s 8192 baked URL slots')
 categories, traits, characters = master['categories'], master['traits'], master['characters']
+cross = master.get('crossTraits', [])
+if len(cross) > 124 or [t['id'] for t in cross] != list(range(1, len(cross) + 1)):
+    raise ValueError('crossTraits: at most 124, IDs consecutive from 1')
 if not 1 <= len(categories) <= 124 or len(traits) > 30:
     raise ValueError('Unsupported category/trait count')
 if [c['id'] for c in categories] != list(range(1, len(categories) + 1)):
@@ -29,6 +32,8 @@ for character in characters:
         raise ValueError('Invalid character name/category')
     if any(not 1 <= i <= len(traits) for i in character['traitIds']):
         raise ValueError('Invalid character trait')
+    if any(not 1 <= i <= len(cross) for i in character.get('crossTraitIds', [])):
+        raise ValueError('Invalid character cross trait')
 
 def png_size(file):
     data = file.read_bytes()
