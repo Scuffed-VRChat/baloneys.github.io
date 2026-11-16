@@ -1,6 +1,6 @@
 # Headband Guess character artwork
 
-687 numbered PNGs cover all 88 categories. Every runtime image is 200 x 230 pixels, matching
+795 numbered PNGs cover all 88 categories. Every runtime image is 200 x 230 pixels, matching
 the card image area's 20:23 aspect ratio. Artwork is fitted without stretching and
 with 8 pixels of runtime padding (16 in the originals); backgrounds are retained. This is a mixed
 collection of renders, portraits, sprites and game stills, not a uniformly transparent
@@ -14,7 +14,7 @@ never loads archival originals. At RGBA32 without mipmaps, ten current card text
 contain approximately 1.75 MiB of base pixels, 75% less than the former 7.02 MiB.
 This is an estimate, not a measurement of total RAM/VRAM or decoding buffers.
 
-The master uses permanent character IDs and image indices. Slots 0000 through 0686 are populated. All 8,192 image URL slots remain reserved in the world; unused links
+The master uses permanent character IDs and image indices. Slots 0000 through 0794 are populated. All 8,192 image URL slots remain reserved in the world; unused links
 require no placeholder files. `availableImageIndices`, `availableImageCount`, highest
 indices, PNG dimensions/bytes and SHA-256 hashes are maintained by
 `python headband-guess/update_manifest.py` from the website repository root.
@@ -46,3 +46,9 @@ Cache policy: only current round cards, up to 10 images across five games, 32 Mi
 zero preloading. Images are released when a round ends, a card changes or a player
 leaves; spectators inside the area load every active table's cards. VRChat multiplayer, headset behaviour, persistence and
 currency payout execution require in-client verification.
+
+On 16 November 2026, all 795 indexed cards were visually screened by character
+name. The additional 108 slots (0687 through 0794) include the expanded Yakuza
+roster and the other character entries added to the master. Sources and hashes
+are recorded in `sources.json`; every indexed slot has a ready PNG. Visual
+screening is a human review, not automated proof of character identity.
