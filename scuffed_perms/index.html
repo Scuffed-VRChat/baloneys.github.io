@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" class="no-js">
+<html lang="en" class="no-js" data-game="chat">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Scuffed Permissions | baloneys</title>
-    <meta name="description" content="Edit who holds which role in the Scuffed VRChat world." />
+    <meta name="description" content="Staff page for the Scuffed VRChat world's roles." />
     <meta name="theme-color" content="#050505" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/public/pw64s5dmavz539gvjm065tw71xp1.png" type="image/png" sizes="32x32" />
@@ -26,8 +26,21 @@
     </style>
     <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="/home.css" />
-    <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-1" />
-    <script src="/scuffed_perms/perms.js?v=20261120-1" defer></script>
+    <link rel="stylesheet" href="/games-achievements.css?v=20261010-25" />
+    <link rel="stylesheet" href="/games-social.css?v=20261011-8" />
+    <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-2" />
+
+    <!-- the site's player accounts and social dock (profile, friends, notifications), same as /chat -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
+    <script src="/games-common.js?v=20261010-25" defer></script>
+    <script src="/games-achievements.js?v=20261010-25" defer></script>
+    <script src="/tetris-achievements.js?v=20261010-25" defer></script>
+    <script src="/pong-achievements.js?v=20261010-25" defer></script>
+    <script src="/battleships-achievements.js?v=20261010-25" defer></script>
+    <script src="/chess-achievements.js?v=20261010-25" defer></script>
+    <script src="/games-config.js?v=20261010-25" defer></script>
+    <script src="/games-social.js?v=20261011-8" defer></script>
+    <script src="/scuffed_perms/perms.js?v=20261120-2" defer></script>
   </head>
   <body>
     <!-- shared icons -->
@@ -83,30 +96,43 @@
 
     <main id="main" class="perms">
       <section class="perms-hero">
-        <span class="section-eyebrow">Scuffed</span>
+        <span class="section-eyebrow">Scuffed · staff only</span>
         <h1 class="section-title">Permissions</h1>
         <p class="section-content">
-          Who holds which role in the Scuffed world. Changes save straight to the site, and the world picks them up
-          at its next role refresh (usually within 5–10 minutes). Anyone can look; saving needs a GitHub token.
+          Who holds which role in the Scuffed world. Admins can change the lists here; the world picks changes up
+          at its next role refresh (usually within 5–10 minutes).
         </p>
       </section>
 
-      <section class="perms-panel" aria-labelledby="tokenTitle">
-        <h2 id="tokenTitle">Editing access</h2>
-        <form id="tokenForm" class="perms-row" autocomplete="off">
-          <input class="perms-input" id="tokenInput" type="password" placeholder="Paste a GitHub token (github_pat_… or ghp_…)" aria-label="GitHub token" spellcheck="false" />
-          <label class="perms-check"><input type="checkbox" id="rememberToken" /> Remember on this device</label>
-          <button class="btn btn-sm btn-primary" type="submit">Connect</button>
-        </form>
-        <div id="signedIn" class="perms-row hidden">
-          <button class="btn btn-sm btn-outline" id="signOut" type="button">Disconnect</button>
+      <!-- access check: everything below the gate stays hidden until the perms server lets you in -->
+      <section class="perms-panel" id="gate" aria-live="polite">
+        <div id="gateChecking"><h2>Checking your access…</h2></div>
+        <div id="gateNoAccount" class="hidden">
+          <h2>Sign in first</h2>
+          <p class="perms-note">This page uses your player account from the site's games and chat. This browser doesn't have one yet:
+            open <a href="/chat">chat</a> or play a game here to make one, then come back.</p>
         </div>
-        <p class="perms-status" id="tokenStatus" role="status"></p>
-        <p class="perms-note">
-          The token is kept in this browser only (this tab, unless you tick remember) and is sent to nobody but GitHub.
-          Make one at <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer noopener">GitHub → Fine-grained tokens</a>:
-          resource owner <code>Scuffed-VRChat</code>, only the <code>baloneys.github.io</code> repository, permission <em>Contents: Read and write</em>.
-        </p>
+        <div id="gateDenied" class="hidden">
+          <h2>Admins only</h2>
+          <p class="perms-note"><span id="deniedWho"></span> Only players with the admin role (or higher) on the moderation panel can open this page.</p>
+        </div>
+        <div id="adminBar" class="perms-row hidden">
+          <p id="whoAmI" class="perms-status is-good"></p>
+          <button class="btn btn-sm btn-outline hidden" id="masterLogout" type="button">Log out of master</button>
+        </div>
+        <p class="perms-status hidden" id="gateStatus" role="status"></p>
+        <div class="perms-row hidden" id="recheckRow"><button class="btn btn-sm btn-outline" id="recheck" type="button">Check again</button></div>
+      </section>
+
+      <section class="perms-panel hidden" id="masterPanel" aria-labelledby="masterTitle">
+        <h2 id="masterTitle">Master login</h2>
+        <form id="masterLogin" class="perms-row" autocomplete="on">
+          <input class="perms-input" id="mUser" autocomplete="username" value="baloneys" aria-label="Username" />
+          <input class="perms-input" id="mPass" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" />
+          <button class="btn btn-sm btn-primary" type="submit">Log in</button>
+        </form>
+        <p class="perms-status" id="masterStatus" role="status"></p>
+        <p class="perms-note">The same master login as the <a href="/moderation.html">moderation panel</a>. It lasts until this tab closes.</p>
       </section>
 
       <section id="editor" class="hidden" aria-label="Role lists">
@@ -114,9 +140,9 @@
           <input class="perms-input" id="search" type="search" placeholder="Find a player across every role" aria-label="Find a player" />
           <button class="btn btn-sm btn-outline" id="reload" type="button">Reload</button>
         </div>
+        <p class="perms-status" id="loadStatus" role="status"></p>
+        <div class="perms-grid" id="roleGrid"></div>
       </section>
-      <p class="perms-status" id="loadStatus" role="status"></p>
-      <div class="perms-grid" id="roleGrid"></div>
 
       <div class="perms-savebar hidden" id="saveBar" role="region" aria-label="Unsaved changes">
         <div>
@@ -130,7 +156,7 @@
         </div>
       </div>
 
-      <section class="perms-panel" aria-labelledby="worldTitle">
+      <section class="perms-panel hidden" id="worldPanel" aria-labelledby="worldTitle">
         <h2 id="worldTitle">What the world downloads</h2>
         <p class="perms-note">Every list in one file, rebuilt on each save. Put this link in the world's PlayerIcons <em>Roles Bundle Url</em>:</p>
         <div class="perms-row">
@@ -190,6 +216,6 @@
       </div>
     </footer>
 
-    <script src="/site.js"></script>
+    <script src="/site.js" defer></script>
   </body>
 </html>
