@@ -1,1 +1,3 @@
 this is a test announcement
+
+[notifier] @2026-11-20T06:56:05Z Devo says Take a drink~
