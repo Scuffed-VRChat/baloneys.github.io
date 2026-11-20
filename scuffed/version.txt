@@ -1,0 +1,5 @@
+# Scuffed World world build versions - written by the Unity editor after each upload.
+# The world's version checker reads pc= and quest=. They match when both builds are out.
+pc=1
+quest=0
+pc_uploaded=2026-11-20 07:51 UTC
