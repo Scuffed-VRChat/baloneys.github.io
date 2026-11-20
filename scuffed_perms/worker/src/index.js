@@ -10,7 +10,12 @@
 // POST /save   <- { head, changes: { "<file>": { sha, names: [..] } } }
 //              -> { commit, files }   one commit: the changed lists + a rebuilt all.txt
 //
-// Config: cloudflare.config.ts (Supabase URL + anon key are public; GITHUB_TOKEN is a secret).
+// Config: cloudflare.config.ts (Supabase URL + anon key are public). GITHUB_TOKEN is a secret added after
+// deploying (npx wrangler secret put GITHUB_TOKEN --name scuffed-perms). Without it the lists can still be
+// viewed (read from the public all.txt) but /save refuses.
+//
+// A list's "sha" here is a hash of its non-blank lines, not GitHub's blob id, so it means the same thing
+// whether the lists came from the GitHub API or from all.txt.
 
 const ADMIN_LEVEL = 3; // helper 1, moderator 2, admin 3, dev 4, master 5 (supabase/migrations/2026-10-10-chat-moderation.sql)
 const BUNDLE = "all.txt";
@@ -60,6 +65,23 @@ function splitLines(text) {
 }
 
 const byteOrder = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+// Identifies a list's contents (blank lines and CRs ignored), for "did someone else change it?".
+async function contentId(text) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(splitLines(text).join("\n")));
+  return "h" + [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// The lists from the public all.txt: { name, text } per "### FILE:" section.
+function parseBundle(text) {
+  const files = [];
+  let current = null;
+  for (const line of String(text || "").replace(/\r/g, "").split("\n")) {
+    if (line.startsWith("### FILE: ")) { current = { name: line.slice(10).trim(), lines: [] }; files.push(current); continue; }
+    if (current && !/^\s*$/.test(line)) current.lines.push(line);
+  }
+  return files.map((f) => ({ name: f.name, text: f.lines.length ? f.lines.join("\n") + "\n" : "" }));
+}
 
 // Same output as .github/scripts/combine-scuffed-perms.sh (and the old page). Keep them in step.
 function buildBundle(dir, fileLines) {
@@ -117,12 +139,21 @@ class GitHub {
     this.base = `https://api.github.com/repos/${env.REPO_OWNER}/${env.REPO_NAME}`;
     this.branch = env.BRANCH || "main";
     this.dir = env.ROLES_DIR || "scuffed_perms/roles";
+    this.raw = `https://raw.githubusercontent.com/${env.REPO_OWNER}/${env.REPO_NAME}/refs/heads/${this.branch}/`;
     this.headers = {
       Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       "User-Agent": "scuffed-perms",
       "X-GitHub-Api-Version": "2022-11-28",
     };
+    if (env.GITHUB_TOKEN) this.headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
+  }
+
+  // No token: read the lists from the public all.txt (can lag a few minutes behind a save: GitHub's CDN).
+  async listsFromBundle() {
+    const res = await fetch(this.raw + this.dir + "/" + BUNDLE, { headers: { "User-Agent": "scuffed-perms" } });
+    if (!res.ok) throw new HttpError(502, `Couldn't read ${BUNDLE} (${res.status}).`);
+    const files = parseBundle(await res.text());
+    return Promise.all(files.map(async (f) => ({ ...f, sha: await contentId(f.text) })));
   }
 
   async call(path, method, body) {
@@ -151,7 +182,8 @@ class GitHub {
     const files = (items || []).filter((it) => it.type === "file" && it.name !== BUNDLE);
     return Promise.all(files.map(async (f) => {
       const blob = await this.call(`/git/blobs/${f.sha}`);
-      return { name: f.name, sha: f.sha, text: decodeBase64(blob.content) };
+      const text = decodeBase64(blob.content);
+      return { name: f.name, sha: await contentId(text), text };
     }));
   }
 
@@ -168,12 +200,14 @@ class GitHub {
 
 async function handleLists(env) {
   const gh = new GitHub(env);
+  if (!env.GITHUB_TOKEN) return { head: null, files: await gh.listsFromBundle(), canSave: false };
   const head = await gh.head();
   const files = await gh.lists(head);
-  return { head, files };
+  return { head, files, canSave: true };
 }
 
 async function handleSave(request, env, who) {
+  if (!env.GITHUB_TOKEN) throw new HttpError(503, "Saving isn't switched on yet: the perms server still needs its GitHub token.");
   let body;
   try { body = await request.json(); } catch { throw new HttpError(400, "Body must be JSON."); }
   const changes = body && body.changes && typeof body.changes === "object" ? body.changes : null;
@@ -249,7 +283,6 @@ export default {
 
     try {
       if (request.method === "GET" && pathname === "/health") return json({ ok: true }, 200, cors);
-      if (!env.GITHUB_TOKEN) throw new HttpError(500, "The Worker is missing its GITHUB_TOKEN secret.");
 
       if (request.method === "GET" && pathname === "/lists") {
         const who = await staffOf(request, env);

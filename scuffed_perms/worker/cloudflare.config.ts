@@ -18,8 +18,8 @@ export default defineConfig({
       ROLES_DIR: bindings.text("scuffed_perms/roles"),
       // Pages allowed to call this Worker from a browser.
       ALLOWED_ORIGINS: bindings.text("https://kanaris-beans.com,https://www.kanaris-beans.com,http://127.0.0.1:8765"),
-      // Fine-grained GitHub token: owner Scuffed-VRChat, only baloneys.github.io, Contents read & write.
-      GITHUB_TOKEN: bindings.secret(),
+      // GITHUB_TOKEN (secret, added after deploying): fine-grained token, owner Scuffed-VRChat,
+      // only baloneys.github.io, Contents read & write. Without it the lists are view-only.
     },
   },
 });

@@ -31,6 +31,7 @@
   var me = null;         // { level, actor } once let in
   var roles = [];        // { file, label, sha, entries: [{text, comment}], added: {}, removed: {}, note }
   var busy = false;
+  var canSave = true;    // false until the perms server has its GitHub token (view only)
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -256,6 +257,8 @@
   function renderSaveBar() {
     var changed = changedRoles();
     show('saveBar', changed.length > 0);
+    $('saveBtn').disabled = !canSave;
+    $('saveBtn').title = canSave ? '' : 'Saving is not switched on yet';
     $('saveSummary').textContent = changed.length ? summary().join(' · ') : '';
   }
 
@@ -269,6 +272,8 @@
     status('loadStatus', 'Loading the lists…');
     return worker('/lists').then(function (data) {
       roles = (data.files || []).map(function (f) { return makeRole(f.name, f.sha, f.text); });
+      canSave = data.canSave !== false;
+      show('viewOnly', !canSave);
       roles.sort(function (a, b) { return a.rank - b.rank || (lower(a.file) < lower(b.file) ? -1 : 1); });
       status('loadStatus', doneMessage || 'Loaded ' + roles.length + ' role lists.', 'good');
       render();

@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="/home.css" />
     <link rel="stylesheet" href="/games-achievements.css?v=20261010-25" />
     <link rel="stylesheet" href="/games-social.css?v=20261011-8" />
-    <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-2" />
+    <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-3" />
 
     <!-- the site's player accounts and social dock (profile, friends, notifications), same as /chat -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
@@ -40,7 +40,7 @@
     <script src="/chess-achievements.js?v=20261010-25" defer></script>
     <script src="/games-config.js?v=20261010-25" defer></script>
     <script src="/games-social.js?v=20261011-8" defer></script>
-    <script src="/scuffed_perms/perms.js?v=20261120-2" defer></script>
+    <script src="/scuffed_perms/perms.js?v=20261120-3" defer></script>
   </head>
   <body>
     <!-- shared icons -->
@@ -140,6 +140,7 @@
           <input class="perms-input" id="search" type="search" placeholder="Find a player across every role" aria-label="Find a player" />
           <button class="btn btn-sm btn-outline" id="reload" type="button">Reload</button>
         </div>
+        <p class="perms-note hidden" id="viewOnly">View only for now: saving switches on once the perms server has its GitHub token.</p>
         <p class="perms-status" id="loadStatus" role="status"></p>
         <div class="perms-grid" id="roleGrid"></div>
       </section>
