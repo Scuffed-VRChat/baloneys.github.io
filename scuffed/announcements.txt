@@ -1,6 +1,9 @@
-Welcome to Scuffed!
+Welcome to .SCUFFED.
 
-This board reloads from the website every 5 minutes.
-Write anything here - every line shows on the spawn board.
+We're gearing up to add some new stuff in the coming days (when aren't we? xD)
 
-A line starting with [notifier] is left off the board and pops up as a notification for the whole lobby instead.
+Stay tuned over the coming days as we're preparing some big things.
+
+- the SCUFFED team
+
+[notifier] @2026-11-20T08:08:40Z test notif 1 a 51
