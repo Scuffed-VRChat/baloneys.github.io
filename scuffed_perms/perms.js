@@ -66,19 +66,123 @@
     });
   }
 
+  /* ---------- your profile (the games' profile, editor and social menu) ---------- */
+
+  function social() { return window.GameSocial; }
+  function myProfile() { return social() && social().me ? social().me() : null; }
+
+  // The profile card on the right of the account panel.
+  function paintCard() {
+    var p = myProfile(), ui = social() && social().ui;
+    var card = $('profileCard');
+    card.style.background = '';
+    $('cardAvatar').textContent = ''; $('cardLevel').textContent = ''; $('cardBadges').textContent = '';
+    var role = $('cardRole');
+    if (!p || !ui) {
+      var local = window.Games && window.Games.Profile ? window.Games.Profile.get() : { name: 'Player' };
+      if (window.Games && window.Games.Profile) $('cardAvatar').appendChild(window.Games.Profile.avatar(local, 96));
+      $('cardName').textContent = local.name || 'Player';
+      role.textContent = me ? (LEVEL_NAMES[me.level] || 'Admin') : 'No profile yet';
+      role.className = 'perms-card-role' + (me ? ' is-admin' : '');
+      return;
+    }
+    ui.bannerStyle(card, p);
+    $('cardAvatar').appendChild(ui.avatarEl(p, 96));
+    var nameBox = $('cardName'); nameBox.textContent = ''; nameBox.appendChild(ui.nameSpan(p));
+    var staff = p.role && ui.roleNames ? ui.roleNames[p.role] : '';
+    role.textContent = me ? (LEVEL_NAMES[me.level] || 'Admin') + ' · can edit roles' : staff ? staff + ' · view only' : 'Player';
+    role.className = 'perms-card-role' + (me ? ' is-admin' : '');
+    $('cardLevel').appendChild(ui.levelBar(p));
+    (p.badges || []).forEach(function (id) { $('cardBadges').appendChild(ui.badgeChip(id, true)); });
+  }
+
+  // The games' social menu (as in Tetris): profile, friends, points shop, and the games themselves.
+  function buildSocialMenu() {
+    var menu = $('socMenu');
+    if (menu.childNodes.length) return;
+    [['Profile', 'Banner, badges, level', function () { social().openProfile(); }],
+      ['Friends', 'Requests and messages', function () { social().openFriends(); }],
+      ['Points shop', 'Name styles and more', function () { social().openShop(); }],
+      ['Play games', 'Tetris, Pong, Chess…', '/tetris']].forEach(function (x) {
+      var b = typeof x[2] === 'string' ? el('a', 'soc-menu-card') : el('button', 'soc-menu-card');
+      if (typeof x[2] === 'string') b.href = x[2]; else { b.type = 'button'; b.addEventListener('click', x[2]); }
+      b.appendChild(el('strong', null, x[0]));
+      b.appendChild(el('span', null, x[1]));
+      menu.appendChild(b);
+    });
+  }
+
+  // Name + picture, exactly like the Tetris online panel. With a profile, edits sync to it.
+  var editorMounted = false;
+  function mountEditor() {
+    if (editorMounted || !window.Games || !window.Games.Profile) return;
+    editorMounted = true;
+    window.Games.Profile.mount($('profileEditor'), function (pr) {
+      if (social() && social().localProfileChanged) social().localProfileChanged(pr);
+      paintCard();
+    });
+  }
+
+  // A new visitor makes their site profile here, the same row the games make.
+  function createProfile() {
+    var btn = $('createProfile');
+    btn.disabled = true;
+    status('createStatus', 'Creating your profile…');
+    var pr = window.Games.Profile.get();
+    var uid;
+    client.rpc('tetris_me').then(function (r) { return r && !r.error && r.data ? r.data : null; }, function () { return null; }).then(function (id) {
+      if (id) return id;
+      return client.auth.getSession().then(function (r) { return r.data && r.data.session ? r.data.session.user.id : null; });
+    }).then(function (id) {
+      if (!id) throw new Error('No sign-in yet. Reload and try again.');
+      uid = id;
+      return client.from('tetris_profiles').insert({ id: uid, name: (pr.name || 'Player').slice(0, 16), avatar: pr.avatar || null, equipped: { banner: 'dusk' } }).select().single();
+    }).then(function (r) {
+      if (r.error && !/duplicate/i.test(r.error.message || '')) throw r.error;
+      status('createStatus', 'Profile created.', 'good');
+      // games-social.js picks the new profile up (the same signal /chat sends).
+      window.dispatchEvent(new Event('chat:profile-created'));
+      var t0 = Date.now();
+      (function wait() {
+        if (myProfile()) { btn.disabled = false; checkAccess(); return; }
+        if (Date.now() - t0 > 8000) { btn.disabled = false; checkAccess(); return; }
+        setTimeout(wait, 200);
+      })();
+    }).catch(function (e) {
+      btn.disabled = false;
+      status('createStatus', 'Couldn\'t create your profile: ' + (e.message || e), 'bad');
+    });
+  }
+
   /* ---------- access gate ---------- */
 
   function gate(state, text) {
-    // state: checking | noaccount | denied | admin | offline
-    show('gateChecking', state === 'checking');
-    show('gateNoAccount', state === 'noaccount');
-    show('gateDenied', state === 'denied');
-    show('masterPanel', state === 'noaccount' || state === 'denied');
-    show('adminBar', state === 'admin');
-    show('editor', state === 'admin');
+    // state: checking | create | denied | admin | offline
+    var titles = { checking: 'Checking your access…', create: 'Make your profile', denied: 'Admins only', admin: 'You\'re in', offline: 'Can\'t check your access' };
+    var p = myProfile();
+    $('accountTitle').textContent = state === 'admin' && p ? p.name : state === 'denied' && p ? 'Hi ' + p.name : titles[state];
+    $('accountText').textContent = {
+      checking: '',
+      create: 'This page uses the same profile as the site\'s games and chat. Pick a name and picture, then create it. Only players with the admin role can edit roles.',
+      denied: 'Only players with the admin role (or higher) on the moderation panel can edit roles. Your profile, friends and shop still work here.',
+      admin: me ? 'Signed in as ' + me.actor + ' · ' + (LEVEL_NAMES[me.level] || 'Admin') + '. The roles are below.' : '',
+      offline: ''
+    }[state];
+    show('profileBlock', state === 'create' || ((state === 'admin' || state === 'denied') && !!p));
+    show('createProfile', state === 'create');
+    show('socMenu', !!p && (state === 'admin' || state === 'denied'));
+    show('masterPanel', state === 'create' || state === 'denied');
+    show('masterLogout', state === 'admin' && !!modToken);
+    show('recheckRow', state === 'create' || state === 'denied' || state === 'offline' || (state === 'admin' && !!modToken));
+    show('recheck', state !== 'admin');
+    show('heroRoles', state === 'admin');
+    show('roles', state === 'admin');
     show('worldPanel', state === 'admin');
-    show('recheckRow', state === 'noaccount' || state === 'denied' || state === 'offline');
     if (state !== 'admin') { $('roleGrid').textContent = ''; show('saveBar', false); }
+    if (state === 'create' || state === 'admin' || state === 'denied') mountEditor();
+    if (state !== 'create') status('createStatus', '');
+    if (p) buildSocialMenu();
+    paintCard();
     status('gateStatus', text || '', state === 'offline' ? 'bad' : '');
     show('gateStatus', !!text);   // after status(), which resets the class list
   }
@@ -102,8 +206,6 @@
       var level = r.data && r.data.level || 0;
       if (level >= ADMIN_LEVEL) {
         me = { level: level, actor: r.data.actor };
-        $('whoAmI').textContent = 'Signed in as ' + me.actor + ' · ' + (LEVEL_NAMES[level] || 'Admin');
-        show('masterLogout', !!modToken);
         gate('admin');
         // Back in with unsaved edits (e.g. after "Check again"): show them rather than reload over them.
         if (changedRoles().length) { render(); status('loadStatus', 'Your unsaved changes are still here.'); return; }
@@ -111,10 +213,7 @@
       }
       me = null;
       if (modToken) { modToken = null; storeModToken(null); }   // an expired master session
-      var p = window.GameSocial && window.GameSocial.me && window.GameSocial.me();
-      if (!p) return gate('noaccount');
-      $('deniedWho').textContent = 'You\'re signed in as ' + p.name + (r.data && r.data.actor ? ' (' + r.data.actor + ')' : '') + '.';
-      gate('denied');
+      gate(myProfile() ? 'denied' : 'create');
     }).catch(function (e) {
       gate('offline', 'Couldn\'t check your access: ' + (e.message || e));
     });
@@ -202,7 +301,7 @@
     grid.textContent = '';
     var query = lower($('search').value.trim());
     roles.forEach(function (role) {
-      var card = el('article', 'perms-role' + (isChanged(role) ? ' is-changed' : ''));
+      var card = el('article', 'perms-role store-card' + (isChanged(role) ? ' is-changed' : ''));
       var head = el('div', 'perms-role-head');
       var title = el('div');
       title.appendChild(el('div', 'perms-role-name', role.label));
@@ -343,6 +442,7 @@
       (t && client ? client.rpc('mod_logout', { token: t }) : Promise.resolve()).then(checkAccess);
     });
     $('recheck').addEventListener('click', checkAccess);
+    $('createProfile').addEventListener('click', createProfile);
     window.addEventListener('beforeunload', function (e) { if (changedRoles().length) { e.preventDefault(); e.returnValue = ''; } });
 
     modToken = readModToken();

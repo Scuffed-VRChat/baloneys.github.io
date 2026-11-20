@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="/home.css" />
     <link rel="stylesheet" href="/games-achievements.css?v=20261010-25" />
     <link rel="stylesheet" href="/games-social.css?v=20261011-8" />
-    <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-3" />
+    <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-4" />
 
     <!-- the site's player accounts and social dock (profile, friends, notifications), same as /chat -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
@@ -40,7 +40,7 @@
     <script src="/chess-achievements.js?v=20261010-25" defer></script>
     <script src="/games-config.js?v=20261010-25" defer></script>
     <script src="/games-social.js?v=20261011-8" defer></script>
-    <script src="/scuffed_perms/perms.js?v=20261120-3" defer></script>
+    <script src="/scuffed_perms/perms.js?v=20261120-4" defer></script>
   </head>
   <body>
     <!-- shared icons -->
@@ -95,76 +95,130 @@
     </div>
 
     <main id="main" class="perms">
-      <section class="perms-hero">
-        <span class="section-eyebrow">Scuffed · staff only</span>
-        <h1 class="section-title">Permissions</h1>
-        <p class="section-content">
-          Who holds which role in the Scuffed world. Admins can change the lists here; the world picks changes up
-          at its next role refresh (usually within 5–10 minutes).
-        </p>
+      <!-- Hero, same build as the homepage's -->
+      <section class="hero-section perms-hero" aria-label="Intro">
+        <div class="hero-media-container">
+          <img class="hero-bg-video" src="/VRChat_2025-11-15_00-50-30.956_1920x1080.png" alt="" aria-hidden="true" decoding="async" />
+          <div class="hero-overlay"></div>
+        </div>
+        <div class="hero-content-wrapper">
+          <div class="hero-grid">
+            <div class="hero-left">
+              <span class="section-eyebrow">Scuffed · staff only</span>
+              <h1 class="hero-title home-hero-title">perms</h1>
+            </div>
+            <div class="hero-right">
+              <p class="hero-subtitle home-hero-subtitle">
+                Who holds which role in the Scuffed world. Sign in with your site profile; admins can change the lists,
+                and the world picks changes up at its next role refresh (usually within 5–10 minutes).
+              </p>
+              <div class="hero-cta-group">
+                <a href="#roles" class="btn btn-lg btn-primary hidden" id="heroRoles">Edit roles</a>
+                <a href="#account" class="btn btn-lg btn-outline">Your profile</a>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <!-- access check: everything below the gate stays hidden until the perms server lets you in -->
-      <section class="perms-panel" id="gate" aria-live="polite">
-        <div id="gateChecking"><h2>Checking your access…</h2></div>
-        <div id="gateNoAccount" class="hidden">
-          <h2>Sign in first</h2>
-          <p class="perms-note">This page uses your player account from the site's games and chat. This browser doesn't have one yet:
-            open <a href="/chat">chat</a> or play a game here to make one, then come back.</p>
+      <!-- Your profile: the same account, editor and social menu as the games -->
+      <section id="account" class="cta-section" aria-labelledby="accountTitle">
+        <div class="cta-container">
+          <div class="cta-split perms-account">
+            <div class="cta-content">
+              <span class="section-eyebrow">Your profile</span>
+              <h2 class="section-title" id="accountTitle">Checking your access…</h2>
+
+              <p class="section-content perms-account-text" id="accountText" aria-live="polite"></p>
+              <p class="perms-status hidden" id="gateStatus" role="status"></p>
+
+              <!-- name + picture, exactly like the Tetris online panel -->
+              <div id="profileBlock" class="hidden">
+                <div id="profileEditor"></div>
+                <div class="perms-row">
+                  <button class="btn btn-primary hidden" id="createProfile" type="button">Create my profile</button>
+                </div>
+                <p class="perms-status" id="createStatus" role="status"></p>
+              </div>
+
+              <!-- the games' social menu -->
+              <div class="soc-menu perms-soc-menu hidden" id="socMenu"></div>
+
+              <div class="perms-row hidden" id="recheckRow">
+                <button class="btn btn-sm btn-outline" id="recheck" type="button">Check again</button>
+                <button class="btn btn-sm btn-outline hidden" id="masterLogout" type="button">Log out of master</button>
+              </div>
+
+              <details class="perms-master hidden" id="masterPanel">
+                <summary>Master login</summary>
+                <form id="masterLogin" class="perms-row" autocomplete="on">
+                  <input class="perms-input" id="mUser" autocomplete="username" value="baloneys" aria-label="Username" />
+                  <input class="perms-input" id="mPass" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" />
+                  <button class="btn btn-sm btn-primary" type="submit">Log in</button>
+                </form>
+                <p class="perms-status" id="masterStatus" role="status"></p>
+                <p class="perms-note">The same master login as the <a href="/moderation.html">moderation panel</a>. It lasts until this tab closes.</p>
+              </details>
+            </div>
+
+            <!-- profile card: banner, picture, styled name, level, badges, staff role -->
+            <div class="cta-visual perms-card" id="profileCard" aria-hidden="true">
+              <div class="perms-card-inner">
+                <div class="perms-card-avatar" id="cardAvatar"></div>
+                <div class="perms-card-name" id="cardName">baloneys</div>
+                <div class="perms-card-role" id="cardRole"></div>
+                <div class="perms-card-level" id="cardLevel"></div>
+                <div class="perms-card-badges" id="cardBadges"></div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div id="gateDenied" class="hidden">
-          <h2>Admins only</h2>
-          <p class="perms-note"><span id="deniedWho"></span> Only players with the admin role (or higher) on the moderation panel can open this page.</p>
-        </div>
-        <div id="adminBar" class="perms-row hidden">
-          <p id="whoAmI" class="perms-status is-good"></p>
-          <button class="btn btn-sm btn-outline hidden" id="masterLogout" type="button">Log out of master</button>
-        </div>
-        <p class="perms-status hidden" id="gateStatus" role="status"></p>
-        <div class="perms-row hidden" id="recheckRow"><button class="btn btn-sm btn-outline" id="recheck" type="button">Check again</button></div>
       </section>
 
-      <section class="perms-panel hidden" id="masterPanel" aria-labelledby="masterTitle">
-        <h2 id="masterTitle">Master login</h2>
-        <form id="masterLogin" class="perms-row" autocomplete="on">
-          <input class="perms-input" id="mUser" autocomplete="username" value="baloneys" aria-label="Username" />
-          <input class="perms-input" id="mPass" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" />
-          <button class="btn btn-sm btn-primary" type="submit">Log in</button>
-        </form>
-        <p class="perms-status" id="masterStatus" role="status"></p>
-        <p class="perms-note">The same master login as the <a href="/moderation.html">moderation panel</a>. It lasts until this tab closes.</p>
+      <!-- Roles (admins only) -->
+      <section id="roles" class="showcase-section perms-roles hidden" aria-labelledby="rolesTitle">
+        <header class="section-head">
+          <span class="section-eyebrow">Scuffed</span>
+          <h2 class="section-title" id="rolesTitle">Roles</h2>
+          <p class="section-subtitle">Top of the list wins: a Dev who's also a Prem shows as Dev.</p>
+        </header>
+        <div class="perms-wrap">
+          <div class="perms-toolbar">
+            <input class="perms-input" id="search" type="search" placeholder="Find a player across every role" aria-label="Find a player" />
+            <button class="btn btn-sm btn-outline" id="reload" type="button">Reload</button>
+          </div>
+          <p class="perms-note hidden" id="viewOnly">View only for now: saving switches on once the perms server has its GitHub token.</p>
+          <p class="perms-status" id="loadStatus" role="status"></p>
+          <div class="perms-grid" id="roleGrid"></div>
+
+          <div class="perms-savebar hidden" id="saveBar" role="region" aria-label="Unsaved changes">
+            <div>
+              <p><strong>Unsaved changes</strong></p>
+              <p class="perms-note" id="saveSummary"></p>
+              <p class="perms-status" id="saveStatus" role="status"></p>
+            </div>
+            <div class="perms-row" style="flex: 0 0 auto">
+              <button class="btn btn-sm btn-outline" id="discard" type="button">Discard</button>
+              <button class="btn btn-sm btn-primary" id="saveBtn" type="button">Save changes</button>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section id="editor" class="hidden" aria-label="Role lists">
-        <div class="perms-toolbar">
-          <input class="perms-input" id="search" type="search" placeholder="Find a player across every role" aria-label="Find a player" />
-          <button class="btn btn-sm btn-outline" id="reload" type="button">Reload</button>
+      <!-- What the world downloads (admins only) -->
+      <section id="worldPanel" class="cta-section hidden" aria-labelledby="worldTitle">
+        <div class="cta-container">
+          <div class="perms-world">
+            <span class="section-eyebrow">In the world</span>
+            <h2 class="section-title" id="worldTitle">What VRChat downloads</h2>
+            <p class="section-content">Every list in one file, rebuilt on each save. It's the world's PlayerIcons <em>Roles Bundle Url</em>:</p>
+            <div class="perms-row">
+              <code class="perms-url" id="bundleUrl"></code>
+              <button class="btn btn-sm btn-outline" id="copyUrl" type="button">Copy</button>
+            </div>
+            <p class="perms-note">The separate lists live in <a id="repoLink" target="_blank" rel="noreferrer noopener">scuffed_perms/roles</a>. Edits made there directly rebuild the bundle automatically too.</p>
+          </div>
         </div>
-        <p class="perms-note hidden" id="viewOnly">View only for now: saving switches on once the perms server has its GitHub token.</p>
-        <p class="perms-status" id="loadStatus" role="status"></p>
-        <div class="perms-grid" id="roleGrid"></div>
-      </section>
-
-      <div class="perms-savebar hidden" id="saveBar" role="region" aria-label="Unsaved changes">
-        <div>
-          <p><strong>Unsaved changes</strong></p>
-          <p class="perms-note" id="saveSummary"></p>
-          <p class="perms-status" id="saveStatus" role="status"></p>
-        </div>
-        <div class="perms-row" style="flex: 0 0 auto">
-          <button class="btn btn-sm btn-outline" id="discard" type="button">Discard</button>
-          <button class="btn btn-sm btn-primary" id="saveBtn" type="button">Save changes</button>
-        </div>
-      </div>
-
-      <section class="perms-panel hidden" id="worldPanel" aria-labelledby="worldTitle">
-        <h2 id="worldTitle">What the world downloads</h2>
-        <p class="perms-note">Every list in one file, rebuilt on each save. Put this link in the world's PlayerIcons <em>Roles Bundle Url</em>:</p>
-        <div class="perms-row">
-          <code class="perms-url" id="bundleUrl"></code>
-          <button class="btn btn-sm btn-outline" id="copyUrl" type="button">Copy</button>
-        </div>
-        <p class="perms-note">The separate lists live in <a id="repoLink" target="_blank" rel="noreferrer noopener">scuffed_perms/roles</a>. Edits made there directly rebuild the bundle automatically too.</p>
       </section>
     </main>
 

@@ -1,108 +1,181 @@
-/* scuffed_perms/perms.css: the Scuffed permissions editor. Built on the site tokens in /style.css + /home.css. */
+/* scuffed_perms/perms.css: the Scuffed permissions page. Layout and look come from the homepage
+   (/style.css + /home.css: hero, cta-split, section-head, store cards); this file only adds what's
+   specific to the page, plus the Tetris profile editor styles (from /games.css, scoped to this page). */
 
 .perms {
   --perms-muted: color-mix(in srgb, var(--color-on-surface) 62%, transparent);
-  --perms-card: color-mix(in srgb, var(--color-surface) 86%, var(--color-primary));
   --perms-line: color-mix(in srgb, var(--color-primary) 28%, transparent);
   --perms-good: #2bd88f;
   --perms-bad: #ff4d6d;
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: calc(4.5rem + var(--spacing-3xl)) var(--spacing-xl) var(--spacing-4xl);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2xl);
 }
 
-.perms-hero {
+.hidden { display: none !important; }
+
+/* ---------- hero (the homepage's, a little shorter) ---------- */
+
+.perms-hero { min-height: min(68vh, 680px); }
+.perms-hero .hero-bg-video { opacity: 0.55; }
+.perms-hero .home-hero-title { margin-top: var(--spacing-sm); }
+
+/* ---------- account split ---------- */
+
+.perms-account { min-height: 420px; }
+.perms-account .cta-content { display: flex; flex-direction: column; gap: var(--spacing-md); align-items: flex-start; }
+.perms-account .section-title { margin-bottom: 0; }
+.perms-account-text { color: var(--perms-muted); }
+.perms-account-text:empty { display: none; }
+
+.perms-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-size: cover;
+  background-position: center;
+}
+.perms-card::after {   /* keeps text readable over any banner */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, color-mix(in srgb, var(--color-surface) 82%, transparent), color-mix(in srgb, var(--color-surface) 20%, transparent));
+  pointer-events: none;
+}
+.perms-card-inner {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
-  padding-bottom: var(--spacing-lg);
-  background: radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 70%);
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-2xl);
+  text-align: center;
+  width: 100%;
+  max-width: 22rem;
 }
-
-.perms-hero .section-title { font-size: var(--font-size-3xl); }
-.perms-hero .section-content { color: var(--perms-muted); max-width: 46rem; }
-
-.perms-panel {
-  background: var(--perms-card);
-  border: 1px solid var(--perms-line);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-xl);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-
-.perms-panel h2 {
+.perms-card-avatar:empty { display: none; }
+.perms-card-name { font-family: var(--font-family-heading); font-weight: 800; font-size: var(--font-size-2xl); word-break: break-word; }
+.perms-card-role {
   font-family: var(--font-family-heading);
-  font-size: var(--font-size-lg);
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+.perms-card-role.is-admin { color: var(--perms-good); }
+.perms-card-level { width: 100%; }
+.perms-card-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--spacing-xs); }
+
+.perms-soc-menu { width: 100%; margin-top: var(--spacing-sm); }
+.perms-soc-menu a.soc-menu-card { text-decoration: none; }
+
+.perms-master { width: 100%; color: var(--perms-muted); font-size: var(--font-size-sm); }
+.perms-master summary { cursor: pointer; width: max-content; }
+.perms-master[open] summary { margin-bottom: var(--spacing-sm); color: var(--color-on-surface); }
+.perms-master > * + * { margin-top: var(--spacing-sm); }
+
+/* ---------- Tetris profile editor (from /games.css) ---------- */
+
+.perms .profile-editor {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin: 0 0 var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  max-width: 440px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  background: var(--color-surface);
+}
+.perms .profile-pic { flex: none; padding: 0; border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 2px var(--color-outline); transition: box-shadow 0.2s ease; }
+.perms .profile-pic:hover { box-shadow: 0 0 0 2px var(--color-primary), 0 0 18px color-mix(in srgb, var(--color-primary) 50%, transparent); }
+.perms .profile-fields { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.perms .profile-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.perms .option-label {
+  color: var(--perms-muted);
+  font-family: var(--font-family-heading);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.perms .text-input {
+  width: 100%;
+  padding: 10px 14px;
+  color: var(--color-on-surface);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font: inherit;
+  outline: none;
+}
+.perms .text-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent); }
+.perms .avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-primary) 45%, #140f1f);
+  color: #fff;
+  font-family: var(--font-family-heading);
+  font-weight: 800;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.perms .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---------- roles ---------- */
+
+.perms-roles { padding-bottom: var(--spacing-4xl); }
+.perms-wrap {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
 }
 
 .perms-note { color: var(--perms-muted); font-size: var(--font-size-sm); }
 .perms-note a { color: var(--color-primary); text-decoration: underline; }
-.perms-note code, .perms-url {
-  font-family: var(--font-family-heading);
-  font-size: 0.85em;
-  word-break: break-all;
-}
+.perms-url { font-family: var(--font-family-heading); font-size: 0.85em; word-break: break-all; }
 
-.perms-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  align-items: center;
-}
+.perms-row { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; }
 
 .perms-input {
   flex: 1 1 14rem;
   min-width: 0;
   padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--perms-line);
-  border-radius: var(--border-radius-control);
-  background: color-mix(in srgb, var(--color-surface) 70%, black);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  background: var(--color-surface-elevated);
   color: var(--color-on-surface);
   font: inherit;
   font-size: var(--font-size-sm);
 }
-
-.perms-input:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; }
-
-.perms-check { display: inline-flex; gap: var(--spacing-xs); align-items: center; font-size: var(--font-size-sm); color: var(--perms-muted); }
+.perms-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent); }
 
 .perms-status { font-size: var(--font-size-sm); min-height: 1.4em; }
+.perms-status:empty { min-height: 0; }
 .perms-status.is-good { color: var(--perms-good); }
 .perms-status.is-bad { color: var(--perms-bad); }
 
-.perms-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  align-items: center;
-}
+.perms-toolbar { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); align-items: center; }
 
 .perms-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-  gap: var(--spacing-lg);
+  gap: var(--spacing-xl);
 }
 
-.perms-role {
-  background: var(--perms-card);
-  border: 1px solid var(--perms-line);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-
-.perms-role.is-changed { border-color: var(--color-accent); box-shadow: 0 0 18px color-mix(in srgb, var(--color-accent) 25%, transparent); }
+/* role cards wear the homepage's store-card look (border, radius, lift + glow on hover) */
+.perms-role.store-card { flex: none; padding: var(--spacing-xl); gap: var(--spacing-md); background: var(--color-surface-elevated); }
+.perms-role.store-card:hover { transform: translateY(-3px); }
+.perms-role.is-changed { border-color: var(--color-accent); box-shadow: 0 0 24px color-mix(in srgb, var(--color-accent) 28%, transparent); }
 
 .perms-role-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--spacing-sm); }
-.perms-role-name { font-family: var(--font-family-heading); font-weight: 700; font-size: var(--font-size-lg); }
+.perms-role-name { font-family: var(--font-family-heading); font-weight: 700; font-size: var(--font-size-xl); }
 .perms-role-file { color: var(--perms-muted); font-size: var(--font-size-xs); font-family: var(--font-family-heading); }
 .perms-role-count { color: var(--perms-muted); font-size: var(--font-size-sm); white-space: nowrap; }
 
@@ -121,24 +194,13 @@
   font-size: var(--font-size-sm);
   line-height: 1.4;
 }
-
 .perms-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .perms-chip.is-added { border-color: var(--perms-good); background: color-mix(in srgb, var(--perms-good) 16%, transparent); }
 .perms-chip.is-removed { border-style: dashed; border-color: var(--perms-bad); background: transparent; }
 .perms-chip.is-removed span { text-decoration: line-through; color: var(--perms-muted); }
 .perms-chip.is-hit { outline: 2px solid var(--color-accent); }
 .perms-chip.is-dim { opacity: 0.35; }
-
-.perms-chip button {
-  width: 1.4rem;
-  height: 1.4rem;
-  flex: none;
-  border-radius: 50%;
-  cursor: pointer;
-  color: var(--perms-muted);
-  line-height: 1;
-}
-
+.perms-chip button { width: 1.4rem; height: 1.4rem; flex: none; border-radius: 50%; cursor: pointer; color: var(--perms-muted); line-height: 1; }
 .perms-chip button:hover { color: var(--color-on-surface); background: color-mix(in srgb, var(--color-on-surface) 12%, transparent); }
 .perms-chip button:focus-visible { outline: 2px solid var(--color-primary); }
 
@@ -157,14 +219,24 @@
   background: color-mix(in srgb, var(--color-surface) 92%, var(--color-accent));
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
 }
-
-.perms-savebar .perms-row { flex: 1 1 18rem; }
 .perms-savebar p { font-size: var(--font-size-sm); }
 
-.hidden { display: none !important; }
+/* ---------- world ---------- */
+
+.perms-world {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-3xl);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-xl);
+  background: var(--color-surface-elevated);
+}
 
 @media (max-width: 767px) {
-  .perms { padding: calc(4.5rem + var(--spacing-xl)) 16px var(--spacing-3xl); }
-  .perms-panel { padding: var(--spacing-lg); }
-  .perms-hero .section-title { font-size: var(--font-size-2xl); }
+  .perms-hero { min-height: auto; }
+  .perms-wrap { padding: 0 16px; }
+  .perms-world { padding: var(--spacing-xl); }
+  .perms .profile-editor { flex-direction: column; text-align: center; }
+  .perms-soc-menu { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
