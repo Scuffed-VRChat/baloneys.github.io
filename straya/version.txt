@@ -1,5 +1,5 @@
 # Goon And Glory (Straya) world build versions - written by the Unity editor after each upload.
 # The world's version checker reads pc= and quest=. They match when both builds are out.
-pc=1
+pc=2
 quest=0
-pc_uploaded=2026-11-20 12:58 UTC
+pc_uploaded=2026-11-20 23:54 UTC
