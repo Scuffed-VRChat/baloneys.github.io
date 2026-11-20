@@ -6,4 +6,8 @@ Stay tuned over the coming days as we're preparing some big things.
 
 - the SCUFFED team
 
-[notifier] @2026-11-20T08:37:54Z balognaise likes the men
+KNOWN ISSUES:
+The version checker may break if everyone in the lobby is on the same platform
+Epsi is a femboy
+
+[notifier] @2026-11-20T08:58:37Z barack obama touched my grapes
