@@ -187,6 +187,15 @@ class GitHub {
     }));
   }
 
+  // One file's text at a commit, or null if it doesn't exist.
+  async file(path, commit) {
+    const res = await fetch(`${this.base}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${commit}`, { headers: this.headers });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new HttpError(502, `GitHub GET ${path} failed: ${res.status}`);
+    const data = await res.json();
+    return decodeBase64(data.content);
+  }
+
   async commit(head, tree, message) {
     const parent = await this.call(`/git/commits/${head}`);
     const newTree = await this.call("/git/trees", "POST", { base_tree: parent.tree.sha, tree });
@@ -275,6 +284,59 @@ async function handleSave(request, env, who) {
   }
 }
 
+// ---------- spawn announcements (each world's board reads <world>/announcements.txt) ----------
+
+const WORLDS = { scuffed: "Scuffed", straya: "Straya" };
+const MAX_ANNOUNCEMENT = 8000;
+
+// Identifies an announcement's exact text (only CRs ignored: blank lines matter on the board).
+async function textId(text) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text || "").replace(/\r/g, "")));
+  return "t" + [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function worldOf(value) {
+  const w = String(value || "").toLowerCase();
+  if (!Object.hasOwn(WORLDS, w)) throw new HttpError(400, "Pick a world: scuffed or straya.");
+  return w;
+}
+
+async function handleAnnouncementGet(request, env) {
+  const world = worldOf(new URL(request.url).searchParams.get("world"));
+  if (!env.GITHUB_TOKEN) throw new HttpError(503, "The perms server still needs its GitHub token.");
+  const gh = new GitHub(env);
+  const text = await gh.file(`${world}/announcements.txt`, await gh.head());
+  return { world, exists: text !== null, text: text || "", sha: await textId(text || ""), canSave: true };
+}
+
+async function handleAnnouncementSave(request, env, who) {
+  if (!env.GITHUB_TOKEN) throw new HttpError(503, "Saving isn't switched on yet: the perms server still needs its GitHub token.");
+  let body;
+  try { body = await request.json(); } catch { throw new HttpError(400, "Body must be JSON."); }
+  const world = worldOf(body && body.world);
+  const text = String((body && body.text) || "").replace(/\r/g, "");
+  if (text.length > MAX_ANNOUNCEMENT) throw new HttpError(400, `Announcements can be at most ${MAX_ANNOUNCEMENT} characters.`);
+  const gh = new GitHub(env);
+  const path = `${world}/announcements.txt`;
+  for (let attempt = 0; ; attempt++) {
+    const head = await gh.head();
+    const current = await gh.file(path, head);
+    if ((body.sha || "") !== await textId(current || "")) {
+      throw new HttpError(409, `Someone else changed the ${WORLDS[world]} announcements after you opened them. Reload and make your changes again.`);
+    }
+    if (current !== null && current.replace(/\r/g, "") === text) return { commit: null, unchanged: true };
+    const content = text.endsWith("\n") || !text ? text : text + "\n";
+    try {
+      const commit = await gh.commit(head, [{ path, mode: "100644", type: "blob", content }],
+        `${WORLDS[world]} announcements update\n\nSaved by ${who.actor} from kanaris-beans.com/scuffed_perms/`);
+      return { commit, sha: await textId(content) };
+    } catch (err) {
+      if (err.github === 422 && attempt < 1) continue;
+      throw err;
+    }
+  }
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -291,6 +353,14 @@ export default {
       if (request.method === "POST" && pathname === "/save") {
         const who = await staffOf(request, env);
         return json(await handleSave(request, env, who), 200, cors);
+      }
+      if (request.method === "GET" && pathname === "/announcements") {
+        await staffOf(request, env);
+        return json(await handleAnnouncementGet(request, env), 200, cors);
+      }
+      if (request.method === "POST" && pathname === "/announcements") {
+        const who = await staffOf(request, env);
+        return json(await handleAnnouncementSave(request, env, who), 200, cors);
       }
       return json({ error: "Not found" }, 404, cors);
     } catch (err) {

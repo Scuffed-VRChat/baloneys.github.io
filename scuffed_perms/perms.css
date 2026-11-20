@@ -212,3 +212,7 @@
   .perms .profile-editor { flex-direction: column; text-align: center; }
   .perms-soc-menu { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ---------- spawn announcements ---------- */
+
+.perms-announce { flex: none; width: 100%; min-height: 12rem; resize: vertical; font-family: var(--font-family-body); line-height: 1.5; }

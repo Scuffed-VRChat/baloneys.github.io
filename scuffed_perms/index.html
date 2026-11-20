@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="/home.css" />
     <link rel="stylesheet" href="/games-achievements.css?v=20261010-25" />
     <link rel="stylesheet" href="/games-social.css?v=20261011-8" />
-    <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-5" />
+    <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-6" />
 
     <!-- the site's player accounts and social dock (profile, friends, notifications), same as /chat -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
@@ -40,7 +40,7 @@
     <script src="/chess-achievements.js?v=20261010-25" defer></script>
     <script src="/games-config.js?v=20261010-25" defer></script>
     <script src="/games-social.js?v=20261011-8" defer></script>
-    <script src="/scuffed_perms/perms.js?v=20261120-5" defer></script>
+    <script src="/scuffed_perms/perms.js?v=20261120-6" defer></script>
   </head>
   <body>
     <!-- shared icons -->
@@ -169,6 +169,21 @@
           <button class="btn btn-sm btn-primary" id="saveBtn" type="button">Save changes</button>
         </div>
       </div>
+
+      <section class="perms-panel hidden" id="announcePanel" aria-labelledby="announceTitle">
+        <h2 id="announceTitle">Spawn announcements</h2>
+        <p class="perms-note">The board at each world’s spawn shows this text and reloads it every 5 minutes. A line starting with <code>[notifier]</code> isn’t shown on the board; it pops up as a notification for the whole lobby instead.</p>
+        <div class="perms-row" role="group" aria-label="Which world">
+          <button class="btn btn-sm btn-primary" type="button" data-world="scuffed" aria-pressed="true">Scuffed</button>
+          <button class="btn btn-sm btn-outline" type="button" data-world="straya" aria-pressed="false">Straya</button>
+        </div>
+        <textarea class="perms-input perms-announce" id="announceText" rows="10" aria-label="Announcement text" placeholder="Loading…"></textarea>
+        <div class="perms-row">
+          <button class="btn btn-sm btn-primary" id="announceSave" type="button">Save announcements</button>
+          <button class="btn btn-sm btn-outline" id="announceReload" type="button">Reload</button>
+        </div>
+        <p class="perms-status" id="announceStatus" role="status"></p>
+      </section>
 
       <section class="perms-panel hidden" id="worldPanel" aria-labelledby="worldTitle">
         <h2 id="worldTitle">What the world downloads</h2>

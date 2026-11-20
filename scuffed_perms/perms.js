@@ -170,6 +170,8 @@
     show('recheck', state !== 'admin');
     show('roles', state === 'admin');
     show('worldPanel', state === 'admin');
+    show('announcePanel', state === 'admin');
+    if (state === 'admin' && !announce.started) { announce.started = true; loadAnnouncements(); }
     if (state !== 'admin') { $('roleGrid').textContent = ''; show('saveBar', false); }
     if (state === 'create') mountEditor(); else status('createStatus', '');
     if (p) buildSocialMenu();
@@ -400,6 +402,62 @@
     });
   }
 
+  /* ---------- spawn announcements (Scuffed or Straya) ---------- */
+
+  var WORLD_NAMES = { scuffed: 'Scuffed', straya: 'Straya' };
+  var announce = { world: 'scuffed', sha: '', loaded: '', busy: false, started: false };
+  function announceDirty() { return $('announceText').value !== announce.loaded; }
+
+  function paintWorld() {
+    document.querySelectorAll('#announcePanel [data-world]').forEach(function (b) {
+      var on = b.getAttribute('data-world') === announce.world;
+      b.className = 'btn btn-sm ' + (on ? 'btn-primary' : 'btn-outline');
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    $('announceSave').textContent = 'Save ' + WORLD_NAMES[announce.world] + ' announcements';
+  }
+
+  function loadAnnouncements(message) {
+    if (announce.busy || !me) return;
+    announce.busy = true;
+    paintWorld();
+    $('announceText').disabled = true;
+    status('announceStatus', 'Loading the ' + WORLD_NAMES[announce.world] + ' announcements\u2026');
+    worker('/announcements?world=' + announce.world).then(function (data) {
+      announce.sha = data.sha; announce.loaded = data.text;
+      $('announceText').value = data.text;
+      $('announceText').placeholder = 'Nothing on the ' + WORLD_NAMES[announce.world] + ' board yet. Type the announcements here.';
+      status('announceStatus', message || (data.exists ? '' : 'The ' + WORLD_NAMES[announce.world] + ' board has no announcements file yet; saving creates it.'), message ? 'good' : '');
+    }).catch(function (e) {
+      status('announceStatus', 'Couldn\u2019t load the announcements: ' + e.message, 'bad');
+    }).then(function () { announce.busy = false; $('announceText').disabled = false; });
+  }
+
+  function saveAnnouncements() {
+    if (announce.busy || !me) return;
+    if (!announceDirty()) { status('announceStatus', 'Nothing changed.'); return; }
+    announce.busy = true;
+    $('announceSave').disabled = true;
+    status('announceStatus', 'Saving\u2026');
+    worker('/announcements', { world: announce.world, text: $('announceText').value, sha: announce.sha }).then(function (res) {
+      announce.busy = false; $('announceSave').disabled = false;
+      loadAnnouncements(res.commit
+        ? 'Saved (' + res.commit.slice(0, 7) + '). The ' + WORLD_NAMES[announce.world] + ' board shows it within about 15 minutes.'
+        : 'Nothing to save: it already matched.');
+    }).catch(function (e) {
+      announce.busy = false; $('announceSave').disabled = false;
+      status('announceStatus', 'Not saved: ' + e.message, 'bad');
+      if (e.status === 401 || e.status === 403) checkAccess();
+    });
+  }
+
+  function chooseWorld(world) {
+    if (world === announce.world || announce.busy) return;
+    if (announceDirty() && !confirm('Switching worlds throws away your unsaved ' + WORLD_NAMES[announce.world] + ' announcement changes. Switch anyway?')) return;
+    announce.world = world;
+    loadAnnouncements();
+  }
+
   /* ---------- boot ---------- */
 
   function boot() {
@@ -435,8 +493,11 @@
       (t && client ? client.rpc('mod_logout', { token: t }) : Promise.resolve()).then(checkAccess);
     });
     $('recheck').addEventListener('click', checkAccess);
+    document.querySelectorAll('#announcePanel [data-world]').forEach(function (b) { b.addEventListener('click', function () { chooseWorld(b.getAttribute('data-world')); }); });
+    $('announceSave').addEventListener('click', saveAnnouncements);
+    $('announceReload').addEventListener('click', function () { if (!announceDirty() || confirm('Throw away your unsaved announcement changes?')) loadAnnouncements(); });
     $('createProfile').addEventListener('click', createProfile);
-    window.addEventListener('beforeunload', function (e) { if (changedRoles().length) { e.preventDefault(); e.returnValue = ''; } });
+    window.addEventListener('beforeunload', function (e) { if (changedRoles().length || (announce.started && announceDirty())) { e.preventDefault(); e.returnValue = ''; } });
 
     modToken = readModToken();
     gate('checking');
