@@ -14,7 +14,7 @@
   'use strict';
 
   var WORKER = 'https://scuffed-perms.seanboyle20126.workers.dev';
-  var RAW_BUNDLE = 'https://raw.githubusercontent.com/Scuffed-VRChat/baloneys.github.io/refs/heads/main/scuffed_perms/roles/all.txt';
+  var RAW_BUNDLE = 'https://kanaris-beans.com/scuffed_perms/roles/all.txt';   // what the world downloads
   var REPO_DIR = 'https://github.com/Scuffed-VRChat/baloneys.github.io/tree/main/scuffed_perms/roles';
   var MOD_TOKEN_KEY = 'balcade-mod-token';   // same key /moderation.html uses for the master session (this tab only)
   var ADMIN_LEVEL = 3;
@@ -71,27 +71,21 @@
   function social() { return window.GameSocial; }
   function myProfile() { return social() && social().me ? social().me() : null; }
 
-  // The profile card on the right of the account panel.
+  // Your profile row in the access panel: banner, picture, styled name, staff role, level, badges.
   function paintCard() {
     var p = myProfile(), ui = social() && social().ui;
     var card = $('profileCard');
+    show('profileCard', !!(p && ui));
+    if (!p || !ui) return;
     card.style.background = '';
     $('cardAvatar').textContent = ''; $('cardLevel').textContent = ''; $('cardBadges').textContent = '';
-    var role = $('cardRole');
-    if (!p || !ui) {
-      var local = window.Games && window.Games.Profile ? window.Games.Profile.get() : { name: 'Player' };
-      if (window.Games && window.Games.Profile) $('cardAvatar').appendChild(window.Games.Profile.avatar(local, 96));
-      $('cardName').textContent = local.name || 'Player';
-      role.textContent = me ? (LEVEL_NAMES[me.level] || 'Admin') : 'No profile yet';
-      role.className = 'perms-card-role' + (me ? ' is-admin' : '');
-      return;
-    }
     ui.bannerStyle(card, p);
-    $('cardAvatar').appendChild(ui.avatarEl(p, 96));
+    $('cardAvatar').appendChild(ui.avatarEl(p, 56));
     var nameBox = $('cardName'); nameBox.textContent = ''; nameBox.appendChild(ui.nameSpan(p));
     var staff = p.role && ui.roleNames ? ui.roleNames[p.role] : '';
+    var role = $('cardRole');
     role.textContent = me ? (LEVEL_NAMES[me.level] || 'Admin') + ' · can edit roles' : staff ? staff + ' · view only' : 'Player';
-    role.className = 'perms-card-role' + (me ? ' is-admin' : '');
+    role.className = 'perms-me-role' + (me ? ' is-admin' : '');
     $('cardLevel').appendChild(ui.levelBar(p));
     (p.badges || []).forEach(function (id) { $('cardBadges').appendChild(ui.badgeChip(id, true)); });
   }
@@ -158,29 +152,26 @@
 
   function gate(state, text) {
     // state: checking | create | denied | admin | offline
-    var titles = { checking: 'Checking your access…', create: 'Make your profile', denied: 'Admins only', admin: 'You\'re in', offline: 'Can\'t check your access' };
+    // create = this browser has no profile: the account setup is the first and only thing shown.
     var p = myProfile();
-    $('accountTitle').textContent = state === 'admin' && p ? p.name : state === 'denied' && p ? 'Hi ' + p.name : titles[state];
+    var titles = { checking: 'Checking your access…', denied: 'Admins only', admin: 'You’re in', offline: 'Can’t check your access' };
+    $('accountTitle').textContent = titles[state] || '';
     $('accountText').textContent = {
-      checking: '',
-      create: 'This page uses the same profile as the site\'s games and chat. Pick a name and picture, then create it. Only players with the admin role can edit roles.',
-      denied: 'Only players with the admin role (or higher) on the moderation panel can edit roles. Your profile, friends and shop still work here.',
-      admin: me ? 'Signed in as ' + me.actor + ' · ' + (LEVEL_NAMES[me.level] || 'Admin') + '. The roles are below.' : '',
-      offline: ''
-    }[state];
-    show('profileBlock', state === 'create' || ((state === 'admin' || state === 'denied') && !!p));
-    show('createProfile', state === 'create');
+      denied: 'Only players with the admin role (or higher) on the moderation panel can edit roles.',
+      admin: me ? 'Signed in as ' + me.actor + ' · ' + (LEVEL_NAMES[me.level] || 'Admin') + '.' : ''
+    }[state] || '';
+    show('setup', state === 'create');
+    show('hero', state !== 'create');
+    show('gate', state !== 'create');
     show('socMenu', !!p && (state === 'admin' || state === 'denied'));
     show('masterPanel', state === 'create' || state === 'denied');
     show('masterLogout', state === 'admin' && !!modToken);
-    show('recheckRow', state === 'create' || state === 'denied' || state === 'offline' || (state === 'admin' && !!modToken));
+    show('recheckRow', state === 'denied' || state === 'offline' || (state === 'admin' && !!modToken));
     show('recheck', state !== 'admin');
-    show('heroRoles', state === 'admin');
     show('roles', state === 'admin');
     show('worldPanel', state === 'admin');
     if (state !== 'admin') { $('roleGrid').textContent = ''; show('saveBar', false); }
-    if (state === 'create' || state === 'admin' || state === 'denied') mountEditor();
-    if (state !== 'create') status('createStatus', '');
+    if (state === 'create') mountEditor(); else status('createStatus', '');
     if (p) buildSocialMenu();
     paintCard();
     status('gateStatus', text || '', state === 'offline' ? 'bad' : '');
@@ -301,7 +292,7 @@
     grid.textContent = '';
     var query = lower($('search').value.trim());
     roles.forEach(function (role) {
-      var card = el('article', 'perms-role store-card' + (isChanged(role) ? ' is-changed' : ''));
+      var card = el('article', 'perms-role' + (isChanged(role) ? ' is-changed' : ''));
       var head = el('div', 'perms-role-head');
       var title = el('div');
       title.appendChild(el('div', 'perms-role-name', role.label));
@@ -356,8 +347,6 @@
   function renderSaveBar() {
     var changed = changedRoles();
     show('saveBar', changed.length > 0);
-    $('saveBtn').disabled = !canSave;
-    $('saveBtn').title = canSave ? '' : 'Saving is not switched on yet';
     $('saveSummary').textContent = changed.length ? summary().join(' · ') : '';
   }
 
@@ -386,6 +375,10 @@
     if (busy || !me) return;
     var changed = changedRoles();
     if (!changed.length) return;
+    if (!canSave) {
+      status('saveStatus', 'Not saved: saving isn’t switched on yet (the perms server still needs its GitHub token). Your changes are still here.', 'bad');
+      return;
+    }
     busy = true;
     $('saveBtn').disabled = true;
     status('saveStatus', 'Saving…');
