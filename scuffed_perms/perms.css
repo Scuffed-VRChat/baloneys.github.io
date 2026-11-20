@@ -216,3 +216,4 @@
 /* ---------- spawn announcements ---------- */
 
 .perms-announce { flex: none; width: 100%; min-height: 12rem; resize: vertical; font-family: var(--font-family-body); line-height: 1.5; }
+.perms-notes { min-height: 6rem; }

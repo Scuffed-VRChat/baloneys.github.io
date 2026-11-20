@@ -17,7 +17,9 @@
 // A list's "sha" here is a hash of its non-blank lines, not GitHub's blob id, so it means the same thing
 // whether the lists came from the GitHub API or from all.txt.
 
-const ADMIN_LEVEL = 3; // helper 1, moderator 2, admin 3, dev 4, master 5 (supabase/migrations/2026-10-10-chat-moderation.sql)
+const ADMIN_LEVEL = 3;      // role lists: admin and up
+const MODERATOR_LEVEL = 2;  // announcements: moderator and up
+// (helper 1, moderator 2, admin 3, dev 4, master 5 - supabase/migrations/2026-10-10-chat-moderation.sql)
 const BUNDLE = "all.txt";
 const MAX_NAMES = 500;
 const MAX_NAME_LENGTH = 64;
@@ -109,7 +111,7 @@ function nameProblem(name) {
 
 // ---------- Supabase: who is asking? ----------
 
-async function staffOf(request, env) {
+async function staffOf(request, env, need = ADMIN_LEVEL) {
   const auth = request.headers.get("Authorization") || "";
   const userJwt = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   const modToken = (request.headers.get("X-Mod-Token") || "").trim();
@@ -128,7 +130,7 @@ async function staffOf(request, env) {
   if (!res.ok) throw new HttpError(502, `Couldn't check your staff level (${res.status}).`);
   const me = await res.json();
   const level = Number(me && me.level) || 0;
-  if (level < ADMIN_LEVEL) throw new HttpError(403, "Admins only.");
+  if (level < need) throw new HttpError(403, need >= ADMIN_LEVEL ? "Admins only." : "Moderators only.");
   return { level, actor: (me && me.actor) || "admin" };
 }
 
@@ -355,11 +357,11 @@ export default {
         return json(await handleSave(request, env, who), 200, cors);
       }
       if (request.method === "GET" && pathname === "/announcements") {
-        await staffOf(request, env);
+        await staffOf(request, env, MODERATOR_LEVEL);
         return json(await handleAnnouncementGet(request, env), 200, cors);
       }
       if (request.method === "POST" && pathname === "/announcements") {
-        const who = await staffOf(request, env);
+        const who = await staffOf(request, env, MODERATOR_LEVEL);
         return json(await handleAnnouncementSave(request, env, who), 200, cors);
       }
       return json({ error: "Not found" }, 404, cors);

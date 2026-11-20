@@ -1,4 +1,5 @@
-// scuffed_perms/perms.js: edit the Scuffed role lists in scuffed_perms/roles/ from the site. ADMINS ONLY.
+// scuffed_perms/perms.js: the staff pages - /scuffed_perms/ (Scuffed role lists) and /announcements/ (each
+// world's spawn announcements). ADMINS ONLY. Each page has only its own panels; the script skips the rest.
 //
 // Signing in is the same player account as the games and chat (games-social.js runs on this page too, so the
 // profile, friends and notifications dock work here as well). "Admin" means admin or above on the moderation
@@ -17,8 +18,11 @@
   var RAW_BUNDLE = 'https://kanaris-beans.com/scuffed_perms/roles/all.txt';   // what the world downloads
   var REPO_DIR = 'https://github.com/Scuffed-VRChat/baloneys.github.io/tree/main/scuffed_perms/roles';
   var MOD_TOKEN_KEY = 'balcade-mod-token';   // same key /moderation.html uses for the master session (this tab only)
-  var ADMIN_LEVEL = 3;
-  var LEVEL_NAMES = { 3: 'Admin', 4: 'Developer', 5: 'Master' };
+  var MAIN = document.querySelector('main');
+  var MIN_LEVEL = Number(MAIN && MAIN.getAttribute('data-min-level')) || 3;   // 2 moderator, 3 admin
+  var ROLE_WORD = MIN_LEVEL >= 3 ? 'admin' : 'moderator';
+  var JOB = (MAIN && MAIN.getAttribute('data-job')) || 'edit roles';
+  var LEVEL_NAMES = { 2: 'Moderator', 3: 'Admin', 4: 'Developer', 5: 'Master' };
 
   // Friendly names, in the order the world checks them (top wins). Unknown files show after these.
   var KNOWN = [
@@ -35,9 +39,12 @@
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function status(id, text, kind) { var s = $(id); s.textContent = text || ''; s.className = 'perms-status' + (kind ? ' is-' + kind : ''); }
+  function status(id, text, kind) { var s = $(id); if (!s) return; s.textContent = text || ''; s.className = 'perms-status' + (kind ? ' is-' + kind : ''); }
   function lower(s) { return String(s).toLowerCase(); }
-  function show(id, on) { $(id).classList.toggle('hidden', !on); }
+  function show(id, on) { var e = $(id); if (e) e.classList.toggle('hidden', !on); }
+  function on(id, ev, fn) { var e = $(id); if (e) e.addEventListener(ev, fn); }
+  function hasRoles() { return !!$('roleGrid'); }
+  function hasAnnouncements() { return !!$('announcePanel'); }
   function readModToken() { try { return sessionStorage.getItem(MOD_TOKEN_KEY); } catch (e) { return null; } }
   function storeModToken(t) { try { if (t) sessionStorage.setItem(MOD_TOKEN_KEY, t); else sessionStorage.removeItem(MOD_TOKEN_KEY); } catch (e) { /* tab-only anyway */ } }
 
@@ -84,7 +91,7 @@
     var nameBox = $('cardName'); nameBox.textContent = ''; nameBox.appendChild(ui.nameSpan(p));
     var staff = p.role && ui.roleNames ? ui.roleNames[p.role] : '';
     var role = $('cardRole');
-    role.textContent = me ? (LEVEL_NAMES[me.level] || 'Admin') + ' · can edit roles' : staff ? staff + ' · view only' : 'Player';
+    role.textContent = me ? (LEVEL_NAMES[me.level] || 'Staff') + ' · can ' + JOB : staff ? staff + ' · view only' : 'Player';
     role.className = 'perms-me-role' + (me ? ' is-admin' : '');
     $('cardLevel').appendChild(ui.levelBar(p));
     (p.badges || []).forEach(function (id) { $('cardBadges').appendChild(ui.badgeChip(id, true)); });
@@ -154,11 +161,11 @@
     // state: checking | create | denied | admin | offline
     // create = this browser has no profile: the account setup is the first and only thing shown.
     var p = myProfile();
-    var titles = { checking: 'Checking your access…', denied: 'Admins only', admin: 'You’re in', offline: 'Can’t check your access' };
+    var titles = { checking: 'Checking your access…', denied: (MIN_LEVEL >= 3 ? 'Admins' : 'Moderators') + ' only', admin: 'You’re in', offline: 'Can’t check your access' };
     $('accountTitle').textContent = titles[state] || '';
     $('accountText').textContent = {
-      denied: 'Only players with the admin role (or higher) on the moderation panel can edit roles.',
-      admin: me ? 'Signed in as ' + me.actor + ' · ' + (LEVEL_NAMES[me.level] || 'Admin') + '.' : ''
+      denied: 'Only players with the ' + ROLE_WORD + ' role (or higher) on the moderation panel can ' + JOB + '.',
+      admin: me ? 'Signed in as ' + me.actor + ' · ' + (LEVEL_NAMES[me.level] || 'Staff') + '.' : ''
     }[state] || '';
     show('setup', state === 'create');
     show('hero', state !== 'create');
@@ -171,8 +178,8 @@
     show('roles', state === 'admin');
     show('worldPanel', state === 'admin');
     show('announcePanel', state === 'admin');
-    if (state === 'admin' && !announce.started) { announce.started = true; loadAnnouncements(); }
-    if (state !== 'admin') { $('roleGrid').textContent = ''; show('saveBar', false); }
+    if (state === 'admin' && hasAnnouncements() && !announce.started) { announce.started = true; loadAnnouncements(); }
+    if (state !== 'admin' && hasRoles()) { $('roleGrid').textContent = ''; show('saveBar', false); }
     if (state === 'create') mountEditor(); else status('createStatus', '');
     if (p) buildSocialMenu();
     paintCard();
@@ -197,10 +204,11 @@
     return client.rpc('mod_me', { token: modToken }).then(function (r) {
       if (r.error) throw r.error;
       var level = r.data && r.data.level || 0;
-      if (level >= ADMIN_LEVEL) {
+      if (level >= MIN_LEVEL) {
         me = { level: level, actor: r.data.actor };
         gate('admin');
         // Back in with unsaved edits (e.g. after "Check again"): show them rather than reload over them.
+        if (!hasRoles()) return;
         if (changedRoles().length) { render(); status('loadStatus', 'Your unsaved changes are still here.'); return; }
         return load();
       }
@@ -403,10 +411,48 @@
   }
 
   /* ---------- spawn announcements (Scuffed or Straya) ---------- */
+  // One file per world (<world>/announcements.txt). Two boxes on the page: the board text, and lobby
+  // notifications. A notification is a line starting with [notifier] in the file; the board skips those
+  // lines and pops each new one up for the whole lobby once. The page adds/strips the prefix.
 
   var WORLD_NAMES = { scuffed: 'Scuffed', straya: 'Straya' };
-  var announce = { world: 'scuffed', sha: '', loaded: '', busy: false, started: false };
-  function announceDirty() { return $('announceText').value !== announce.loaded; }
+  var NOTIFIER = '[notifier]';
+  var announce = { world: 'scuffed', sha: '', loaded: '', busy: false, started: false, stamps: {} };
+  // Each notification is saved as "[notifier] @<UTC time> text", e.g. "[notifier] @2026-11-20T08:15:00Z Karaoke in 10!".
+  // The world pops it up when the board reads it within 10 minutes of that time. Text you leave alone keeps its time.
+  function nowUtc() { return new Date().toISOString().slice(0, 19) + 'Z'; }   // UTC+0, to the second
+  function unstamp(note) { var m = /^@(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)\s+([\s\S]*)$/.exec(note); return m ? { at: m[1], text: m[2].trim() } : { at: "", text: note }; }
+
+  function isNote(line) { return line.trim().toLowerCase().indexOf(NOTIFIER) === 0; }
+
+  // file text -> { board, notes } for the two boxes
+  function splitAnnouncements(text) {
+    var board = [], notes = [];
+    String(text || '').replace(/\r/g, '').split('\n').forEach(function (line) {
+      if (isNote(line)) {
+        var n = unstamp(line.trim().slice(NOTIFIER.length).trim());
+        if (n.text) { notes.push(n.text); if (n.at) announce.stamps[n.text] = n.at; }
+      }
+      else board.push(line);
+    });
+    while (board.length && board[board.length - 1].trim() === '') board.pop();
+    return { board: board.join('\n'), notes: notes.join('\n') };
+  }
+
+  // the two boxes -> file text: the board text, then one [notifier] line per notification
+  function composeAnnouncements() {
+    var board = $('announceText').value.replace(/\r/g, '').split('\n').filter(function (l) { return !isNote(l); }).join('\n').replace(/\s+$/, '');
+    var notes = $('announceNotes').value.replace(/\r/g, '').split('\n').map(function (n) {
+      n = n.trim();
+      return isNote(n) ? n.slice(NOTIFIER.length).trim() : n;   // someone typed the prefix anyway
+    }).filter(Boolean);
+    var lines = board ? [board] : [];
+    var now = nowUtc();
+    if (notes.length) { if (board) lines.push(''); notes.forEach(function (n) { n = unstamp(n).text; lines.push(NOTIFIER + ' @' + (announce.stamps[n] || now) + ' ' + n); }); }
+    return lines.length ? lines.join('\n') + '\n' : '';
+  }
+
+  function announceDirty() { return !!$('announceText') && composeAnnouncements() !== announce.loaded; }
 
   function paintWorld() {
     document.querySelectorAll('#announcePanel [data-world]').forEach(function (b) {
@@ -414,23 +460,27 @@
       b.className = 'btn btn-sm ' + (on ? 'btn-primary' : 'btn-outline');
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
-    $('announceSave').textContent = 'Save ' + WORLD_NAMES[announce.world] + ' announcements';
+    $('announceSave').textContent = 'Save ' + WORLD_NAMES[announce.world];
+    $('announceWorldName').textContent = WORLD_NAMES[announce.world];
   }
 
   function loadAnnouncements(message) {
     if (announce.busy || !me) return;
     announce.busy = true;
     paintWorld();
-    $('announceText').disabled = true;
-    status('announceStatus', 'Loading the ' + WORLD_NAMES[announce.world] + ' announcements\u2026');
+    $('announceText').disabled = $('announceNotes').disabled = true;
+    status('announceStatus', 'Loading the ' + WORLD_NAMES[announce.world] + ' announcements…');
     worker('/announcements?world=' + announce.world).then(function (data) {
-      announce.sha = data.sha; announce.loaded = data.text;
-      $('announceText').value = data.text;
-      $('announceText').placeholder = 'Nothing on the ' + WORLD_NAMES[announce.world] + ' board yet. Type the announcements here.';
-      status('announceStatus', message || (data.exists ? '' : 'The ' + WORLD_NAMES[announce.world] + ' board has no announcements file yet; saving creates it.'), message ? 'good' : '');
+      announce.sha = data.sha;
+      announce.stamps = {};
+      var parts = splitAnnouncements(data.text);
+      $('announceText').value = parts.board;
+      $('announceNotes').value = parts.notes;
+      announce.loaded = composeAnnouncements();
+      status('announceStatus', message || (data.exists ? '' : 'The ' + WORLD_NAMES[announce.world] + ' board has no announcements yet; saving creates them.'), message ? 'good' : '');
     }).catch(function (e) {
-      status('announceStatus', 'Couldn\u2019t load the announcements: ' + e.message, 'bad');
-    }).then(function () { announce.busy = false; $('announceText').disabled = false; });
+      status('announceStatus', 'Couldn’t load the announcements: ' + e.message, 'bad');
+    }).then(function () { announce.busy = false; $('announceText').disabled = $('announceNotes').disabled = false; });
   }
 
   function saveAnnouncements() {
@@ -438,11 +488,11 @@
     if (!announceDirty()) { status('announceStatus', 'Nothing changed.'); return; }
     announce.busy = true;
     $('announceSave').disabled = true;
-    status('announceStatus', 'Saving\u2026');
-    worker('/announcements', { world: announce.world, text: $('announceText').value, sha: announce.sha }).then(function (res) {
+    status('announceStatus', 'Saving…');
+    worker('/announcements', { world: announce.world, text: composeAnnouncements(), sha: announce.sha }).then(function (res) {
       announce.busy = false; $('announceSave').disabled = false;
       loadAnnouncements(res.commit
-        ? 'Saved (' + res.commit.slice(0, 7) + '). The ' + WORLD_NAMES[announce.world] + ' board shows it within about 15 minutes.'
+        ? 'Saved (' + res.commit.slice(0, 7) + '). ' + WORLD_NAMES[announce.world] + ' shows it within about 15 minutes; new notifications pop up for the lobby then.'
         : 'Nothing to save: it already matched.');
     }).catch(function (e) {
       announce.busy = false; $('announceSave').disabled = false;
@@ -453,7 +503,7 @@
 
   function chooseWorld(world) {
     if (world === announce.world || announce.busy) return;
-    if (announceDirty() && !confirm('Switching worlds throws away your unsaved ' + WORLD_NAMES[announce.world] + ' announcement changes. Switch anyway?')) return;
+    if (announceDirty() && !confirm('Switching worlds throws away your unsaved ' + WORLD_NAMES[announce.world] + ' changes. Switch anyway?')) return;
     announce.world = world;
     loadAnnouncements();
   }
@@ -461,20 +511,20 @@
   /* ---------- boot ---------- */
 
   function boot() {
-    $('bundleUrl').textContent = RAW_BUNDLE;
-    $('repoLink').href = REPO_DIR;
-    $('reload').addEventListener('click', function () { load(); });
-    $('search').addEventListener('input', render);
-    $('saveBtn').addEventListener('click', save);
-    $('discard').addEventListener('click', function () {
+    if ($('bundleUrl')) $('bundleUrl').textContent = RAW_BUNDLE;
+    if ($('repoLink')) $('repoLink').href = REPO_DIR;
+    on('reload', 'click', function () { load(); });
+    on('search', 'input', render);
+    on('saveBtn', 'click', save);
+    on('discard', 'click', function () {
       if (!confirm('Throw away every unsaved change?')) return;
       roles.forEach(function (r) { r.added = {}; r.removed = {}; r.note = ''; });
       render();
     });
-    $('copyUrl').addEventListener('click', function () {
+    on('copyUrl', 'click', function () {
       navigator.clipboard.writeText(RAW_BUNDLE).then(function () { $('copyUrl').textContent = 'Copied'; setTimeout(function () { $('copyUrl').textContent = 'Copy'; }, 1500); });
     });
-    $('masterLogin').addEventListener('submit', function (e) {
+    on('masterLogin', 'submit', function (e) {
       e.preventDefault();
       if (!client) return;
       status('masterStatus', 'Checking…');
@@ -486,17 +536,17 @@
         checkAccess();
       });
     });
-    $('masterLogout').addEventListener('click', function () {
+    on('masterLogout', 'click', function () {
       if (changedRoles().length && !confirm('Logging out throws away your unsaved changes. Log out anyway?')) return;
       var t = modToken;
       modToken = null; storeModToken(null);
       (t && client ? client.rpc('mod_logout', { token: t }) : Promise.resolve()).then(checkAccess);
     });
-    $('recheck').addEventListener('click', checkAccess);
+    on('recheck', 'click', checkAccess);
     document.querySelectorAll('#announcePanel [data-world]').forEach(function (b) { b.addEventListener('click', function () { chooseWorld(b.getAttribute('data-world')); }); });
-    $('announceSave').addEventListener('click', saveAnnouncements);
-    $('announceReload').addEventListener('click', function () { if (!announceDirty() || confirm('Throw away your unsaved announcement changes?')) loadAnnouncements(); });
-    $('createProfile').addEventListener('click', createProfile);
+    on('announceSave', 'click', saveAnnouncements);
+    on('announceReload', 'click', function () { if (!announceDirty() || confirm('Throw away your unsaved announcement changes?')) loadAnnouncements(); });
+    on('createProfile', 'click', createProfile);
     window.addEventListener('beforeunload', function (e) { if (changedRoles().length || (announce.started && announceDirty())) { e.preventDefault(); e.returnValue = ''; } });
 
     modToken = readModToken();
