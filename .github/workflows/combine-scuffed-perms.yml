@@ -1,0 +1,41 @@
+name: Combine Scuffed perms
+
+# Rebuilds scuffed_perms/roles/all.txt whenever a role file is edited outside the
+# editor page (the page already writes all.txt in the same commit).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scuffed_perms/roles/**"
+      - "!scuffed_perms/roles/all.txt"
+      - ".github/scripts/combine-scuffed-perms.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: combine-scuffed-perms
+  cancel-in-progress: false
+
+jobs:
+  combine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build scuffed_perms/roles/all.txt
+        run: bash .github/scripts/combine-scuffed-perms.sh
+
+      - name: Commit if it changed
+        run: |
+          if git diff --quiet -- scuffed_perms/roles/all.txt && git ls-files --error-unmatch scuffed_perms/roles/all.txt >/dev/null 2>&1; then
+            echo "all.txt is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add scuffed_perms/roles/all.txt
+          git commit -m "Rebuild scuffed_perms/roles/all.txt"
+          git pull --rebase origin main
+          git push origin HEAD:main
