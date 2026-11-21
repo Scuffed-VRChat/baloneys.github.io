@@ -7,7 +7,10 @@ Stay tuned over the coming days as we're preparing some big things.
 - the SCUFFED team
 
 KNOWN ISSUES:
-The version checker may break if everyone in the lobby is on the same platform
+Syncing doesn't work for users who've never synced before, this will be fixed soon; it's a backend issue.
+Version checker may still appear if everyone in the lobby is on the same platform.
+baloneys is tired
 Epsi is a femboy
+Fenic is hungry
 
-[notifier] @2026-11-21T00:33:57Z NEW VERSION OF SCUFFED OUT NOW! If your lobby is breaking please create a new instance.
+[notifier] @2026-11-21T00:45:33Z Take 10 gamers!
