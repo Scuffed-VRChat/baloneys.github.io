@@ -9,6 +9,7 @@ Stay tuned over the coming days as we're preparing some big things.
 KNOWN ISSUES:
 Syncing doesn't work for users who've never synced before, this will be fixed soon; it's a backend issue.
 Version checker may still appear if everyone in the lobby is on the same platform.
+The portable tablet may not reopen, use RIGHT TRIGGER and move your joystick up and down to open it using the alternate method.
 baloneys is tired
 Epsi is a femboy
 Fenic is hungry
