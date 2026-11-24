@@ -1,8 +1,8 @@
-// scuffed_dev/board.js: the Scuffed dev board (kanaris-beans.com/scuffed_dev/). Task and suggestion cards for
+// scuffed_dev/board.js: the Scuffed dev board (kanaris-beans.com/scuffed_dev/board/). Task and suggestion cards for
 // the Scuffed VRChat world's development.
 //
-// Signing in is the same player account as the games, chat and /scuffed_perms (games-social.js runs on this
-// page too). Who can do what comes from the moderation panel's staff roles:
+// Signing in, the staff gate and the shared helpers are in /scuffed_dev/core.js (window.ScuffedDev).
+// Who can do what comes from the moderation panel's staff roles:
 //   moderator+  read everything          admin+  also add suggestions and notes, edit/delete their own cards
 //   dev+        also add tasks, claim, change status, assign devs, edit/delete any card
 // The page only hides buttons. The real checks are in the devboard_* database functions
@@ -12,23 +12,14 @@
 (function () {
   'use strict';
 
-  var MOD_TOKEN_KEY = 'balcade-mod-token';   // same key /moderation.html and /scuffed_perms use (this tab only)
   var VIEW_KEY = 'scuffed-dev-board-view';
   var PAGE_SIZE = 12;
   var POLL_MS = 20000;
 
-  var STATUSES = [
-    { id: 'unclaimed', label: 'Unclaimed', sym: '○' },
-    { id: 'claimed', label: 'Claimed', sym: '◔' },
-    { id: 'in_progress', label: 'In progress', sym: '◑' },
-    { id: 'testing', label: 'Testing', sym: '◕' },
-    { id: 'complete', label: 'Complete', sym: '●' }
-  ];
-  var STATUS_BY = {};
-  STATUSES.forEach(function (s, i) { s.rank = i; STATUS_BY[s.id] = s; });
-  var PRIORITY = { high: { label: 'High', rank: 0 }, normal: { label: 'Normal', rank: 1 }, low: { label: 'Low', rank: 2 } };
-  var LEVEL_NAMES = { 1: 'Helper', 2: 'Moderator', 3: 'Admin', 4: 'Developer', 5: 'Master' };
-  var ROLE_NAMES = { helper: 'Helper', moderator: 'Moderator', admin: 'Admin', dev: 'Developer' };
+  var SD = window.ScuffedDev;
+  var STATUSES = SD.STATUSES, STATUS_BY = SD.STATUS_BY, PRIORITY = SD.PRIORITY;
+  var $ = SD.$, el = SD.el, show = SD.show, on = SD.on, time = SD.time, status = SD.status, errText = SD.errText;
+  var ago = SD.ago, fullDate = SD.fullDate, statusBadge = SD.statusBadge, person = SD.person, avatar = SD.avatar, roleWord = SD.roleWord, rpc = SD.rpc;
 
   var SORTS = {
     updated: function (a, b) { return time(b.updated_at) - time(a.updated_at); },
@@ -40,11 +31,8 @@
     title: function (a, b) { return a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true }); }
   };
 
-  var client = null;
-  var modToken = null;
   var me = null;            // { level, id, name } once let in
   var items = [];
-  var people = {};
   var devs = [];
   var timelines = {};       // item id -> updates (oldest first)
   var view = loadView();
@@ -53,16 +41,7 @@
   var pollTimer = 0;
   var loading = false;
 
-  /* ---------- small helpers ---------- */
-
-  function $(id) { return document.getElementById(id); }
-  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function show(id, on) { var e = typeof id === 'string' ? $(id) : id; if (e) e.classList.toggle('hidden', !on); }
-  function on(id, ev, fn) { var e = $(id); if (e) e.addEventListener(ev, fn); }
-  function time(v) { var t = Date.parse(v); return isNaN(t) ? 0 : t; }
-  function status(id, text, kind) { var s = $(id); if (!s) return; s.textContent = text || ''; s.className = 'perms-status' + (kind ? ' is-' + kind : ''); }
-  function readModToken() { try { return sessionStorage.getItem(MOD_TOKEN_KEY); } catch (e) { return null; } }
-  function storeModToken(t) { try { if (t) sessionStorage.setItem(MOD_TOKEN_KEY, t); else sessionStorage.removeItem(MOD_TOKEN_KEY); } catch (e) { /* tab-only anyway */ } }
+  /* ---------- view settings ---------- */
 
   function loadView() {
     var v = { q: '', kind: 'all', statuses: [], sort: 'updated', mine: false, page: 1 };
@@ -80,22 +59,6 @@
     try { localStorage.setItem(VIEW_KEY, JSON.stringify({ kind: view.kind, sort: view.sort, statuses: view.statuses, mine: view.mine })); } catch (e) { /* fine */ }
   }
 
-  function ago(v) {
-    var t = time(v);
-    if (!t) return '';
-    var s = Math.max(0, (Date.now() - t) / 1000);
-    if (s < 45) return 'just now';
-    if (s < 3600) return Math.round(s / 60) + 'm ago';
-    if (s < 86400) return Math.round(s / 3600) + 'h ago';
-    if (s < 86400 * 30) return Math.round(s / 86400) + 'd ago';
-    return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-  }
-
-  function fullDate(v) {
-    var t = time(v);
-    return t ? new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-  }
-
   var toastTimer = 0;
   function toast(text, bad) {
     var t = $('dbToast');
@@ -104,8 +67,6 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.className = 'db-toast' + (bad ? ' is-bad' : ''); }, bad ? 5000 : 2600);
   }
-
-  function errText(e) { return (e && (e.message || e.details)) || String(e || 'Something went wrong'); }
 
   /* ---------- permissions (mirrors the database; the database decides) ---------- */
 
@@ -119,24 +80,6 @@
 
   /* ---------- people ---------- */
 
-  function person(uid, fallback) {
-    var p = uid && people[uid];
-    return { id: uid || null, name: (p && p.name) || fallback || 'Someone', avatar: (p && p.avatar) || null, role: (p && p.role) || null };
-  }
-
-  function avatar(p, size) {
-    if (window.Games && window.Games.Profile) return window.Games.Profile.avatar({ name: p.name, avatar: p.avatar }, size);
-    var a = el('span', 'avatar', String(p.name || '?').charAt(0).toUpperCase());
-    a.style.width = a.style.height = size + 'px';
-    return a;
-  }
-
-  function roleWord(p, fallbackName) {
-    if (p.role) return ROLE_NAMES[p.role] || p.role;
-    if (/\(master\)$/.test(fallbackName || p.name || '')) return 'Master login';
-    return 'Player';
-  }
-
   // Who the card's corner shows: whoever has it, otherwise whoever made it.
   function cornerPerson(it) {
     if (it.assignee) return { p: person(it.assignee), claimed: true };
@@ -145,22 +88,13 @@
 
   /* ---------- the database ---------- */
 
-  function rpc(name, args) {
-    args = Object.assign({ token: modToken || null }, args || {});
-    return client.rpc(name, args).then(function (r) {
-      if (r.error) throw r.error;
-      return r.data;
-    });
-  }
-
   function load(quiet) {
     if (!me || loading) return Promise.resolve();
     loading = true;
     if (!quiet && !items.length) skeleton();
-    return rpc('devboard_list').then(function (data) {
-      me = Object.assign(me, data.me || {});
-      items = (data.items || []).filter(function (it) { return STATUS_BY[it.status] && PRIORITY[it.priority]; });
-      people = data.people || {};
+    return SD.list().then(function (data) {
+      me = SD.me() || me;
+      items = data.items;
       devs = data.devs || [];
       status('loadStatus', '');
       render();
@@ -171,7 +105,6 @@
       }
     }).catch(function (e) {
       status('loadStatus', 'Couldn\'t load the board: ' + errText(e), 'bad');
-      if (e && e.code === '42501') checkAccess();
     }).then(function () { loading = false; });
   }
 
@@ -304,14 +237,6 @@
       last = n;
     });
     btn('›', view.page + 1, 'Next page', view.page === pages);
-  }
-
-  function statusBadge(st) {
-    var s = STATUS_BY[st];
-    var b = el('span', 'db-status st-' + st);
-    b.appendChild(el('i', null, s.sym));
-    b.appendChild(document.createTextNode(s.label));
-    return b;
   }
 
   function tags(it, box) {
@@ -604,131 +529,15 @@
     $('dbNewTitle').focus();
   }
 
-  /* ---------- access gate (same flow as /scuffed_perms) ---------- */
-
-  function social() { return window.GameSocial; }
-  function myProfile() { return social() && social().me ? social().me() : null; }
-
-  function gate(state, text) {
-    // checking | create | denied | in | offline
-    var titles = { checking: 'Checking your access…', denied: 'Scuffed staff only', in: 'You’re in', offline: 'Can’t check your access' };
-    $('accountTitle').textContent = titles[state] || '';
-    $('accountText').textContent = {
-      denied: 'The dev board is for players with the moderator role or higher on the moderation panel.',
-      in: me ? 'Signed in as ' + me.name + ' · ' + (LEVEL_NAMES[me.level] || 'Staff') + ' · ' + whatYouCanDo() : ''
-    }[state] || '';
-    show('setup', state === 'create');
-    show('hero', state !== 'create');
-    show('gate', state !== 'in' && state !== 'create');
-    show('masterPanel', state === 'create' || state === 'denied');
-    show('recheckRow', state === 'denied' || state === 'offline');
-    show('board', state === 'in');
-    show('dbYou', state === 'in');
-    if (state === 'in') paintYou();
-    if (state === 'create') mountEditor(); else status('createStatus', '');
-    status('gateStatus', text || '', state === 'offline' ? 'bad' : '');
-    show('gateStatus', !!text);
-  }
-
-  function whatYouCanDo() {
-    var l = lv();
-    if (l >= 4) return 'you can add tasks, claim and assign cards, and change their status.';
-    if (l >= 3) return 'you can add suggestions and post notes.';
-    return 'you can read the board.';
-  }
-
-  function paintYou() {
-    var box = $('dbYou');
-    box.textContent = '';
-    var p = me.id ? person(me.id, me.name) : { name: me.name, avatar: null };
-    box.appendChild(avatar(p, 28));
-    var t = el('span', null);
-    t.appendChild(el('strong', null, me.name));
-    t.appendChild(document.createTextNode(' · ' + (LEVEL_NAMES[me.level] || 'Staff')));
-    box.appendChild(t);
-    if (modToken) {
-      var out = el('button', 'btn btn-sm btn-ghost', 'Log out of master');
-      out.type = 'button';
-      out.addEventListener('click', function () {
-        var tk = modToken; modToken = null; storeModToken(null);
-        (tk && client ? client.rpc('mod_logout', { token: tk }) : Promise.resolve()).then(checkAccess);
-      });
-      box.appendChild(out);
-    }
-    box.title = whatYouCanDo();
-  }
-
-  var editorMounted = false;
-  function mountEditor() {
-    if (editorMounted || !window.Games || !window.Games.Profile) return;
-    editorMounted = true;
-    window.Games.Profile.mount($('profileEditor'), function (pr) {
-      if (social() && social().localProfileChanged) social().localProfileChanged(pr);
-    });
-  }
-
-  function createProfile() {
-    var btn = $('createProfile');
-    btn.disabled = true;
-    status('createStatus', 'Creating your profile…');
-    var pr = window.Games.Profile.get();
-    client.rpc('tetris_me').then(function (r) { return r && !r.error && r.data ? r.data : null; }, function () { return null; }).then(function (id) {
-      if (id) return id;
-      return client.auth.getSession().then(function (r) { return r.data && r.data.session ? r.data.session.user.id : null; });
-    }).then(function (uid) {
-      if (!uid) throw new Error('No sign-in yet. Reload and try again.');
-      return client.from('tetris_profiles').insert({ id: uid, name: (pr.name || 'Player').slice(0, 16), avatar: pr.avatar || null, equipped: { banner: 'dusk' } }).select().single();
-    }).then(function (r) {
-      if (r.error && !/duplicate/i.test(r.error.message || '')) throw r.error;
-      status('createStatus', 'Profile created.', 'good');
-      window.dispatchEvent(new Event('chat:profile-created'));
-      var t0 = Date.now();
-      (function wait() {
-        if (myProfile() || Date.now() - t0 > 8000) { btn.disabled = false; checkAccess(); return; }
-        setTimeout(wait, 200);
-      })();
-    }).catch(function (e) {
-      btn.disabled = false;
-      status('createStatus', 'Couldn\'t create your profile: ' + errText(e), 'bad');
-    });
-  }
-
-  function waitForClient(timeoutMs) {
-    return new Promise(function (resolve) {
-      var t0 = Date.now();
-      (function poll() {
-        var c = window.GameSocial && window.GameSocial.client && window.GameSocial.client();
-        if (c) return resolve(c);
-        if (Date.now() - t0 > timeoutMs) return resolve(null);
-        setTimeout(poll, 150);
-      })();
-    });
-  }
-
-  function checkAccess() {
-    if (!me) gate('checking');
-    return client.rpc('mod_me', { token: modToken }).then(function (r) {
-      if (r.error) throw r.error;
-      var level = (r.data && r.data.level) || 0;
-      if (level >= 2) {
-        var first = !me;
-        me = { level: level, id: null, name: r.data.actor || 'Staff' };
-        gate('in');
-        return load().then(function () {
-          if (me) gate('in');
-          if (first) { openFromHash(); startPolling(); }
-        });
-      }
-      me = null;
-      stopPolling();
-      if (modToken) { modToken = null; storeModToken(null); }
-      gate(myProfile() ? 'denied' : 'create');
-    }).catch(function (e) {
-      gate('offline', 'Couldn\'t check your access: ' + errText(e));
-    });
-  }
-
   function openFromHash() {
+    // #in_progress etc. (from the hub): show just that phase
+    var st = location.hash.slice(1);
+    if (STATUS_BY[st]) {
+      view.statuses = [st]; view.kind = 'all'; view.mine = false; view.q = ''; $('dbSearch').value = ''; view.page = 1;
+      saveView(); render();
+      history.replaceState(null, '', location.pathname + location.search);
+      return;
+    }
     var m = /^#card-(\d+)$/.exec(location.hash);
     if (m && find(Number(m[1]))) openDetail(Number(m[1]));
   }
@@ -829,35 +638,17 @@
       d.addEventListener('mousedown', function (e) { d._downOnSelf = e.target === d; });
       d.addEventListener('click', function (e) { if (e.target === d && d._downOnSelf) { if (d.id === 'dbDetail') closeDetail(); else d.close(); } });
     });
-    window.addEventListener('hashchange', function () { if (me) { if (/^#card-/.test(location.hash)) openFromHash(); else if (openId != null) closeDetail(); } });
+    window.addEventListener('hashchange', function () { if (me) { if (/^#card-/.test(location.hash) || STATUS_BY[location.hash.slice(1)]) openFromHash(); else if (openId != null) closeDetail(); } });
     document.addEventListener('visibilitychange', function () { if (!document.hidden && me) load(true); });
     setInterval(function () { if (me && !document.hidden) render(); }, 60000);   // keeps "3m ago" honest
 
-    on('masterLogin', 'submit', function (e) {
-      e.preventDefault();
-      if (!client) return;
-      status('masterStatus', 'Checking…');
-      client.rpc('mod_master_login', { username: $('mUser').value, password: $('mPass').value }).then(function (r) {
-        $('mPass').value = '';
-        if (r.error) return status('masterStatus', r.error.message, 'bad');
-        modToken = r.data; storeModToken(modToken);
-        status('masterStatus', '');
-        checkAccess();
-      });
-    });
-    on('recheck', 'click', checkAccess);
-    on('createProfile', 'click', createProfile);
-
     $('dbSearch').value = view.q;
-    modToken = readModToken();
-    gate('checking');
-    if (!window.GameSocial || !window.GameSocial.enabled) return gate('offline', 'The site\'s player accounts are switched off on this copy of the site.');
-    waitForClient(15000).then(function (c) {
-      if (!c) return gate('offline', 'Couldn\'t reach the player account service. Reload to try again.');
-      client = c;
-      var checked = false;
-      window.GameSocial.ready(function () { checked = true; if (!me) checkAccess(); });
-      setTimeout(function () { if (!checked) { checked = true; checkAccess(); } }, 2500);
+    SD.start({
+      onIn: function (who, first) {
+        me = who;
+        load().then(function () { if (first) { openFromHash(); startPolling(); } });
+      },
+      onOut: function () { me = null; stopPolling(); closeDetail(); }
     });
   }
 

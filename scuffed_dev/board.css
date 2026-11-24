@@ -3,10 +3,11 @@
    status is a purple, blue, pink, grey or white, and always carries its own label and symbol too. */
 
 .db {
-  --db-unclaimed: #8a80a8;
+  /* on the red scuffed_dev theme: grey, blue, red, purple, white */
+  --db-unclaimed: #8f8796;
   --db-claimed: #4d8bff;
-  --db-in_progress: #a733ff;
-  --db-testing: #ff2f8a;
+  --db-in_progress: #ff2a3d;
+  --db-testing: #b34dff;
   --db-complete: #ece8f5;
   --db-ink: color-mix(in srgb, var(--color-on-surface) 64%, transparent);
   max-width: var(--content-max-width);
@@ -101,7 +102,7 @@
 }
 
 .db-select:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; }
-.db-select option { background: #120c1c; color: var(--color-on-surface); }
+.db-select option { background: #1a0b0e; color: var(--color-on-surface); }
 
 .db-toggle {
   display: inline-flex;
@@ -181,8 +182,8 @@
 }
 
 .db-tag.is-suggestion { border-color: color-mix(in srgb, var(--color-accent) 55%, transparent); color: #ff9ac8; }
-.db-tag.is-task { border-color: color-mix(in srgb, var(--color-primary) 60%, transparent); color: #d9b3ff; }
-.db-tag.is-high { border-color: #ff4d6d; color: #ffb3c1; background: rgba(255, 77, 109, 0.12); }
+.db-tag.is-task { border-color: color-mix(in srgb, var(--color-primary) 60%, transparent); color: #ffb3bd; }
+.db-tag.is-high { border-color: #fff; color: #fff; background: rgba(255, 255, 255, 0.1); }
 .db-tag.is-low { opacity: 0.75; }
 .db-tag-id { border: 0; padding-left: 0; opacity: 0.7; }
 
@@ -238,7 +239,7 @@
 }
 
 .db-corner.is-creator { background: color-mix(in srgb, var(--color-on-surface) 22%, transparent); }
-.db-corner .avatar { border: 2px solid #0b0812; }
+.db-corner .avatar { border: 2px solid #0d0708; }
 
 /* status badge: colour + symbol + words */
 .db-status {
@@ -286,7 +287,7 @@
 
 .db-empty strong { display: block; margin-bottom: 4px; color: var(--color-on-surface); font-family: var(--font-family-heading); }
 
-.db-skel { min-height: 12.5rem; border-radius: var(--border-radius-lg); background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(157,0,255,0.12), rgba(255,255,255,0.03)); background-size: 200% 100%; animation: dbShimmer 1.2s linear infinite; }
+.db-skel { min-height: 12.5rem; border-radius: var(--border-radius-lg); background: linear-gradient(90deg, rgba(255,255,255,0.03), color-mix(in srgb, var(--color-primary) 14%, transparent), rgba(255,255,255,0.03)); background-size: 200% 100%; animation: dbShimmer 1.2s linear infinite; }
 @keyframes dbShimmer { to { background-position: -200% 0; } }
 
 /* ---------- pager ---------- */
@@ -316,14 +317,14 @@
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--st, var(--color-primary)) 45%, transparent);
   border-radius: var(--border-radius-xl);
-  background: #0b0812;
+  background: #0d0708;
   color: var(--color-on-surface);
   box-shadow: 0 30px 90px -30px color-mix(in srgb, var(--st, var(--color-primary)) 70%, transparent);
   overflow: hidden;
 }
 
 .db-dialog[open] { display: flex; flex-direction: column; animation: dbPop 0.22s ease; }
-.db-dialog::backdrop { background: rgba(3, 1, 8, 0.72); backdrop-filter: blur(4px); }
+.db-dialog::backdrop { background: rgba(8, 1, 2, 0.74); backdrop-filter: blur(4px); }
 .db-dialog.is-small { width: min(100% - 2rem, 36rem); }
 @keyframes dbPop { from { transform: translateY(10px) scale(0.98); opacity: 0; } }
 
@@ -460,7 +461,7 @@
   padding: var(--spacing-md) var(--spacing-lg);
   border: 1px solid var(--color-primary);
   border-radius: var(--border-radius-lg);
-  background: #140c22;
+  background: #1a0b0e;
   box-shadow: 0 18px 50px -20px var(--color-primary);
   font-size: var(--font-size-sm);
   transform: translate(-50%, 20px);
@@ -481,7 +482,7 @@
   height: 32px;
   border-radius: 50%;
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-primary) 45%, #140f1f);
+  background: color-mix(in srgb, var(--color-primary) 45%, #1f0f12);
   color: #fff;
   font-family: var(--font-family-heading);
   font-weight: 800;

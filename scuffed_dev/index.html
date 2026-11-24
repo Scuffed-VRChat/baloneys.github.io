@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scuffed Dev Board | baloneys</title>
-    <meta name="description" content="Task board for Scuffed VRChat world development: tasks, suggestions, who's on what." />
+    <title>scuffed_dev</title>
+    <meta name="description" content="Staff hub for Scuffed VRChat world development: the dev board, permissions and announcements." />
     <meta name="theme-color" content="#050505" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/public/pw64s5dmavz539gvjm065tw71xp1.png" type="image/png" sizes="32x32" />
@@ -29,7 +29,8 @@
     <link rel="stylesheet" href="/games-achievements.css?v=20261010-25" />
     <link rel="stylesheet" href="/games-social.css?v=20261011-8" />
     <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-7" />
-    <link rel="stylesheet" href="/scuffed_dev/board.css?v=20261124-1" />
+    <link rel="stylesheet" href="/scuffed_dev/board.css?v=20261124-2" />
+    <link rel="stylesheet" href="/scuffed_dev/home.css?v=20261124-2" />
 
     <!-- the site's player accounts and social dock (profile, friends, notifications), same as /chat -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
@@ -41,7 +42,9 @@
     <script src="/chess-achievements.js?v=20261010-25" defer></script>
     <script src="/games-config.js?v=20261010-25" defer></script>
     <script src="/games-social.js?v=20261011-8" defer></script>
-    <script src="/scuffed_dev/board.js?v=20261124-1" defer></script>
+    <script src="/scuffed_dev/core.js?v=20261124-2" defer></script>
+    <script src="/scuffed_dev/home.js?v=20261124-2" defer></script>
+    <link rel="stylesheet" href="/scuffed_dev/theme.css?v=20261124-2" />
   </head>
   <body>
     <!-- shared icons -->
@@ -56,19 +59,19 @@
 
     <a class="skip-link" href="#main">Skip to content</a>
 
-    <!-- Navigation -->
+    <!-- Navigation: the scuffed_dev pages -->
     <header class="navigation-wrapper" id="siteNav">
-      <nav class="navigation-container" aria-label="Main">
-        <a href="/index.html" class="navigation-logo" aria-label="baloneys home">
-          <span class="section-title">baloneys</span>
+      <nav class="navigation-container" aria-label="scuffed_dev">
+        <a href="/scuffed_dev/" class="navigation-logo" aria-label="scuffed_dev home">
+          <span class="section-title">scuffed_dev</span>
         </a>
         <div class="navigation-desktop-menu">
-          <a href="/index.html#straya" class="navigation-link is-straya">Straya</a>
-          <a href="https://vrchat.com/home/user/usr_54097a4a-dab6-47ce-bcc5-00f39aa03555" target="_blank" rel="noreferrer noopener" class="navigation-link">Worlds</a>
-          <a href="https://kanaris-beans.com/dynabackend/vrc-dynamic-player-tags.html" target="_blank" rel="noreferrer noopener" class="navigation-link">Tagging</a>
-          <a href="https://kanaris-beans.com/speen" target="_blank" rel="noreferrer noopener" class="navigation-link">speen</a>
-          <a href="https://jinxxy.com/baloneys" target="_blank" rel="noreferrer noopener" class="navigation-link">Store</a>
-          <a href="https://discord.gg/gYWJsYhwXN" target="_blank" rel="noreferrer noopener" class="btn btn-sm btn-primary">Contact Me</a>
+          <a href="/scuffed_dev/" class="navigation-link" aria-current="page">Home</a>
+          <a href="/scuffed_dev/board/" class="navigation-link">Dev board</a>
+          <a href="/scuffed_perms/" class="navigation-link">Permissions</a>
+          <a href="/announcements/" class="navigation-link">Announcements</a>
+          <a href="/moderation.html" class="navigation-link">Moderation</a>
+          <a href="/index.html" class="btn btn-sm btn-primary">Main site</a>
         </div>
         <button id="navToggle" class="navigation-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobileOverlay">
           <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -78,21 +81,21 @@
 
     <div id="mobileOverlay" class="navigation-mobile-overlay" role="dialog" aria-modal="true" aria-label="Menu">
       <div class="navigation-mobile-header">
-        <a href="/index.html" class="navigation-logo"><span class="section-title">baloneys</span></a>
+        <a href="/scuffed_dev/" class="navigation-logo"><span class="section-title">scuffed_dev</span></a>
         <button id="navClose" class="navigation-toggle" aria-label="Close menu">
           <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
       </div>
       <div class="navigation-mobile-content">
         <div class="navigation-mobile-links">
-          <a href="/index.html#straya" class="navigation-mobile-link">Straya</a>
-          <a href="https://vrchat.com/home/user/usr_54097a4a-dab6-47ce-bcc5-00f39aa03555" target="_blank" rel="noreferrer noopener" class="navigation-mobile-link">Worlds</a>
-          <a href="https://kanaris-beans.com/dynabackend/vrc-dynamic-player-tags.html" target="_blank" rel="noreferrer noopener" class="navigation-mobile-link">Tagging</a>
-          <a href="https://kanaris-beans.com/speen" target="_blank" rel="noreferrer noopener" class="navigation-mobile-link">speen</a>
-          <a href="https://jinxxy.com/baloneys" target="_blank" rel="noreferrer noopener" class="navigation-mobile-link">Store</a>
+          <a href="/scuffed_dev/" class="navigation-mobile-link" aria-current="page">Home</a>
+          <a href="/scuffed_dev/board/" class="navigation-mobile-link">Dev board</a>
+          <a href="/scuffed_perms/" class="navigation-mobile-link">Permissions</a>
+          <a href="/announcements/" class="navigation-mobile-link">Announcements</a>
+          <a href="/moderation.html" class="navigation-mobile-link">Moderation</a>
         </div>
         <div class="navigation-mobile-actions">
-          <a href="https://discord.gg/gYWJsYhwXN" target="_blank" rel="noreferrer noopener" class="btn btn-lg btn-primary">Contact Me</a>
+          <a href="/index.html" class="btn btn-lg btn-primary">Main site</a>
         </div>
       </div>
     </div>
@@ -100,7 +103,7 @@
     <main id="main" class="perms db">
       <!-- account setup: when this browser has no profile, this is the first (and only) thing on the page -->
       <section class="perms-panel perms-setup hidden" id="setup" aria-labelledby="setupTitle">
-        <span class="section-eyebrow">Scuffed dev board</span>
+        <span class="section-eyebrow">scuffed_dev</span>
         <h1 class="section-title" id="setupTitle">Set up your account</h1>
         <p class="perms-note">This board uses the same profile as the site's games, chat and staff pages. Pick a name and picture, then create your account.</p>
         <div id="profileEditor"></div>
@@ -111,16 +114,15 @@
       </section>
 
       <section class="perms-hero" id="hero">
-        <span class="section-eyebrow">Scuffed · staff only</span>
-        <h1 class="section-title">Dev board</h1>
+        <span class="section-eyebrow">scuffed_dev · staff only</span>
+        <h1 class="section-title">scuffed_dev</h1>
         <p class="section-content">
-          Everything going into the Scuffed world: tasks the devs are building, suggestions from the team, and who's on what.
-          Click a card for its notes and history.
+          The staff hub for building the Scuffed world: what you're working on, where every task stands,
+          and the tools for roles and announcements.
         </p>
         <div class="db-links">
-          <a class="btn btn-sm btn-outline" href="/scuffed_perms/">Permissions</a>
-          <a class="btn btn-sm btn-outline" href="/announcements/">Announcements</a>
-          <span class="db-toggle hidden" id="dbYou" aria-live="polite"></span>
+          <a class="btn btn-sm btn-primary" href="/scuffed_dev/board/">Open the dev board</a>
+          <span class="db-toggle hidden" id="sdYou" aria-live="polite"></span>
         </div>
       </section>
 
@@ -145,139 +147,31 @@
         <p class="perms-note">The same master login as the <a href="/moderation.html">moderation panel</a>. It lasts until this tab closes.</p>
       </section>
 
-      <section id="board" class="hidden" aria-label="Dev board">
-        <div class="db-stats" id="dbStats" aria-label="Cards by status (click to filter)"></div>
+      <section id="hub" class="hidden" data-staff aria-label="Your scuffed_dev overview">
+        <div class="hub-me" id="hubMe" aria-label="Your stats"></div>
+        <p class="perms-status hidden" id="hubStatus" role="status"></p>
 
-        <div class="db-toolbar" id="dbBoardTop">
-          <label class="db-search">
-            <svg aria-hidden="true"><use href="#icon-search"/></svg>
-            <input class="perms-input" id="dbSearch" type="search" placeholder="Search titles, notes, people, #id" aria-label="Search the board" autocomplete="off" />
-          </label>
-          <div class="db-seg" id="dbKind" role="group" aria-label="Card type">
-            <button type="button" data-kind="all" aria-pressed="true">All</button>
-            <button type="button" data-kind="task" aria-pressed="false">Tasks</button>
-            <button type="button" data-kind="suggestion" aria-pressed="false">Suggestions</button>
-          </div>
-          <select class="db-select" id="dbSort" aria-label="Sort by">
-            <option value="updated">Recently updated</option>
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="status">Status</option>
-            <option value="type">Type (tasks first)</option>
-            <option value="priority">Priority</option>
-            <option value="title">Title A–Z</option>
-          </select>
-          <button class="db-toggle hidden" id="dbMine" type="button" aria-pressed="false">Mine</button>
-          <div class="db-actions">
-            <button class="btn btn-sm btn-outline hidden" id="dbNewSuggestion" type="button">New suggestion</button>
-            <button class="btn btn-sm btn-primary hidden" id="dbNewTask" type="button">New task</button>
-          </div>
+        <div class="hub-pages" id="hubPages" aria-label="scuffed_dev pages"></div>
+
+        <div class="hub-panes">
+          <section class="perms-panel" aria-labelledby="hubActiveTitle">
+            <div class="hub-pane-head">
+              <h2 id="hubActiveTitle">Your active tasks <span class="hub-count" id="hubActiveCount"></span></h2>
+              <a href="/scuffed_dev/board/">Board →</a>
+            </div>
+            <ul class="hub-list" id="hubActive" aria-live="polite"></ul>
+          </section>
+          <section class="perms-panel" aria-labelledby="hubPhasesTitle">
+            <div class="hub-pane-head">
+              <h2 id="hubPhasesTitle">Tasks by phase</h2>
+              <span class="hub-total">everyone</span>
+            </div>
+            <div class="hub-phases" id="hubPhases"></div>
+            <div class="hub-progress" id="hubProgress" role="progressbar" aria-label="Tasks complete" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+            <span class="hub-total" id="hubPhaseTotal"></span>
+          </section>
         </div>
-
-        <div class="db-meta">
-          <span id="dbCount" aria-live="polite"></span>
-          <span>
-            <button type="button" class="hidden" id="dbClear">Clear filters</button>
-            <button type="button" id="dbRefresh">Refresh</button>
-          </span>
-        </div>
-        <p class="perms-status" id="loadStatus" role="status"></p>
-
-        <div class="db-grid" id="dbGrid"></div>
-        <nav class="db-pager hidden" id="dbPager" aria-label="Pages"></nav>
       </section>
-
-    <!-- the full card -->
-    <dialog class="db-dialog" id="dbDetail" aria-labelledby="dbDetailTitle">
-      <div class="db-dlg-head">
-        <div class="db-dlg-titles">
-          <div class="db-card-top" id="dbDetailTags"></div>
-          <h2 class="db-dlg-title" id="dbDetailTitle"></h2>
-        </div>
-        <button class="db-x" id="dbDetailX" type="button" aria-label="Close"><svg width="20" height="20" aria-hidden="true"><use href="#icon-x"/></svg></button>
-      </div>
-      <div class="db-dlg-body">
-        <div class="db-dlg-main">
-          <section id="dbDetailView">
-            <h3 class="db-h">Description</h3>
-            <p class="db-desc" id="dbDetailDesc"></p>
-          </section>
-          <form class="db-dlg-form hidden" id="dbDetailEdit" style="padding:0" novalidate>
-            <div class="db-field">
-              <label class="db-h" for="dbEditTitle">Title</label>
-              <input class="perms-input" id="dbEditTitle" maxlength="120" required />
-            </div>
-            <div class="db-field">
-              <label class="db-h" for="dbEditBody">Description</label>
-              <textarea class="perms-input" id="dbEditBody" maxlength="4000"></textarea>
-              <span class="db-count" id="dbEditBodyCount"></span>
-            </div>
-            <div class="db-field">
-              <label class="db-h" for="dbEditPriority">Priority</label>
-              <select class="db-select" id="dbEditPriority"><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select>
-            </div>
-            <div class="perms-row">
-              <button class="btn btn-sm btn-primary" id="dbEditSave" type="submit">Save</button>
-              <button class="btn btn-sm btn-outline" id="dbEditCancel" type="button">Cancel</button>
-              <span class="perms-status" id="dbEditStatus" role="status"></span>
-            </div>
-          </form>
-          <section>
-            <h3 class="db-h">Notes &amp; updates</h3>
-            <form class="db-note-form hidden" id="dbNoteForm">
-              <label class="sr-only" for="dbNoteText">Add a note</label>
-              <textarea class="perms-input" id="dbNoteText" maxlength="2000" placeholder="Add a note: progress, a question, a link to a build…"></textarea>
-              <div class="perms-row">
-                <span class="db-count" id="dbNoteCount">0 / 2000</span>
-                <button class="btn btn-sm btn-primary" id="dbNoteSend" type="submit">Post note</button>
-              </div>
-            </form>
-            <ol class="db-timeline" id="dbTimeline" aria-live="polite"></ol>
-          </section>
-        </div>
-        <aside class="db-dlg-side" id="dbDetailSide" aria-label="Card details"></aside>
-      </div>
-    </dialog>
-
-    <!-- new task / suggestion -->
-    <dialog class="db-dialog is-small" id="dbNew" aria-labelledby="dbNewHeading">
-      <div class="db-dlg-head">
-        <div class="db-dlg-titles">
-          <h2 class="db-dlg-title" id="dbNewHeading">New task</h2>
-          <p class="perms-note" id="dbNewLead"></p>
-        </div>
-        <button class="db-x" id="dbNewX" type="button" aria-label="Close"><svg width="20" height="20" aria-hidden="true"><use href="#icon-x"/></svg></button>
-      </div>
-      <form class="db-dlg-form" id="dbNewForm" novalidate>
-        <input type="hidden" id="dbNewKind" value="task" />
-        <div class="db-field">
-          <label class="db-h" for="dbNewTitle">Title</label>
-          <input class="perms-input" id="dbNewTitle" maxlength="120" required placeholder="e.g. Fix the mirror flicker on Quest" />
-        </div>
-        <div class="db-field">
-          <label class="db-h" for="dbNewBody">Description</label>
-          <textarea class="perms-input" id="dbNewBody" maxlength="4000" placeholder="What needs doing, where in the world, anything a dev should know"></textarea>
-          <span class="db-count" id="dbNewBodyCount"></span>
-        </div>
-        <div class="db-two">
-          <div class="db-field">
-            <label class="db-h" for="dbNewPriority">Priority</label>
-            <select class="db-select" id="dbNewPriority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select>
-          </div>
-          <div class="db-field hidden" id="dbNewAssignField">
-            <label class="db-h" for="dbNewAssign">Assign to</label>
-            <select class="db-select" id="dbNewAssign"></select>
-          </div>
-        </div>
-        <p class="perms-status" id="dbNewStatus" role="status"></p>
-        <div class="perms-row" style="justify-content:flex-end">
-          <button class="btn btn-sm btn-outline" id="dbNewCancel" type="button">Cancel</button>
-          <button class="btn btn-sm btn-primary" id="dbNewSubmit" type="submit">Add</button>
-        </div>
-      </form>
-    </dialog>
-
-      <div class="db-toast" id="dbToast" role="status" aria-live="polite"></div>
     </main>
 
     <!-- Footer -->
