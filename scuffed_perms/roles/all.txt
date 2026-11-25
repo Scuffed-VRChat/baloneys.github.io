@@ -25,6 +25,7 @@ SmurfMan
 
 ### FILE: djs.txt
 PrimordialAbyss
+OnlyMutes
 
 ### FILE: groupowners.txt
 Merry Martian
