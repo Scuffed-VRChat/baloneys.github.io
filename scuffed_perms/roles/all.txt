@@ -15,6 +15,7 @@ ScaryPanda
 
 ### FILE: Testers.txt
 obama the tester
+Devoury
 
 ### FILE: devs.txt
 EpsiFrost
