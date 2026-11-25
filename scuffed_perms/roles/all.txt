@@ -21,7 +21,6 @@ Devoury
 EpsiFrost
 Fenic
 Baloneys
-SmurfMan
 
 ### FILE: djs.txt
 PrimordialAbyss
@@ -35,6 +34,7 @@ Virgo4u
 DreamyAbyss
 LyraTheDragon
 Le_Pocket
+SmurfMan
 
 ### FILE: premiums.txt
 （Jay）
