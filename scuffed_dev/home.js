@@ -12,6 +12,7 @@
   // The pages this hub links to, and the level each one needs (it checks again itself).
   var PAGES = [
     { href: BOARD, name: 'Dev board', desc: 'Tasks and suggestions for the world: claim, assign, move them through each phase.', need: 2 },
+    { href: '/scuffed_dev/images/', name: 'World images', desc: 'Posters, player photos, logos and ads the world downloads. Drop an image in to add or replace it.', need: 2 },
     { href: '/scuffed_perms/', name: 'Permissions', desc: 'Who holds which role in the world. The world picks changes up within 5–10 minutes.', need: 3 },
     { href: '/announcements/', name: 'Announcements', desc: 'The spawn board text and lobby notifications for Scuffed and Straya.', need: 2 },
     { href: '/moderation.html', name: 'Moderation', desc: 'Reports, bans, the chat filter and staff roles for the site.', need: 1 }

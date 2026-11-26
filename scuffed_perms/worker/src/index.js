@@ -1,4 +1,5 @@
 // scuffed-perms Worker: the only thing that can change the Scuffed role lists from the site.
+// It also saves the spawn announcements (/announcements) and the world images (/images, see further down).
 //
 // The editor page (kanaris-beans.com/scuffed_perms/) signs in with the same Supabase player account as the
 // games and chat. Every request carries that session (Authorization: Bearer <access token>) and, for the
@@ -339,6 +340,188 @@ async function handleAnnouncementSave(request, env, who) {
   }
 }
 
+// ---------- world images (kanaris-beans.com/scuffed_dev/images/) ----------
+//
+// GET  /images        -> { head, canSave, files: [{ path, sha, size }], manifest }   (moderators and up)
+// GET  /images/log    -> { commits: [{ sha, date, message }] }   the folder's history: the page's audit console
+// POST /images        <- { ops: [ { op: "put", path, data, sha|null, from, w, h }      new (sha null) or replace
+//                               { op: "delete", path, sha }
+//                               { op: "move", path, to, sha } ] }
+//                     -> { commit, changes: [{ path, sha|null }] }   one commit for the whole batch
+//
+// Paths are "<folder>/<name>.png" under IMAGES_DIR. The page converts every upload to a PNG whose longest side is
+// at most 512px before sending it; this checks the PNG header again, so nothing else gets in. Every op carries the
+// sha the page last saw, so two people replacing the same image can't overwrite each other silently.
+// manifest.json in the folder keeps who uploaded what, from which file, and when (shown on the page).
+
+const IMAGES_DIR = "scuffed/images";
+const IMAGE_LEVEL = MODERATOR_LEVEL;
+const IMAGE_MANIFEST = "manifest.json";
+const IMAGE_MAX_SIDE = 512;
+const IMAGE_MAX_BYTES = 3 * 1024 * 1024;
+const IMAGE_MAX_OPS = 24;
+const IMAGE_MAX_BODY = 10 * 1024 * 1024;
+const FOLDER_RE = /^[a-z0-9][a-z0-9_-]{0,47}$/;
+const FILE_RE = /^[a-z0-9][a-z0-9_-]{0,63}\.png$/;
+
+function imagePath(value) {
+  const p = String(value || "");
+  const parts = p.split("/");
+  if (parts.length !== 2 || !FOLDER_RE.test(parts[0]) || !FILE_RE.test(parts[1])) {
+    throw new HttpError(400, `"${p.slice(0, 80)}" isn't a valid image path (folder/name.png, lowercase letters, numbers, - and _).`);
+  }
+  return p;
+}
+
+// Width and height from a base64 PNG, or an error if it isn't one. Only the first 24 bytes are decoded.
+function pngSize(b64) {
+  const head = atob(String(b64).slice(0, 32));
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  for (let i = 0; i < 8; i++) if (head.charCodeAt(i) !== sig[i]) throw new HttpError(400, "Uploads must be PNG files.");
+  if (head.slice(12, 16) !== "IHDR") throw new HttpError(400, "That PNG has no header.");
+  const u32 = (o) => ((head.charCodeAt(o) << 24) >>> 0) + (head.charCodeAt(o + 1) << 16) + (head.charCodeAt(o + 2) << 8) + head.charCodeAt(o + 3);
+  return { w: u32(16), h: u32(20) };
+}
+
+async function imageFiles(gh, commit) {
+  const root = await gh.call(`/contents/${IMAGES_DIR.split("/").slice(0, -1).join("/")}?ref=${commit}`);
+  const dir = (root || []).find((it) => it.type === "dir" && it.name === IMAGES_DIR.split("/").pop());
+  if (!dir) return [];
+  const tree = await gh.call(`/git/trees/${dir.sha}?recursive=1`);
+  return (tree.tree || []).filter((t) => t.type === "blob").map((t) => ({ path: t.path, sha: t.sha, size: t.size || 0 }));
+}
+
+async function readManifest(gh, commit) {
+  const text = await gh.file(`${IMAGES_DIR}/${IMAGE_MANIFEST}`, commit);
+  if (!text) return { files: {} };
+  try {
+    const m = JSON.parse(text);
+    if (!m.files || typeof m.files !== "object") m.files = {};
+    return m;
+  } catch { return { files: {} }; }
+}
+
+async function handleImagesGet(env) {
+  if (!env.GITHUB_TOKEN) throw new HttpError(503, "The perms server still needs its GitHub token.");
+  const gh = new GitHub(env);
+  const head = await gh.head();
+  const [files, manifest] = await Promise.all([imageFiles(gh, head), readManifest(gh, head)]);
+  return { head, canSave: true, files: files.filter((f) => f.path !== IMAGE_MANIFEST), manifest: manifest.files };
+}
+
+async function handleImagesLog(env) {
+  if (!env.GITHUB_TOKEN) throw new HttpError(503, "The perms server still needs its GitHub token.");
+  const gh = new GitHub(env);
+  const list = await gh.call(`/commits?sha=${gh.branch}&path=${IMAGES_DIR}&per_page=40`);
+  return { commits: (list || []).map((c) => ({ sha: c.sha, date: c.commit.author.date, message: c.commit.message })) };
+}
+
+async function handleImagesSave(request, env, who) {
+  if (!env.GITHUB_TOKEN) throw new HttpError(503, "Saving isn't switched on yet: the perms server still needs its GitHub token.");
+  const raw = await request.text();
+  if (raw.length > IMAGE_MAX_BODY) throw new HttpError(413, "That batch is too big. Send fewer images at once.");
+  let body;
+  try { body = JSON.parse(raw); } catch { throw new HttpError(400, "Body must be JSON."); }
+  const ops = body && Array.isArray(body.ops) ? body.ops : null;
+  if (!ops || !ops.length) throw new HttpError(400, "Nothing to save.");
+  if (ops.length > IMAGE_MAX_OPS) throw new HttpError(400, `At most ${IMAGE_MAX_OPS} changes at once.`);
+
+  // Check every op before touching GitHub.
+  const touched = new Set();
+  const clean = ops.map((o) => {
+    const op = String(o && o.op);
+    const path = imagePath(o.path);
+    const c = { op, path, sha: o.sha ? String(o.sha) : null };
+    if (op === "put") {
+      const data = String(o.data || "");
+      if (!data || !/^[A-Za-z0-9+/]+=*$/.test(data)) throw new HttpError(400, `${path}: missing or broken image data.`);
+      if (data.length * 0.75 > IMAGE_MAX_BYTES) throw new HttpError(400, `${path} is bigger than ${IMAGE_MAX_BYTES / 1048576} MB.`);
+      const size = pngSize(data);
+      if (!size.w || !size.h || size.w > IMAGE_MAX_SIDE || size.h > IMAGE_MAX_SIDE) {
+        throw new HttpError(400, `${path} is ${size.w}x${size.h}. Images can be at most ${IMAGE_MAX_SIDE}px on their longest side.`);
+      }
+      Object.assign(c, { data, w: size.w, h: size.h, from: String(o.from || "").slice(0, 120) });
+    } else if (op === "move") {
+      c.to = imagePath(o.to);
+      if (!c.sha) throw new HttpError(400, `${path}: rename needs the image's sha.`);
+      if (touched.has(c.to)) throw new HttpError(400, `${c.to} appears twice in one save.`);
+      touched.add(c.to);
+    } else if (op === "delete") {
+      if (!c.sha) throw new HttpError(400, `${path}: delete needs the image's sha.`);
+    } else {
+      throw new HttpError(400, `Unknown change "${op}".`);
+    }
+    if (touched.has(path)) throw new HttpError(400, `${path} appears twice in one save.`);
+    touched.add(path);
+    return c;
+  });
+
+  const gh = new GitHub(env);
+  // Blobs don't depend on the branch, so they're made once even if the commit has to be retried.
+  const blobs = {};
+  for (const c of clean) {
+    if (c.op === "put") blobs[c.path] = (await gh.call("/git/blobs", "POST", { content: c.data, encoding: "base64" })).sha;
+  }
+
+  for (let attempt = 0; ; attempt++) {
+    const head = await gh.head();
+    const [files, manifest] = await Promise.all([imageFiles(gh, head), readManifest(gh, head)]);
+    const current = Object.fromEntries(files.map((f) => [f.path, f.sha]));
+    const clashes = [];
+    for (const c of clean) {
+      const now = current[c.path] || null;
+      if (c.op === "put" && c.sha !== now) clashes.push(now ? `${c.path} (it already exists or changed)` : `${c.path} (it was deleted)`);
+      if ((c.op === "delete" || c.op === "move") && c.sha !== now) clashes.push(c.path);
+      if (c.op === "move" && current[c.to]) clashes.push(`${c.to} (already taken)`);
+    }
+    if (clashes.length) throw new HttpError(409, `Someone else changed ${clashes.join(", ")} after you loaded the page. It has been refreshed; try again.`);
+
+    const at = new Date().toISOString();
+    const tree = [];
+    const lines = [];
+    const changes = [];
+    const counts = { put: 0, rep: 0, del: 0, mov: 0 };
+    for (const c of clean) {
+      const full = `${IMAGES_DIR}/${c.path}`;
+      if (c.op === "put") {
+        tree.push({ path: full, mode: "100644", type: "blob", sha: blobs[c.path] });
+        manifest.files[c.path] = { w: c.w, h: c.h, from: c.from || undefined, by: who.actor, at };
+        changes.push({ path: c.path, sha: blobs[c.path] });
+        if (c.sha) { counts.rep++; lines.push(`~ ${c.path}${c.from ? `  (from ${c.from})` : ""}`); }
+        else { counts.put++; lines.push(`+ ${c.path}${c.from ? `  (from ${c.from})` : ""}`); }
+      } else if (c.op === "delete") {
+        tree.push({ path: full, mode: "100644", type: "blob", sha: null });
+        delete manifest.files[c.path];
+        changes.push({ path: c.path, sha: null });
+        counts.del++; lines.push(`- ${c.path}`);
+      } else {
+        tree.push({ path: `${IMAGES_DIR}/${c.to}`, mode: "100644", type: "blob", sha: c.sha });
+        tree.push({ path: full, mode: "100644", type: "blob", sha: null });
+        manifest.files[c.to] = Object.assign({}, manifest.files[c.path] || {}, { by: who.actor, at });
+        delete manifest.files[c.path];
+        changes.push({ path: c.path, sha: null }, { path: c.to, sha: c.sha });
+        counts.mov++; lines.push(`> ${c.path} -> ${c.to}`);
+      }
+    }
+    const sorted = Object.fromEntries(Object.keys(manifest.files).sort(byteOrder).map((k) => [k, manifest.files[k]]));
+    tree.push({ path: `${IMAGES_DIR}/${IMAGE_MANIFEST}`, mode: "100644", type: "blob", content: JSON.stringify({ ...manifest, files: sorted }, null, 1) + "\n" });
+
+    const words = [];
+    if (counts.put) words.push(`add ${counts.put}`);
+    if (counts.rep) words.push(`replace ${counts.rep}`);
+    if (counts.mov) words.push(`rename ${counts.mov}`);
+    if (counts.del) words.push(`delete ${counts.del}`);
+    const message = `Scuffed images: ${words.join(", ")}\n\n${lines.join("\n")}\n\nSaved by ${who.actor} from kanaris-beans.com/scuffed_dev/images/`;
+    try {
+      const commit = await gh.commit(head, tree, message);
+      return { commit, changes };
+    } catch (err) {
+      if (err.github === 422 && attempt < 1) continue;
+      throw err;
+    }
+  }
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -363,6 +546,18 @@ export default {
       if (request.method === "POST" && pathname === "/announcements") {
         const who = await staffOf(request, env, MODERATOR_LEVEL);
         return json(await handleAnnouncementSave(request, env, who), 200, cors);
+      }
+      if (request.method === "GET" && pathname === "/images") {
+        const who = await staffOf(request, env, IMAGE_LEVEL);
+        return json({ ...(await handleImagesGet(env)), you: who }, 200, cors);
+      }
+      if (request.method === "GET" && pathname === "/images/log") {
+        await staffOf(request, env, IMAGE_LEVEL);
+        return json(await handleImagesLog(env), 200, cors);
+      }
+      if (request.method === "POST" && pathname === "/images") {
+        const who = await staffOf(request, env, IMAGE_LEVEL);
+        return json(await handleImagesSave(request, env, who), 200, cors);
       }
       return json({ error: "Not found" }, 404, cors);
     } catch (err) {
