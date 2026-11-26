@@ -33,134 +33,6 @@
    "by": "Kyle (scene import)",
    "at": "2026-11-26T17:30:26Z"
   },
-  "balatro/8bitdeck.png": {
-   "w": 512,
-   "h": 211,
-   "from": "8BitDeck.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/8BitDeck.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/blindchips.png": {
-   "w": 347,
-   "h": 512,
-   "from": "BlindChips.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/BlindChips.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/boosters.png": {
-   "w": 170,
-   "h": 512,
-   "from": "boosters.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/boosters.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/cardmodifiers.png": {
-   "w": 512,
-   "h": 489,
-   "from": "CardModifiers.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/CardModifiers.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/enhancers.png": {
-   "w": 512,
-   "h": 489,
-   "from": "Enhancers.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Enhancers.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/hologram.png": {
-   "w": 383,
-   "h": 512,
-   "from": "Hologram.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Hologram.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/jokers.png": {
-   "w": 239,
-   "h": 512,
-   "from": "Jokers.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Jokers.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/legendary3.png": {
-   "w": 383,
-   "h": 512,
-   "from": "Legendary3.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary3.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/legendary4.png": {
-   "w": 383,
-   "h": 512,
-   "from": "Legendary4.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary4.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/legendary5.png": {
-   "w": 383,
-   "h": 512,
-   "from": "Legendary5.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary5.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/legendary6.png": {
-   "w": 383,
-   "h": 512,
-   "from": "Legendary6.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary6.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/legendary7.png": {
-   "w": 383,
-   "h": 512,
-   "from": "Legendary7.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary7.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/soulcard.png": {
-   "w": 383,
-   "h": 512,
-   "from": "SoulCard.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/SoulCard.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/tags.png": {
-   "w": 512,
-   "h": 427,
-   "from": "Tags.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Tags.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/tarots.png": {
-   "w": 512,
-   "h": 411,
-   "from": "Tarots.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Tarots.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
-  "balatro/vouchers.png": {
-   "w": 512,
-   "h": 304,
-   "from": "Vouchers.png",
-   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Vouchers.png",
-   "by": "Kyle (scene import)",
-   "at": "2026-11-26T17:30:26Z"
-  },
   "events/aethesys.png": {
    "w": 511,
    "h": 512,
@@ -920,6 +792,14 @@
    "source": "Assets/1 Materials/PREMIUM.png",
    "by": "Kyle (scene import)",
    "at": "2026-11-26T17:30:26Z"
+  },
+  "scuffed/scuffed-original.png": {
+   "w": 512,
+   "h": 512,
+   "from": "Scuffed shirt test 2.png",
+   "source": "Assets/1 Materials/Scuffed shirt test 2.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:45:59Z"
   },
   "scuffed/scuffed-vsgsdfg.png": {
    "w": 512,
