@@ -1,0 +1,941 @@
+{
+ "about": "Written by kanaris-beans.com/scuffed_dev/images/ (and the scuffed-perms Worker). Who uploaded each image, from what file.",
+ "files": {
+  "ads/heirja-1.png": {
+   "w": 512,
+   "h": 289,
+   "from": "image_4.jpg",
+   "source": "Assets/AdvertisementBoard/Heirja/image_4.jpg",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "ads/heirja-2.png": {
+   "w": 512,
+   "h": 289,
+   "from": "image_4 1.jpg",
+   "source": "Assets/AdvertisementBoard/Heirja/image_4 1.jpg",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "ads/heirja-3.png": {
+   "w": 512,
+   "h": 289,
+   "from": "image_4 2.jpg",
+   "source": "Assets/AdvertisementBoard/Heirja/image_4 2.jpg",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "ads/stairs-art.png": {
+   "w": 512,
+   "h": 264,
+   "from": "ChatGPT Image Aug 20, 2026, 07_25_52 PM.png",
+   "source": "Assets/Adds/ChatGPT Image Aug 20, 2026, 07_25_52 PM.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/8bitdeck.png": {
+   "w": 512,
+   "h": 211,
+   "from": "8BitDeck.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/8BitDeck.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/blindchips.png": {
+   "w": 347,
+   "h": 512,
+   "from": "BlindChips.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/BlindChips.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/boosters.png": {
+   "w": 170,
+   "h": 512,
+   "from": "boosters.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/boosters.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/cardmodifiers.png": {
+   "w": 512,
+   "h": 489,
+   "from": "CardModifiers.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/CardModifiers.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/enhancers.png": {
+   "w": 512,
+   "h": 489,
+   "from": "Enhancers.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Enhancers.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/hologram.png": {
+   "w": 383,
+   "h": 512,
+   "from": "Hologram.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Hologram.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/jokers.png": {
+   "w": 239,
+   "h": 512,
+   "from": "Jokers.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Jokers.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/legendary3.png": {
+   "w": 383,
+   "h": 512,
+   "from": "Legendary3.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary3.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/legendary4.png": {
+   "w": 383,
+   "h": 512,
+   "from": "Legendary4.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary4.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/legendary5.png": {
+   "w": 383,
+   "h": 512,
+   "from": "Legendary5.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary5.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/legendary6.png": {
+   "w": 383,
+   "h": 512,
+   "from": "Legendary6.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary6.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/legendary7.png": {
+   "w": 383,
+   "h": 512,
+   "from": "Legendary7.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Legendary7.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/soulcard.png": {
+   "w": 383,
+   "h": 512,
+   "from": "SoulCard.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/SoulCard.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/tags.png": {
+   "w": 512,
+   "h": 427,
+   "from": "Tags.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Tags.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/tarots.png": {
+   "w": 512,
+   "h": 411,
+   "from": "Tarots.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Tarots.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "balatro/vouchers.png": {
+   "w": 512,
+   "h": 304,
+   "from": "Vouchers.png",
+   "source": "Assets/SCUFFED/BalatroVR/Art/ThirdPartyReference/Vouchers.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/aethesys.png": {
+   "w": 511,
+   "h": 512,
+   "from": "Aethesys.png",
+   "source": "Assets/4 days of fall logos/Aethesys.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/buzzbuddies.png": {
+   "w": 512,
+   "h": 288,
+   "from": "buzzbuddies.png",
+   "source": "Assets/4 days of fall logos/buzzbuddies.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/debauchery-party.png": {
+   "w": 512,
+   "h": 512,
+   "from": "Debauchery Party.png",
+   "source": "Assets/4 days of fall logos/Debauchery Party.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/drunkx.png": {
+   "w": 512,
+   "h": 341,
+   "from": "DrunkX.png",
+   "source": "Assets/4 days of fall logos/DrunkX.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/lastcalllounge.png": {
+   "w": 512,
+   "h": 512,
+   "from": "LastcallLounge.png",
+   "source": "Assets/4 days of fall logos/LastcallLounge.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/merrymartian.png": {
+   "w": 288,
+   "h": 512,
+   "from": "merrymartian.png",
+   "source": "Assets/4 days of fall logos/merrymartian.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/misfits.png": {
+   "w": 512,
+   "h": 512,
+   "from": "MIsFits.jpg",
+   "source": "Assets/4 days of fall logos/MIsFits.jpg",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/sexygogo.png": {
+   "w": 512,
+   "h": 512,
+   "from": "SexyGogo.png",
+   "source": "Assets/4 days of fall logos/SexyGogo.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/stwl_20261014_192509_0000.png": {
+   "w": 512,
+   "h": 512,
+   "from": "STWL_20261014_192509_0000.png",
+   "source": "Assets/4 days of fall logos/STWL_20261014_192509_0000.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/succubus-gang.png": {
+   "w": 512,
+   "h": 512,
+   "from": "Succubus Gang.png",
+   "source": "Assets/4 days of fall logos/Succubus Gang.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/tcgc.png": {
+   "w": 510,
+   "h": 512,
+   "from": "TCGC.png",
+   "source": "Assets/4 days of fall logos/TCGC.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/twisted-souls.png": {
+   "w": 512,
+   "h": 512,
+   "from": "Twisted souls.png",
+   "source": "Assets/4 days of fall logos/Twisted souls.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/vrc_aus.png": {
+   "w": 512,
+   "h": 512,
+   "from": "VRC_AUS.png",
+   "source": "Assets/4 days of fall logos/VRC_AUS.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/vrc_aus_banner.png": {
+   "w": 512,
+   "h": 218,
+   "from": "VRC_AUS_Banner.png",
+   "source": "Assets/4 days of fall logos/VRC_AUS_Banner.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/wanderingdisco.png": {
+   "w": 512,
+   "h": 512,
+   "from": "wanderingdisco.png",
+   "source": "Assets/4 days of fall logos/wanderingdisco.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "events/yiffnet.png": {
+   "w": 512,
+   "h": 384,
+   "from": "Yiffnet.png",
+   "source": "Assets/4 days of fall logos/Yiffnet.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/41.png": {
+   "w": 284,
+   "h": 512,
+   "from": "41.png",
+   "source": "Assets/Prem Member Photos/41.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/abyss.png": {
+   "w": 512,
+   "h": 512,
+   "from": "Abyss.png",
+   "source": "Assets/Prem Member Photos/Abyss.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/eb453818-2f10-4c10-bc8e-46715a063a7d.png": {
+   "w": 288,
+   "h": 512,
+   "from": "eb453818-2f10-4c10-bc8e-46715a063a7d.png",
+   "source": "Assets/Prem Member Photos/eb453818-2f10-4c10-bc8e-46715a063a7d.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/epsi-walla-photo.png": {
+   "w": 379,
+   "h": 512,
+   "from": "Epsi walla photo.png",
+   "source": "Assets/Epsi walla photo.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/evilmilkboi.png": {
+   "w": 341,
+   "h": 512,
+   "from": "EVILMILKBOI.png",
+   "source": "Assets/Prem Member Photos/EVILMILKBOI.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/heirja.png": {
+   "w": 288,
+   "h": 512,
+   "from": "Heirja.png",
+   "source": "Assets/Prem Member Photos/Heirja.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/johannaaaa.png": {
+   "w": 288,
+   "h": 512,
+   "from": "johannaaaa.png",
+   "source": "Assets/Prem Member Photos/johannaaaa.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/marlon.png": {
+   "w": 288,
+   "h": 512,
+   "from": "Marlon.png",
+   "source": "Assets/Marlon.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/seany-walla-photo.png": {
+   "w": 379,
+   "h": 512,
+   "from": "Seany walla photo.png",
+   "source": "Assets/Seany walla photo.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/typh-and-monst.png": {
+   "w": 288,
+   "h": 512,
+   "from": "typh&Monst.png",
+   "source": "Assets/Prem Member Photos/typh&Monst.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/webb.png": {
+   "w": 341,
+   "h": 512,
+   "from": "webb.png",
+   "source": "Assets/Prem Member Photos/webb.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "players/wjportrait.png": {
+   "w": 351,
+   "h": 512,
+   "from": "WJPortrait.png",
+   "source": "Assets/Prem Member Photos/WJPortrait.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/1.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/10.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/11.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/12.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/13.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/14.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/15.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/16.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/17.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/18.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/19.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/2.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/20.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/21.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/22.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/23.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/24.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/25.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/26.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/27.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/28.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/29.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/3.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/30.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/31.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/32.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/33.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/34.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/35.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/36.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/37.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/38.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/39.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/4.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/40.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/41.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/42.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/43.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/44.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/45.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/46.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/47.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/48.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/49.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/5.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/50.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/51.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/52.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/53.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/54.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/55.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/56.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/57.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/58.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/59.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/6.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/60.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/61.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/62.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/63.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/64.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/7.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/8.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "posters/9.png": {
+   "w": 362,
+   "h": 512,
+   "placeholder": true,
+   "from": "placeholder",
+   "by": "Kyle",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "scuffed/discord-logo-scuffed-no-background.png": {
+   "w": 474,
+   "h": 512,
+   "from": "Discord logo scuffed no background.png",
+   "source": "Assets/Discord logo scuffed no background.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "scuffed/mox-cgc-scuffed-atlis.png": {
+   "w": 512,
+   "h": 121,
+   "from": "Mox CGC SCUFFED Atlis.png",
+   "source": "Assets/1 Materials/Mox CGC SCUFFED Atlis.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "scuffed/premium.png": {
+   "w": 512,
+   "h": 512,
+   "from": "PREMIUM.png",
+   "source": "Assets/1 Materials/PREMIUM.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "scuffed/scuffed-vsgsdfg.png": {
+   "w": 512,
+   "h": 512,
+   "from": "Scuffed Vsgsdfg.png",
+   "source": "Assets/1 Materials/Scuffed Vsgsdfg.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  },
+  "scuffed/scuffed_balatro_vrc.png": {
+   "w": 512,
+   "h": 288,
+   "from": "scuffed_balatro_vrc.png",
+   "source": "Assets/1 Materials/scuffed_balatro_vrc.png",
+   "by": "Kyle (scene import)",
+   "at": "2026-11-26T17:30:26Z"
+  }
+ }
+}
