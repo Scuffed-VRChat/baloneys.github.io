@@ -131,7 +131,7 @@ async function staffOf(request, env, need = ADMIN_LEVEL) {
   if (!res.ok) throw new HttpError(502, `Couldn't check your staff level (${res.status}).`);
   const me = await res.json();
   const level = Number(me && me.level) || 0;
-  if (level < need) throw new HttpError(403, need >= ADMIN_LEVEL ? "Admins only." : "Moderators only.");
+  if (level < need) throw new HttpError(403, need >= 4 ? "Developers only." : need >= ADMIN_LEVEL ? "Admins only." : "Moderators only.");
   return { level, actor: (me && me.actor) || "admin" };
 }
 
@@ -199,12 +199,29 @@ class GitHub {
     return decodeBase64(data.content);
   }
 
-  async commit(head, tree, message) {
+  commit(head, tree, message) { return this.commitOn(this.branch, head, tree, message); }
+
+  // One commit on any branch. head null = the branch doesn't exist yet: it starts with just this tree.
+  async commitOn(branch, head, tree, message) {
+    if (!head) {
+      const first = await this.call("/git/trees", "POST", { tree });
+      const commit = await this.call("/git/commits", "POST", { message, tree: first.sha, parents: [] });
+      await this.call("/git/refs", "POST", { ref: `refs/heads/${branch}`, sha: commit.sha });
+      return commit.sha;
+    }
     const parent = await this.call(`/git/commits/${head}`);
     const newTree = await this.call("/git/trees", "POST", { base_tree: parent.tree.sha, tree });
     const commit = await this.call("/git/commits", "POST", { message, tree: newTree.sha, parents: [head] });
-    await this.call(`/git/refs/heads/${this.branch}`, "PATCH", { sha: commit.sha, force: false });
+    await this.call(`/git/refs/heads/${branch}`, "PATCH", { sha: commit.sha, force: false });
     return commit.sha;
+  }
+
+  // A branch's newest commit, or null if there's no such branch.
+  async branchHead(name) {
+    const res = await fetch(`${this.base}/git/ref/heads/${name}`, { headers: this.headers });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new HttpError(502, `GitHub GET branch ${name} failed: ${res.status}`);
+    return (await res.json()).object.sha;
   }
 }
 
@@ -342,12 +359,24 @@ async function handleAnnouncementSave(request, env, who) {
 
 // ---------- world images (kanaris-beans.com/scuffed_dev/images/) ----------
 //
-// GET  /images        -> { head, canSave, files: [{ path, sha, size }], manifest }   (moderators and up)
-// GET  /images/log    -> { commits: [{ sha, date, message }] }   the folder's history: the page's audit console
-// POST /images        <- { ops: [ { op: "put", path, data, sha|null, from, w, h }      new (sha null) or replace
-//                               { op: "delete", path, sha }
-//                               { op: "move", path, to, sha } ] }
-//                     -> { commit, changes: [{ path, sha|null }] }   one commit for the whole batch
+// Who can do what (levels from the moderation panel):
+//   moderator  look at everything, including pending suggestions
+//   admin      suggest an image for a slot (a new one or a replacement); nothing changes on the site
+//   developer  add, replace, rename and delete directly, and approve or reject suggestions
+//
+// GET  /images          -> { head, files: [{ path, sha, size }], manifest, suggestions, suggestHead, you }
+// GET  /images/log      -> { commits: [{ sha, date, message, branch }] }   the page's audit console
+// POST /images          <- { ops: [ { op: "put", path, data, sha|null, from }      new (sha null) or replace
+//                                 { op: "delete", path, sha }
+//                                 { op: "move", path, to, sha } ] }          (developers)
+//                       -> { commit, changes: [{ path, sha|null }] }   one commit for the whole batch
+// POST /images/suggest  <- { items: [{ path, sha|null, data, from }], note }  (admins and up)
+// POST /images/review   <- { id, action: "approve" | "reject" | "withdraw", reason, force }
+//                          approve/reject: developers. withdraw: whoever suggested it.
+//
+// Suggestions live on their own branch (SUGGEST_BRANCH: suggestions.json + pending/<id>.png). GitHub Pages only
+// serves main, so a suggested picture is never on kanaris-beans.com until a developer approves it; approving
+// copies the same blob into main at the slot's path.
 //
 // Paths are "<folder>/<name>.png" under IMAGES_DIR. The page converts every upload to a PNG whose longest side is
 // at most 512px before sending it; this checks the PNG header again, so nothing else gets in. Every op carries the
@@ -355,7 +384,13 @@ async function handleAnnouncementSave(request, env, who) {
 // manifest.json in the folder keeps who uploaded what, from which file, and when (shown on the page).
 
 const IMAGES_DIR = "scuffed/images";
-const IMAGE_LEVEL = MODERATOR_LEVEL;
+const IMAGE_LEVEL = MODERATOR_LEVEL;      // look
+const IMAGE_SUGGEST_LEVEL = ADMIN_LEVEL;  // suggest
+const IMAGE_DEV_LEVEL = 4;                // change the site, review suggestions
+const SUGGEST_BRANCH = "scuffed-image-suggestions";
+const SUGGEST_FILE = "suggestions.json";
+const MAX_SUGGESTIONS = 200;
+const MAX_NOTE = 300;
 const IMAGE_MANIFEST = "manifest.json";
 const IMAGE_MAX_SIDE = 512;
 const IMAGE_MAX_BYTES = 3 * 1024 * 1024;
@@ -401,19 +436,167 @@ async function readManifest(gh, commit) {
   } catch { return { files: {} }; }
 }
 
+// A base64 PNG from the page, checked: { data, w, h }. Shared by direct uploads and suggestions.
+function checkPng(path, value) {
+  const data = String(value || "");
+  if (!data || !/^[A-Za-z0-9+/]+=*$/.test(data)) throw new HttpError(400, `${path}: missing or broken image data.`);
+  if (data.length * 0.75 > IMAGE_MAX_BYTES) throw new HttpError(400, `${path} is bigger than ${IMAGE_MAX_BYTES / 1048576} MB.`);
+  const size = pngSize(data);
+  if (!size.w || !size.h || size.w > IMAGE_MAX_SIDE || size.h > IMAGE_MAX_SIDE) {
+    throw new HttpError(400, `${path} is ${size.w}x${size.h}. Images can be at most ${IMAGE_MAX_SIDE}px on their longest side.`);
+  }
+  return { data, w: size.w, h: size.h };
+}
+
+async function readSuggestions(gh) {
+  const head = await gh.branchHead(SUGGEST_BRANCH);
+  if (!head) return { head: null, list: [] };
+  const text = await gh.file(SUGGEST_FILE, head);
+  let list = [];
+  try { list = (JSON.parse(text || "{}").suggestions || []).filter((s) => s && s.id && s.path && s.blob); } catch { list = []; }
+  return { head, list };
+}
+
+function suggestionsTree(list, extra) {
+  return [...(extra || []), {
+    path: SUGGEST_FILE, mode: "100644", type: "blob",
+    content: JSON.stringify({ about: "Pending image suggestions for kanaris-beans.com/scuffed_dev/images/. Not served by the site.", suggestions: list }, null, 1) + "\n",
+  }];
+}
+
 async function handleImagesGet(env) {
   if (!env.GITHUB_TOKEN) throw new HttpError(503, "The perms server still needs its GitHub token.");
   const gh = new GitHub(env);
   const head = await gh.head();
-  const [files, manifest] = await Promise.all([imageFiles(gh, head), readManifest(gh, head)]);
-  return { head, canSave: true, files: files.filter((f) => f.path !== IMAGE_MANIFEST), manifest: manifest.files };
+  const [files, manifest, sugg] = await Promise.all([imageFiles(gh, head), readManifest(gh, head), readSuggestions(gh)]);
+  return {
+    head, canSave: true, files: files.filter((f) => f.path !== IMAGE_MANIFEST), manifest: manifest.files,
+    suggestions: sugg.list, suggestHead: sugg.head,
+  };
 }
 
 async function handleImagesLog(env) {
   if (!env.GITHUB_TOKEN) throw new HttpError(503, "The perms server still needs its GitHub token.");
   const gh = new GitHub(env);
-  const list = await gh.call(`/commits?sha=${gh.branch}&path=${IMAGES_DIR}&per_page=40`);
-  return { commits: (list || []).map((c) => ({ sha: c.sha, date: c.commit.author.date, message: c.commit.message })) };
+  const pick = (branch) => (c) => ({ sha: c.sha, date: c.commit.author.date, message: c.commit.message, branch });
+  const [main, sugg] = await Promise.all([
+    gh.call(`/commits?sha=${gh.branch}&path=${IMAGES_DIR}&per_page=40`),
+    gh.branchHead(SUGGEST_BRANCH).then((h) => (h ? gh.call(`/commits?sha=${SUGGEST_BRANCH}&per_page=30`) : [])),
+  ]);
+  // an approval shows once: as the main commit that put the picture on the site
+  const commits = [...(main || []).map(pick("main")), ...(sugg || []).map(pick("suggestions"))
+    .filter((c) => !/^Image suggestion approved/.test(c.message))];
+  commits.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  return { commits: commits.slice(0, 60) };
+}
+
+async function handleImagesSuggest(request, env, who) {
+  if (!env.GITHUB_TOKEN) throw new HttpError(503, "Saving isn't switched on yet: the perms server still needs its GitHub token.");
+  const raw = await request.text();
+  if (raw.length > IMAGE_MAX_BODY) throw new HttpError(413, "That batch is too big. Send fewer images at once.");
+  let body;
+  try { body = JSON.parse(raw); } catch { throw new HttpError(400, "Body must be JSON."); }
+  const items = body && Array.isArray(body.items) ? body.items : null;
+  if (!items || !items.length) throw new HttpError(400, "Nothing to suggest.");
+  if (items.length > IMAGE_MAX_OPS) throw new HttpError(400, `At most ${IMAGE_MAX_OPS} suggestions at once.`);
+  const note = String((body && body.note) || "").replace(/\r/g, "").trim().slice(0, MAX_NOTE);
+  const seen = new Set();
+  const clean = items.map((o) => {
+    const path = imagePath(o && o.path);
+    if (seen.has(path)) throw new HttpError(400, `${path} appears twice in one suggestion.`);
+    seen.add(path);
+    return { path, sha: o.sha ? String(o.sha) : null, from: String(o.from || "").slice(0, 120), ...checkPng(path, o.data) };
+  });
+
+  const gh = new GitHub(env);
+  const head = await gh.head();
+  const files = await imageFiles(gh, head);
+  const current = Object.fromEntries(files.map((f) => [f.path, f.sha]));
+  const stale = clean.filter((c) => (current[c.path] || null) !== c.sha).map((c) => c.path);
+  if (stale.length) throw new HttpError(409, `${stale.join(", ")} changed after you loaded the page. It has been refreshed; try again.`);
+
+  for (const c of clean) c.blob = (await gh.call("/git/blobs", "POST", { content: c.data, encoding: "base64" })).sha;
+
+  for (let attempt = 0; ; attempt++) {
+    const sugg = await readSuggestions(gh);
+    if (sugg.list.length + clean.length > MAX_SUGGESTIONS) throw new HttpError(400, `There are already ${sugg.list.length} suggestions waiting. Ask a developer to review some first.`);
+    const at = new Date().toISOString();
+    const added = clean.map((c, i) => {
+      const id = Date.now().toString(36) + i + Math.random().toString(36).slice(2, 7);
+      return { id, path: c.path, sha: c.sha, file: `pending/${id}.png`, blob: c.blob, w: c.w, h: c.h, from: c.from || undefined, note: note || undefined, by: who.actor, at };
+    });
+    const tree = suggestionsTree([...sugg.list, ...added], added.map((s) => ({ path: s.file, mode: "100644", type: "blob", sha: s.blob })));
+    const lines = added.map((s) => `? ${s.path}  (${s.sha ? "replace" : "new"}${s.from ? `, from ${s.from}` : ""})`);
+    const message = `Image suggestion: ${added.length === 1 ? added[0].path : added.length + " images"}\n\n${lines.join("\n")}${note ? `\n\nNote: ${note}` : ""}\n\nSuggested by ${who.actor} from kanaris-beans.com/scuffed_dev/images/`;
+    try {
+      const commit = await gh.commitOn(SUGGEST_BRANCH, sugg.head, tree, message);
+      return { commit, suggestions: added };
+    } catch (err) {
+      if (err.github === 422 && attempt < 1) continue;
+      throw err;
+    }
+  }
+}
+
+async function handleImagesReview(request, env, who) {
+  if (!env.GITHUB_TOKEN) throw new HttpError(503, "Saving isn't switched on yet: the perms server still needs its GitHub token.");
+  let body;
+  try { body = await request.json(); } catch { throw new HttpError(400, "Body must be JSON."); }
+  const action = String(body && body.action);
+  if (!["approve", "reject", "withdraw"].includes(action)) throw new HttpError(400, "Pick approve, reject or withdraw.");
+  const reason = String((body && body.reason) || "").replace(/\r/g, "").trim().slice(0, MAX_NOTE);
+  const gh = new GitHub(env);
+  const sugg = await readSuggestions(gh);
+  const s = sugg.list.find((x) => x.id === String(body.id));
+  if (!s) throw new HttpError(404, "That suggestion isn't waiting any more: someone already reviewed or withdrew it.");
+  if (action === "withdraw" && s.by !== who.actor && who.level < IMAGE_DEV_LEVEL) throw new HttpError(403, "Only the person who suggested it can withdraw it.");
+  if (action !== "withdraw" && who.level < IMAGE_DEV_LEVEL) throw new HttpError(403, "Only developers can approve or reject suggestions.");
+
+  let commit = null;
+  if (action === "approve") {
+    for (let attempt = 0; ; attempt++) {
+      const head = await gh.head();
+      const [files, manifest] = await Promise.all([imageFiles(gh, head), readManifest(gh, head)]);
+      const now = (files.find((f) => f.path === s.path) || {}).sha || null;
+      if (now !== s.sha && !body.force) {
+        const e = new HttpError(409, now
+          ? `${s.path} has changed since this was suggested. Approve anyway to replace the newer picture.`
+          : `${s.path} was ${s.sha ? "deleted" : "added by someone else"} since this was suggested.`);
+        e.code = "slot-changed";
+        throw e;
+      }
+      const at = new Date().toISOString();
+      manifest.files[s.path] = { w: s.w, h: s.h, from: s.from, by: s.by, approvedBy: who.actor, at, note: s.note };
+      const sorted = Object.fromEntries(Object.keys(manifest.files).sort(byteOrder).map((k) => [k, manifest.files[k]]));
+      const tree = [
+        { path: `${IMAGES_DIR}/${s.path}`, mode: "100644", type: "blob", sha: s.blob },
+        { path: `${IMAGES_DIR}/${IMAGE_MANIFEST}`, mode: "100644", type: "blob", content: JSON.stringify({ ...manifest, files: sorted }, null, 1) + "\n" },
+      ];
+      const message = `Scuffed images: approve ${now ? "replacement" : "new image"}\n\n${now ? "~" : "+"} ${s.path}  (${s.from ? `from ${s.from}, ` : ""}suggested by ${s.by})\n\nApproved by ${who.actor}; suggested by ${s.by} from kanaris-beans.com/scuffed_dev/images/`;
+      try { commit = await gh.commit(head, tree, message); break; } catch (err) {
+        if (err.github === 422 && attempt < 1) continue;
+        throw err;
+      }
+    }
+  }
+
+  // take it off the waiting list (re-read: someone may have suggested something meanwhile)
+  for (let attempt = 0; ; attempt++) {
+    const now = attempt ? await readSuggestions(gh) : sugg;
+    const list = now.list.filter((x) => x.id !== s.id);
+    if (list.length === now.list.length) break;
+    const word = { approve: "approved", reject: "rejected", withdraw: "withdrawn" }[action];
+    const by = { approve: "Approved", reject: "Rejected", withdraw: "Withdrawn" }[action];
+    const message = `Image suggestion ${word}: ${s.path}\n\n${action === "approve" ? "=" : "x"} ${s.path}  (suggested by ${s.by})${reason ? `\n\nReason: ${reason}` : ""}\n\n${by} by ${who.actor} from kanaris-beans.com/scuffed_dev/images/`;
+    try {
+      await gh.commitOn(SUGGEST_BRANCH, now.head, suggestionsTree(list, [{ path: s.file, mode: "100644", type: "blob", sha: null }]), message);
+      break;
+    } catch (err) {
+      if (err.github === 422 && attempt < 1) continue;
+      throw err;
+    }
+  }
+  return { ok: true, action, commit, path: s.path, sha: action === "approve" ? s.blob : null };
 }
 
 async function handleImagesSave(request, env, who) {
@@ -433,14 +616,7 @@ async function handleImagesSave(request, env, who) {
     const path = imagePath(o.path);
     const c = { op, path, sha: o.sha ? String(o.sha) : null };
     if (op === "put") {
-      const data = String(o.data || "");
-      if (!data || !/^[A-Za-z0-9+/]+=*$/.test(data)) throw new HttpError(400, `${path}: missing or broken image data.`);
-      if (data.length * 0.75 > IMAGE_MAX_BYTES) throw new HttpError(400, `${path} is bigger than ${IMAGE_MAX_BYTES / 1048576} MB.`);
-      const size = pngSize(data);
-      if (!size.w || !size.h || size.w > IMAGE_MAX_SIDE || size.h > IMAGE_MAX_SIDE) {
-        throw new HttpError(400, `${path} is ${size.w}x${size.h}. Images can be at most ${IMAGE_MAX_SIDE}px on their longest side.`);
-      }
-      Object.assign(c, { data, w: size.w, h: size.h, from: String(o.from || "").slice(0, 120) });
+      Object.assign(c, checkPng(path, o.data), { from: String(o.from || "").slice(0, 120) });
     } else if (op === "move") {
       c.to = imagePath(o.to);
       if (!c.sha) throw new HttpError(400, `${path}: rename needs the image's sha.`);
@@ -556,14 +732,22 @@ export default {
         return json(await handleImagesLog(env), 200, cors);
       }
       if (request.method === "POST" && pathname === "/images") {
-        const who = await staffOf(request, env, IMAGE_LEVEL);
+        const who = await staffOf(request, env, IMAGE_DEV_LEVEL);
         return json(await handleImagesSave(request, env, who), 200, cors);
+      }
+      if (request.method === "POST" && pathname === "/images/suggest") {
+        const who = await staffOf(request, env, IMAGE_SUGGEST_LEVEL);
+        return json(await handleImagesSuggest(request, env, who), 200, cors);
+      }
+      if (request.method === "POST" && pathname === "/images/review") {
+        const who = await staffOf(request, env, IMAGE_SUGGEST_LEVEL);
+        return json(await handleImagesReview(request, env, who), 200, cors);
       }
       return json({ error: "Not found" }, 404, cors);
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 500;
       if (status >= 500) console.error(`${request.method} ${pathname}:`, err);
-      return json({ error: err.message || "Something went wrong" }, status, cors);
+      return json({ error: err.message || "Something went wrong", code: err.code || undefined }, status, cors);
     }
   },
 };

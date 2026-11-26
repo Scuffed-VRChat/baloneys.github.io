@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="/games-social.css?v=20261011-8" />
     <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-7" />
     <link rel="stylesheet" href="/scuffed_dev/board.css?v=20261124-2" />
-    <link rel="stylesheet" href="/scuffed_dev/images.css?v=20261127-1" />
+    <link rel="stylesheet" href="/scuffed_dev/images.css?v=20261127-2" />
 
     <!-- the site's player accounts and social dock (profile, friends, notifications), same as /chat -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
@@ -43,7 +43,7 @@
     <script src="/games-config.js?v=20261010-25" defer></script>
     <script src="/games-social.js?v=20261011-8" defer></script>
     <script src="/scuffed_dev/core.js?v=20261124-2" defer></script>
-    <script src="/scuffed_dev/images.js?v=20261127-1" defer></script>
+    <script src="/scuffed_dev/images.js?v=20261127-2" defer></script>
     <link rel="stylesheet" href="/scuffed_dev/theme.css?v=20261124-2" />
   </head>
   <body>
@@ -110,7 +110,7 @@
         <h1 class="section-title">World images</h1>
         <p class="section-content">
           Every picture the Scuffed world downloads: posters, player photos, logos and ads. Drop any image in and it
-          becomes a 512px PNG on the site, ready for the world, in a few seconds.
+          becomes a 512px PNG. Developers publish straight to the site; admins suggest images and a developer approves them.
         </p>
         <div class="db-links">
           <span class="db-toggle hidden" id="sdYou" aria-live="polite"></span>
@@ -143,6 +143,8 @@
         <div class="im-main" id="imMain">
           <div class="im-folders" id="imFolders" role="tablist" aria-label="Folders"></div>
 
+          <div class="im-role" id="imRole" aria-live="polite"></div>
+
           <div class="im-toolbar">
             <label class="im-search">
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20l-3.5-3.5"/></g></svg>
@@ -155,7 +157,7 @@
             </div>
             <button class="btn btn-sm btn-primary" id="imUpload" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0l-5 5m5-5l5 5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Upload
+              <span id="imUploadText">Upload</span>
             </button>
             <input id="imFile" type="file" accept="image/*,.heic,.heif,.avif,.svg" multiple hidden />
           </div>
@@ -195,6 +197,27 @@
       </section>
     </main>
 
+    <!-- conversion / upload progress: pops up when it takes more than a moment, so nobody thinks the page froze -->
+    <dialog class="im-prog" id="imProg" aria-labelledby="imProgTitle">
+      <div class="im-prog-head">
+        <h2 id="imProgTitle">Converting</h2>
+        <span class="im-prog-pct" id="imProgPct">0%</span>
+      </div>
+      <div class="im-prog-bar" id="imProgBar" role="progressbar" aria-labelledby="imProgTitle" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="imProgFill"></i></div>
+      <p class="im-prog-line" id="imProgLine" aria-live="polite"></p>
+      <ol class="im-prog-list" id="imProgList"></ol>
+      <p class="im-prog-slow hidden" id="imProgSlow">Big pictures can take a few seconds. The page hasn't frozen: it's working in the background.</p>
+      <div class="im-prog-note hidden" id="imProgNoteBox">
+        <label class="option-label" for="imProgNote">Note for the developers (optional)</label>
+        <textarea class="perms-input" id="imProgNote" maxlength="300" rows="2" placeholder="What's it for? e.g. Halloween posters for the lobby"></textarea>
+      </div>
+      <div class="im-prog-actions">
+        <button class="btn btn-sm btn-outline" id="imProgCancel" type="button">Cancel</button>
+        <button class="btn btn-sm btn-primary hidden" id="imProgSend" type="button">Send for approval</button>
+        <button class="btn btn-sm btn-primary hidden" id="imProgDone" type="button">Done</button>
+      </div>
+    </dialog>
+
     <!-- one image, big: preview, links and actions -->
     <dialog class="im-dialog" id="imDialog" aria-labelledby="imDlgTitle">
       <form method="dialog" class="im-dlg">
@@ -210,16 +233,19 @@
             <input class="perms-input" id="imDlgUrl" readonly />
             <button class="btn btn-sm btn-outline" type="button" id="imDlgCopy">Copy</button>
           </div>
-          <label class="option-label" for="imDlgName">Name</label>
-          <div class="im-copy">
-            <input class="perms-input" id="imDlgName" autocomplete="off" spellcheck="false" />
-            <button class="btn btn-sm btn-outline" type="button" id="imDlgRename">Rename</button>
+          <div id="imDlgRenameRow">
+            <label class="option-label" for="imDlgName">Name</label>
+            <div class="im-copy">
+              <input class="perms-input" id="imDlgName" autocomplete="off" spellcheck="false" />
+              <button class="btn btn-sm btn-outline" type="button" id="imDlgRename">Rename</button>
+            </div>
           </div>
           <div class="im-dlg-actions">
             <button class="btn btn-sm btn-primary" type="button" id="imDlgReplace">Replace…</button>
             <a class="btn btn-sm btn-outline" id="imDlgDownload" target="_blank" rel="noopener">Open full size</a>
             <button class="btn btn-sm btn-outline im-danger-text" type="button" id="imDlgDelete">Delete</button>
           </div>
+          <p class="im-dlg-sugg hidden" id="imDlgSugg"></p>
           <p class="perms-status" id="imDlgStatus" role="status"></p>
         </div>
       </form>
