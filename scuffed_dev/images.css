@@ -660,8 +660,10 @@
 
 @media (max-width: 760px) {
   .im-crop { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
-  .im-crop-body { grid-template-columns: 1fr; grid-template-rows: minmax(16rem, 52dvh) auto; overflow-y: auto; }
+  .im-crop-body { grid-template-columns: 1fr; grid-template-rows: max(16rem, 52dvh) auto; overflow-y: auto; }
   .im-crop-stage { padding: 14px; }
+  /* a fixed-height row: the picture has to fit inside it, or the crop's lower edge ends up out of sight */
+  .im-crop-stage img { max-height: calc(max(16rem, 52dvh) - 28px); }
   .im-crop-side { border-left: 0; border-top: 1px solid rgba(255, 255, 255, 0.06); overflow: visible; }
   .im-crop-bar { gap: 6px; padding: 8px 10px; }
   .im-crop-sep, .im-crop-field > span { display: none; }

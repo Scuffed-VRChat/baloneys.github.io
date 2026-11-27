@@ -1,3 +1,5 @@
+import { notify, runSchedule, pushReady } from "./push.js";
+
 // scuffed-perms Worker: the only thing that can change the Scuffed role lists from the site.
 // It also saves the spawn announcements (/announcements) and the world images (/images, see further down).
 //
@@ -380,7 +382,7 @@ async function handleAnnouncementSave(request, env, who) {
       const entry = [{ path, mode: "100644", type: "blob", content }];
       const commit = await gh.commit(head, entry,
         `${WORLDS[world]} announcements update\n\nSaved by ${who.actor} from kanaris-beans.com/scuffed_perms/`);
-      return { commit, sha: await textId(content), live: await liveFiles(entry) };
+      return { commit, sha: await textId(content), live: await liveFiles(entry), world, text: content };
     } catch (err) {
       if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
       throw err;
@@ -746,7 +748,7 @@ async function actionsRuns(gh, query) {
   if (!res.ok) throw new HttpError(502, `Couldn't read the GitHub Pages builds (${res.status}).`);
   const data = await res.json();
   return (data.workflow_runs || []).filter((r) => r.name === PAGES_RUN)
-    .map((r) => ({ sha: r.head_sha, status: r.status, conclusion: r.conclusion, url: r.html_url, created: r.created_at }));
+    .map((r) => ({ id: r.id, sha: r.head_sha, status: r.status, conclusion: r.conclusion, url: r.html_url, created: r.created_at, message: (r.head_commit && r.head_commit.message) || "" }));
 }
 
 // What main holds now for some paths: { path: sha | null }. One directory listing per folder, so a watch on an
@@ -803,14 +805,50 @@ async function handleRedeploy(request, env, who) {
   }
 }
 
+// The announcement notification: the title says whose board it is, the body is the whole announcement (the app's
+// history shows it in full if the push service had to trim it).
+function announceNotice(world, text) {
+  const name = WORLDS[world] || world;
+  // the file is the board text plus "[notifier] @<time> text" lines (lobby pop-ups): show those as 🔔 lines
+  const board = [], pops = [];
+  String(text || "").replace(/\r/g, "").split("\n").forEach((line) => {
+    const m = /^\s*\[notifier\]\s*(?:@\S+\s+)?(.*)$/i.exec(line);
+    if (m) { if (m[1].trim()) pops.push(`🔔 ${m[1].trim()}`); } else board.push(line);
+  });
+  const body = [board.join("\n").trim(), pops.join("\n")].filter(Boolean).join("\n\n");
+  return { kind: "announce", title: `📣 ${name} announcement`, body: body || "(the announcements were cleared)",
+    url: `/scuffed_dev/app/#announce/${world}`, tag: `announce-${world}` };
+}
+
 export default {
-  async fetch(request, env) {
+  async scheduled(event, env, ctx) {
+    // once a minute: new dev board activity + finished GitHub Pages builds -> notifications
+    ctx.waitUntil(runSchedule(env, () => actionsRuns(new GitHub(env), "per_page=10")).then((r) => {
+      if (r && (r.boardError || r.deployError)) console.error("push schedule:", JSON.stringify(r));
+    }));
+  },
+
+  async fetch(request, env, ctx) {
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     const { pathname } = new URL(request.url);
 
     try {
       if (request.method === "GET" && pathname === "/health") return json({ ok: true }, 200, cors);
+
+      // push notifications for the scuffed_dev app (push.js)
+      if (request.method === "GET" && pathname === "/push/key") {
+        return json({ key: env.VAPID_PUBLIC || null, ready: pushReady(env) }, 200, cors);
+      }
+      if (request.method === "POST" && pathname === "/push/test") {
+        const who = await staffOf(request, env, MODERATOR_LEVEL);
+        let body = {};
+        try { body = await request.json(); } catch { /* checked below */ }
+        if (!/^https:\/\//.test(String(body.endpoint || ""))) throw new HttpError(400, "Turn notifications on in the app first.");
+        if (!pushReady(env)) throw new HttpError(503, "Notifications aren't switched on yet on the server.");
+        const r = await notify(env, { kind: "test", title: "🔔 scuffed_dev", body: `Notifications work, ${who.actor}. This is what they'll look like.`, url: "/scuffed_dev/app/#settings", tag: "test" }, String(body.endpoint));
+        return json(r, 200, cors);
+      }
 
       if (request.method === "GET" && pathname === "/deploy") {
         await staffOf(request, env, MODERATOR_LEVEL);
@@ -835,7 +873,9 @@ export default {
       }
       if (request.method === "POST" && pathname === "/announcements") {
         const who = await staffOf(request, env, MODERATOR_LEVEL);
-        return json(await handleAnnouncementSave(request, env, who), 200, cors);
+        const res = await handleAnnouncementSave(request, env, who);
+        if (res.commit && pushReady(env)) ctx.waitUntil(notify(env, announceNotice(res.world, res.text)).catch((e) => console.error("announce push:", e)));
+        return json(res, 200, cors);
       }
       if (request.method === "GET" && pathname === "/images") {
         const who = await staffOf(request, env, IMAGE_LEVEL);
@@ -851,7 +891,17 @@ export default {
       }
       if (request.method === "POST" && pathname === "/images/suggest") {
         const who = await staffOf(request, env, IMAGE_SUGGEST_LEVEL);
-        return json(await handleImagesSuggest(request, env, who), 200, cors);
+        const res = await handleImagesSuggest(request, env, who);
+        if (pushReady(env) && res.suggestions && res.suggestions.length) {
+          const paths = res.suggestions.map((s) => s.path);
+          const note = res.suggestions[0].note;
+          ctx.waitUntil(notify(env, {
+            kind: "suggest", title: "💡 New image suggestion" + (paths.length > 1 ? `s (${paths.length})` : ""),
+            body: `${who.actor} suggested ${paths.join(", ")}${note ? `\n\n“${note}”` : ""}`,
+            url: "/scuffed_dev/app/#images/suggestions", tag: "suggest-images",
+          }).catch((e) => console.error("suggest push:", e)));
+        }
+        return json(res, 200, cors);
       }
       if (request.method === "POST" && pathname === "/images/review") {
         const who = await staffOf(request, env, IMAGE_SUGGEST_LEVEL);

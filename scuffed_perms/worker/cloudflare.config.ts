@@ -1,4 +1,4 @@
-import { bindings, defineConfig } from "cf/config";
+import { bindings, defineConfig, triggers } from "cf/config";
 
 export default defineConfig({
   worker: {
@@ -20,6 +20,12 @@ export default defineConfig({
       ALLOWED_ORIGINS: bindings.text("https://kanaris-beans.com,https://www.kanaris-beans.com,http://127.0.0.1:8765"),
       // GITHUB_TOKEN (secret, added after deploying): fine-grained token, owner Scuffed-VRChat,
       // only baloneys.github.io, Contents read & write. Without it the lists are view-only.
+
+      // Push notifications for the scuffed_dev app (src/push.js). The public key is public by design; the private
+      // key (VAPID_PRIVATE_JWK) and SUPABASE_SERVICE_KEY are secrets added with `wrangler secret put`.
+      VAPID_PUBLIC: bindings.text("BIqzE_yNA_ZuqW3KiGYzzw-5AXQC69VA9qq26hX_Y5_IGaB2XDo7o0CIVdohsAA8TSFuaEsAWTLp6gIz_zPOpBI"),
     },
+    // once a minute: dev board activity + finished GitHub Pages builds -> notifications
+    triggers: [triggers.scheduled({ schedule: "* * * * *" })],
   },
 });

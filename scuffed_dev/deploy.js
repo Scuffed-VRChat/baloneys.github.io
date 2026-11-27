@@ -36,6 +36,9 @@
   var COOLDOWN_MS = 2 * 60000;  // between re-deploys, across all pages
   var ACTIVE = { waiting: 1, building: 1, checking: 1 };
 
+  // <html data-deploy-ui="none">: the scuffed_dev app draws its own Deploys screen; no corner pill, same watcher.
+  var headless = document.documentElement.getAttribute('data-deploy-ui') === 'none';
+  var listeners = [];
   var tab = Math.random().toString(36).slice(2, 10);
   var retries = {};             // entry id -> function (this tab only)
   var expanded = false;
@@ -247,7 +250,7 @@
   }
 
   function build() {
-    if (ui || !document.body) return;
+    if (headless || ui || !document.body) return;
     var root = el('div', 'scd-dep hidden');
     root.setAttribute('role', 'region');
     root.setAttribute('aria-label', 'Deploys to kanaris-beans.com');
@@ -278,6 +281,7 @@
   function stepIndex(state) { return state === 'waiting' || state === 'building' ? 1 : state === 'checking' ? 2 : state === 'live' || state === 'superseded' ? 3 : 1; }
 
   function render() {
+    listeners.forEach(function (fn) { try { fn(list()); } catch (e) { /* a listener's problem */ } });
     build();
     if (!ui) return;
     var l = list();
@@ -373,6 +377,17 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
   }
 
-  window.ScuffedDeploy = { watch: watch, saveFailed: saveFailed, dismiss: remove, _tick: tick, _list: list };
+  function byId(id) { return list().filter(function (x) { return x.id === id; })[0]; }
+  window.ScuffedDeploy = {
+    watch: watch, saveFailed: saveFailed, dismiss: remove, _tick: tick, _list: list,
+    // for the app's Deploys screen
+    list: list,
+    onChange: function (fn) { if (typeof fn === 'function') listeners.push(fn); },
+    redeploy: function (id) { var e = byId(id); if (e) redeploy(e); },
+    retry: function (id) { var e = byId(id); if (e) retry(e); },
+    canRetry: function (id) { return !!retries[id]; },
+    checkAgain: function (id) { change(id, function (x) { x.state = 'checking'; x.created = now(); x.checkedAt = 0; x.detail = 'Checking again…'; }); tick(); },
+    cooldownLeft: cooldownLeft
+  };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

@@ -1,0 +1,5 @@
+# GitHub Pages builds this site with Jekyll, which skips folders starting with a dot. .well-known holds files
+# other services check for (Discord's domain check, Android's assetlinks.json for the scuffed_dev app), so it
+# has to be published. Nothing else on the site uses Jekyll features.
+include:
+  - .well-known

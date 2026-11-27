@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<!-- scuffed_dev/app: the scuffed_dev staff app (also packaged as the Android APK on GitHub Releases).
+     Screens are drawn by app.js; sign-in is the site's player account (games-social.js), the same as the
+     website's scuffed_dev pages. -->
+<html lang="en" data-deploy-ui="none">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>scuffed_dev</title>
+    <meta name="description" content="Staff app for building the Scuffed VRChat world." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#0a0608" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/scuffed_dev/app/manifest.webmanifest" />
+    <link rel="icon" href="/scuffed_dev/app/icons/icon-96.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/scuffed_dev/app/icons/icon-180.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700;800&display=swap" />
+    <link rel="stylesheet" href="/games-social.css?v=20261011-8" />
+    <link rel="stylesheet" href="/scuffed_dev/images.css?v=20261128-4" />
+    <link rel="stylesheet" href="/scuffed_dev/app/app.css?v=20261128-1" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
+    <script src="/games-common.js?v=20261010-25" defer></script>
+    <script src="/games-achievements.js?v=20261010-25" defer></script>
+    <script src="/games-config.js?v=20261010-25" defer></script>
+    <script src="/games-social.js?v=20261011-8" defer></script>
+    <script src="/scuffed_dev/deploy.js?v=20261128-3" defer></script>
+    <script src="/scuffed_dev/images-crop.js?v=20261128-1" defer></script>
+    <script src="/scuffed_dev/app/app.js?v=20261128-1" defer></script>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-board" viewBox="0 0 24 24"><path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 15l5-5l4 4l3-3l4 4M15 8.5h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1zM16 8a5 5 0 0 1 0 8M19 5a9 9 0 0 1 0 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M5 15c-1.5 1.5-2 4-2 6c2 0 4.5-.5 6-2M9 18l-3-3c1-3.5 3.8-8.2 9.6-10.6c1.4-.6 2.9-.9 4.4-.9c0 1.5-.3 3-.9 4.4C16.7 13.7 12 16.6 9 18zM15 9h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3l-8 3v7c0 6 8 10 8 10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33a1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20a10 10 0 0 0 0 20zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0l-5 5m5-5l5 5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14a7 7 0 0 0 0 14zM20 20l-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><path d="M9 9h11v11H9zM5 15H4V4h11v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1l1-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 1 10-10c0 2-1.5 3-3.5 3H16a2 2 0 0 0-1.5 3.3A2 2 0 0 1 12 22zM7.5 10.5h.01M10.5 7h.01M15 7.5h.01M17.5 11h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21a8 8 0 1 0-16 0M12 13a5 5 0 1 0 0-10a5 5 0 0 0 0 10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20l-4-9l-9-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-hand" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8a8 8 0 0 0 16 0v-2a2 2 0 0 0-4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12m0 0l-5-5m5 5l5-5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </svg>
+
+    <div class="app-bg" id="appBg" aria-hidden="true"></div>
+
+    <div class="app" id="app">
+      <header class="bar">
+        <div class="bar-brand"><svg class="brand-s" viewBox="0 0 616.8 432" width="30" height="21" role="img" aria-label="Scuffed"><path d="M190 14.3Q201.4 0 219.7 0L615 0L552.6 78L245.6 78Q235 78 228.4 86.3L112.6 231L391.6 231L376.4 250L1.4 250ZM256.6 171L616.8 171L420.6 416.2Q408 432 387.8 432L250.2 432L311 356L365.5 356Q377 356 384.2 347L477 231L208.6 231ZM60.8 356L281.8 356L221 432L0 432Z"/></svg><b>scuffed_dev</b></div>
+        <div class="bar-title" id="barTitle"></div>
+        <span class="spacer"></span>
+        <button class="icon-btn" id="barAction" type="button" aria-label="Refresh"><svg aria-hidden="true"><use href="#i-refresh"/></svg></button>
+        <button class="icon-btn" id="barBell" type="button" aria-label="Notifications"><svg aria-hidden="true"><use href="#i-bell"/></svg><i class="dot hidden" id="bellDot"></i></button>
+        <button class="me-btn" id="meBtn" type="button" aria-label="Your account">?</button>
+      </header>
+
+      <main class="main" id="main">
+        <div class="ptr" id="ptr" aria-hidden="true"><svg aria-hidden="true"><use href="#i-refresh"/></svg></div>
+        <section class="screen" id="scr-gate" aria-label="Sign in"></section>
+        <section class="screen" id="scr-history" data-title="Notifications" aria-label="Notifications"></section>
+        <section class="screen" id="scr-board" data-title="Dev board" aria-label="Dev board"></section>
+        <section class="screen" id="scr-images" data-title="World images" aria-label="World images"></section>
+        <section class="screen" id="scr-announce" data-title="Announcements" aria-label="Announcements"></section>
+        <section class="screen" id="scr-more" data-title="More" aria-label="More"></section>
+        <section class="screen" id="scr-deploys" data-title="Deploys" aria-label="Deploys"></section>
+        <section class="screen" id="scr-perms" data-title="Permissions" aria-label="Permissions"></section>
+        <section class="screen" id="scr-settings" data-title="Settings" aria-label="Settings"></section>
+      </main>
+
+      <button class="fab hidden" id="fab" type="button"><svg aria-hidden="true"><use href="#i-plus"/></svg><span id="fabText">New</span></button>
+
+      <nav class="nav hidden" id="nav" aria-label="Sections">
+        <button type="button" data-go="history"><span class="pill"><svg aria-hidden="true"><use href="#i-inbox"/></svg></span><span>Inbox</span><b class="count" id="navInbox"></b></button>
+        <button type="button" data-go="board"><span class="pill"><svg aria-hidden="true"><use href="#i-board"/></svg></span><span>Board</span><b class="count" id="navBoard"></b></button>
+        <button type="button" data-go="images"><span class="pill"><svg aria-hidden="true"><use href="#i-image"/></svg></span><span>Images</span><b class="count" id="navImages"></b></button>
+        <button type="button" data-go="announce"><span class="pill"><svg aria-hidden="true"><use href="#i-megaphone"/></svg></span><span>Announce</span></button>
+        <button type="button" data-go="more"><span class="pill"><svg aria-hidden="true"><use href="#i-more"/></svg></span><span>More</span><b class="count" id="navMore"></b></button>
+      </nav>
+    </div>
+
+    <div class="scrim hidden" id="scrim"></div>
+    <section class="sheet hidden" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="grab" id="sheetGrab"></div>
+      <div class="sh-head"><h2 id="sheetTitle"></h2><button class="icon-btn" id="sheetClose" type="button" aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <div class="sh-body" id="sheetBody"></div>
+      <div class="sh-foot hidden" id="sheetFoot"></div>
+    </section>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <input type="file" id="filePick" accept="image/*,.heic,.heif,.avif,.svg" multiple hidden />
+
+    <!-- minimised crop windows wait here (bottom left); click one to bring it back -->
+    <div class="im-dock hidden" id="imCropDock" role="region" aria-label="Minimised crops">
+      <div class="im-dock-head"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Crops</span><b id="imCropDockN">0/3</b></div>
+      <div class="im-dock-tabs" id="imCropDockTabs"></div>
+    </div>
+
+    <!-- crop & confirm: every upload / suggestion / re-crop passes through here before anything is converted or sent.
+         The options bar follows Photoshop's crop tool: ratio presets, W ⇄ H ratio, Clear, size, overlay, reset / cancel / commit. -->
+    <dialog class="im-crop" id="imCrop" aria-labelledby="imCropTitle">
+      <div class="im-crop-head">
+        <span class="im-crop-badge" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <h2 id="imCropTitle">Crop &amp; confirm</h2>
+        <span class="im-crop-count" id="imCropCount"></span>
+        <span class="im-crop-miniout" id="imCropMiniOut"></span>
+        <div class="im-crop-headbtns">
+          <button class="im-icon" type="button" id="imCropMin" aria-label="Minimise" title="Minimise: keep this crop and look at the page"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="im-icon" type="button" id="imCropClose" aria-label="Cancel" title="Cancel"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+      <div class="im-crop-bar" role="toolbar" aria-label="Crop options">
+        <span class="im-crop-tool" title="Crop tool"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <i class="im-crop-sep" aria-hidden="true"></i>
+        <span class="im-crop-ratioico" id="imCropRatioIco" title="Current ratio" aria-hidden="true"><i></i></span>
+        <select class="im-crop-select im-crop-ratio" id="imCropRatio" aria-label="Ratio preset" title="Ratio preset"></select>
+        <input class="im-crop-num" id="imCropW" inputmode="decimal" autocomplete="off" aria-label="Ratio width" title="Ratio width: type your own" />
+        <button class="im-crop-btn" type="button" id="imCropSwap" title="Swap width and height (X)" aria-label="Swap width and height"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <input class="im-crop-num" id="imCropH" inputmode="decimal" autocomplete="off" aria-label="Ratio height" title="Ratio height: type your own" />
+        <button class="im-crop-btn is-text" type="button" id="imCropClear" title="Clear the ratio (free crop)">Clear</button>
+        <i class="im-crop-sep" aria-hidden="true"></i>
+        <label class="im-crop-field" title="Unity max size: the longest side of the PNG"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 15l5-5l4 4l3-3l4 4M15 8.5h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Size</span><select class="im-crop-select" id="imCropRes"></select></label>
+        <i class="im-crop-sep" aria-hidden="true"></i>
+        <label class="im-crop-field" title="Crop overlay (O)"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><select class="im-crop-select" id="imCropOverlay" aria-label="Crop overlay"></select></label>
+        <label class="im-crop-check" id="imCropPadRow"><input type="checkbox" id="imCropPad" /><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM8 9h8v6H8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Fit (pad)</label>
+        <span class="im-crop-spacer"></span>
+        <button class="im-crop-btn" type="button" id="imCropReset" title="Reset crop (R)" aria-label="Reset crop"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="im-crop-btn is-cancel" type="button" id="imCropAbort" title="Cancel (Esc)" aria-label="Cancel"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="im-crop-btn is-commit" type="button" id="imCropCommit" title="Commit (Enter)" aria-label="Commit"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <div class="im-crop-body">
+        <div class="im-crop-stage im-checker" id="imCropStage" tabindex="0" aria-label="Crop area: drag the box to move it, drag a corner to resize, arrow keys nudge, Enter commits">
+          <span class="im-crop-loading" aria-hidden="true"><i></i>Loading</span>
+          <img id="imCropImg" alt="" draggable="false" />
+          <div class="im-crop-box hidden" id="imCropBox">
+            <i class="im-crop-grid ov-thirds" id="imCropGrid" aria-hidden="true"></i>
+            <span class="im-crop-tag" id="imCropSizeTag"></span>
+            <b data-h="nw"></b><b data-h="ne"></b><b data-h="sw"></b><b data-h="se"></b>
+            <b data-h="n" class="is-edge"></b><b data-h="s" class="is-edge"></b><b data-h="w" class="is-edge"></b><b data-h="e" class="is-edge"></b>
+          </div>
+          <p class="im-crop-error hidden" id="imCropError" role="alert"></p>
+        </div>
+        <aside class="im-crop-side">
+          <div class="im-crop-file">
+            <strong id="imCropName"></strong>
+            <span id="imCropSrc"></span>
+          </div>
+          <div class="im-crop-result">
+            <span class="option-label">You'll get</span>
+            <div class="im-crop-preview im-checker"><canvas id="imCropPreview" width="1" height="1" aria-label="Preview of the PNG"></canvas></div>
+            <div class="im-crop-result-text">
+              <strong><span id="imCropOut"></span> <em>PNG</em></strong>
+              <span class="im-crop-chip" id="imCropOutShape"></span>
+            </div>
+            <span class="im-crop-dest" id="imCropOutSub"></span>
+          </div>
+          <p class="im-crop-warn hidden" id="imCropWarn"></p>
+          <ul class="im-crop-keys" aria-label="Keyboard shortcuts">
+            <li><kbd>Enter</kbd> commit</li><li><kbd>Esc</kbd> cancel</li><li><kbd>X</kbd> swap ratio</li>
+            <li><kbd>O</kbd> overlay</li><li><kbd>R</kbd> reset</li><li><kbd>←↑→↓</kbd> nudge</li>
+          </ul>
+          <label class="im-crop-check hidden" id="imCropAllRow"><input type="checkbox" id="imCropAll" /> Use this ratio and size for the other <span id="imCropAllN"></span> (centred)</label>
+          <div class="im-crop-actions">
+            <button class="btn btn-sm btn-outline" type="button" id="imCropCancel">Cancel</button>
+            <button class="btn btn-sm btn-outline" type="button" id="imCropSkip">Skip</button>
+            <button class="btn btn-sm btn-primary" type="button" id="imCropOk">Confirm</button>
+          </div>
+        </aside>
+      </div>
+    </dialog>
+
+  </body>
+</html>
