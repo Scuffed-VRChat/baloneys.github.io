@@ -6,6 +6,7 @@
   "start_url": "/scuffed_dev/app/?source=app",
   "scope": "/scuffed_dev/app/",
   "display": "standalone",
+  "related_applications": [{ "platform": "play", "id": "com.kanarisbeans.scuffeddev" }],
   "display_override": ["standalone"],
   "orientation": "portrait",
   "background_color": "#0a0608",

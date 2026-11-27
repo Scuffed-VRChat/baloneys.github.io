@@ -321,7 +321,7 @@
     if (changed) $('main').scrollTop = 0;
     setFab(null);
     SCREENS[r.name](scr, r.arg);
-    if (r.name === 'deploys') refreshDeploys(changed);
+    if (changed && r.name === 'deploys' && window.ScuffedDeploy) window.ScuffedDeploy.refresh();
   }
   function setFab(text, fn, iconName) {
     var f = $('fab');
@@ -334,7 +334,7 @@
   function bigHeader(title, sub, tag) {
     return h('div', { class: 'big' }, h('h1', { text: title }), sub ? h('p', { text: sub }) : null, tag || null);
   }
-  function refreshCurrent() { if (S.route === 'deploys') refreshDeploys(true); S.loaded[S.route] = 0; route(); }
+  function refreshCurrent() { if (S.route === 'deploys' && window.ScuffedDeploy) window.ScuffedDeploy.refresh(); S.loaded[S.route] = 0; route(); }
 
   /* ======================================================================= Inbox: notification history */
 
@@ -1005,10 +1005,13 @@
   function renderMore(scr) {
     clear(scr);
     scr.appendChild(bigHeader('More'));
-    var deps = window.ScuffedDeploy ? window.ScuffedDeploy.list() : [];
+    var D = window.ScuffedDeploy;
+    var deps = D ? D.list() : [];
+    var status = D ? D.status() : {};
+    var active = D ? D.siteEntries().filter(deployActive).length : 0;
     var bad = deps.filter(function (e) { return /failed|stalled/.test(e.state); }).length;
     var rows = [
-      ['rocket', 'Deploys', bad ? bad + ' need attention' : 'GitHub Pages build status', function () { go('deploys'); }],
+      ['rocket', 'Deploys', status.error ? status.error.title : active ? active + (active === 1 ? ' active build' : ' active builds') : bad ? bad + ' need attention' : 'GitHub Pages build status', function () { go('deploys'); }],
       isAdmin() ? ['shield', 'Permissions', 'Who holds which role in the world', function () { go('perms'); }] : null,
       ['gear', 'Settings', 'Notifications, appearance, account', function () { go('settings'); }],
       ['globe', 'Open the website', 'kanaris-beans.com/scuffed_dev', function () { window.open(SITE + '/scuffed_dev/', '_blank', 'noopener'); }],
@@ -1020,78 +1023,68 @@
     scr.appendChild(h('p', { style: 'margin:18px 4px;color:var(--ink3);font-family:var(--mono);font-size:.7rem', text: 'scuffed_dev ' + VERSION + ' · ' + (LEVELS[lvl()] || 'Staff') + ' · ' + deviceLabel() }));
   }
 
-  var siteDeploys = { data: null, error: '', request: null, checked: 0 };
-  var DEPLOY_POLL_MS = 12000;
-
-  function refreshDeploys(force) {
-    if (!S.me || S.route !== 'deploys' || document.hidden || siteDeploys.request) return;
-    if (!force && Date.now() - siteDeploys.checked < DEPLOY_POLL_MS) return;
-    siteDeploys.checked = Date.now();
-    siteDeploys.request = worker('/deploy/status').then(function (data) {
-      var changed = siteDeploys.error || JSON.stringify(siteDeploys.data) !== JSON.stringify(data);
-      siteDeploys.data = data;
-      siteDeploys.error = '';
-      if (changed && S.route === 'deploys') renderDeploys($('scr-deploys'));
-    }, function (error) {
-      var message = errText(error);
-      if (message === siteDeploys.error) return;
-      siteDeploys.error = message;
-      if (S.route === 'deploys') renderDeploys($('scr-deploys'));
-    }).finally(function () { siteDeploys.request = null; });
+  function deployActive(entry) {
+    return entry.state === 'waiting' || entry.state === 'building' || entry.state === 'checking';
   }
 
-  function deployRunState(run, live, newestSuccess) {
-    if (['queued', 'pending', 'requested', 'waiting'].indexOf(run.status) >= 0) return ['waiting', 'Queued'];
-    if (run.status !== 'completed') return ['building', 'Building'];
-    if (run.conclusion === 'success') {
-      if (run.sha === live) return ['live', 'Live'];
-      if (run === newestSuccess) return ['checking', 'Waiting for the public site'];
-      return ['past', 'Build completed'];
+  function renderSiteDeploys(scr, D) {
+    var status = D ? D.status() : {};
+    if (status.error) {
+      var warning = emptyState('!', status.error.title, status.error.detail + (status.data ? ' Showing the last known status.' : ''));
+      warning.setAttribute('role', 'status');
+      scr.appendChild(warning);
     }
-    if (['cancelled', 'skipped', 'neutral'].indexOf(run.conclusion) >= 0) return ['past', run.conclusion === 'neutral' ? 'Closed' : run.conclusion === 'skipped' ? 'Skipped' : 'Cancelled'];
-    return ['failed', 'Failed'];
-  }
-
-  function renderSiteDeploys(scr) {
-    var data = siteDeploys.data;
-    if (siteDeploys.error) {
-      scr.appendChild(emptyState('!', data ? 'Showing the last check' : 'Could not check deployments', siteDeploys.error));
-    }
-    if (!data) {
-      if (!siteDeploys.error) scr.appendChild(skeleton(2, 72));
+    if (!status.data) {
+      if (!status.error) scr.appendChild(skeleton(2, 72));
       return;
     }
 
-    var runs = data.runs || [];
-    var newestSuccess = runs.find(function (run) { return run.status === 'completed' && run.conclusion === 'success'; });
-    var cards = h('div', { class: 'list' });
-    if (data.head && data.head !== data.live && !runs.some(function (run) { return run.sha === data.head; })) {
-      cards.appendChild(siteDeployCard({ sha: data.head }, ['waiting', 'Waiting for GitHub Pages']));
+    var entries = D.siteEntries();
+    var active = entries.filter(deployActive);
+    var recent = entries.filter(function (entry) { return !deployActive(entry); });
+    if (status.data.live) {
+      var headline = status.error ? 'Last verified revision ' : 'Public site serves ';
+      scr.appendChild(h('p', { class: 'section', text: headline + status.data.live.slice(0, 7) }));
     }
-    var active = runs.filter(function (run) { return run.status !== 'completed'; });
-    var recent = runs.filter(function (run) { return run.status === 'completed'; }).slice(0, 5);
-    active.concat(recent).forEach(function (run) { cards.appendChild(siteDeployCard(run, deployRunState(run, data.live, newestSuccess))); });
-    if (data.live) scr.appendChild(h('p', { class: 'section', text: 'Public site serves ' + data.live.slice(0, 7) }));
-    if (cards.childNodes.length) scr.appendChild(cards);
-    else scr.appendChild(emptyState('🚀', 'No recent Pages builds', 'New builds will appear here automatically.'));
+    if (active.length) {
+      scr.appendChild(h('h2', { class: 'section', text: status.error ? 'Last known active builds' : 'Active builds (' + active.length + ')' }));
+      scr.appendChild(h('div', { class: 'list' }, active.map(function (entry) { return siteDeployCard(entry, !!status.error); })));
+    } else if (!status.error) {
+      scr.appendChild(emptyState('🚀', 'No active builds', 'New builds will appear here automatically.'));
+    }
+    if (recent.length) {
+      scr.appendChild(h('h2', { class: 'section', text: 'Recent builds' }));
+      scr.appendChild(h('div', { class: 'list' }, recent.map(function (entry) { return siteDeployCard(entry, !!status.error); })));
+    }
   }
 
-  function siteDeployCard(run, state) {
-    var label = (run.message || '').split('\n')[0].slice(0, 150) || 'GitHub Pages';
-    return h('div', { class: 'dep s-' + state[0] },
-      h('div', { class: 'row', style: 'justify-content:space-between;gap:8px' },
-        h('b', { text: label, style: 'min-width:0;overflow-wrap:anywhere' }),
-        h('span', { style: 'color:var(--st);font-size:.75rem;text-align:right;flex-shrink:0', text: state[1] })),
-      h('div', { class: 'row wrap', style: 'margin-top:6px;color:var(--ink3);font-family:var(--mono);font-size:.7rem' },
-        h('span', { text: run.sha.slice(0, 7) + (run.created ? ' · ' + ago(run.created) : '') }),
-        run.url ? h('a', { href: run.url, target: '_blank', rel: 'noopener', text: 'View run ↗' }) : null));
+  function siteDeployCard(entry, stale) {
+    var stages = entry.stage == null ? null : h('div', { class: 'deploy-stages' },
+      ['Build', 'Publish', 'Verify'].map(function (name, i) {
+        var done = i < entry.stage;
+        var current = i === entry.stage;
+        return h('span', {
+          class: done ? 'done' : current && !stale ? 'current' : null,
+          'aria-current': current && !stale ? 'step' : null,
+          text: name
+        });
+      }));
+    return h('div', { class: 'dep s-' + entry.state },
+      h('div', { class: 'row deploy-heading' },
+        h('b', { text: entry.label }),
+        h('span', { text: entry.title })),
+      stages,
+      entry.detail ? h('p', { class: 'deploy-detail', text: entry.detail }) : null,
+      h('div', { class: 'row wrap deploy-meta' },
+        h('span', { text: entry.commit.slice(0, 7) + (entry.created ? ' · ' + ago(entry.created) : '') }),
+        entry.url ? h('a', { href: entry.url, target: '_blank', rel: 'noopener', text: 'View run ↗' }) : null));
   }
 
   function renderDeploys(scr) {
     clear(scr);
     scr.appendChild(bigHeader('Deploys', 'GitHub Pages builds and saves from this device.'));
-    renderSiteDeploys(scr);
     var D = window.ScuffedDeploy;
+    renderSiteDeploys(scr, D);
     var list = D ? D.list().slice().reverse() : [];
     if (!list.length) return;
     scr.appendChild(h('h2', { class: 'section', text: 'Tracked saves' }));
@@ -1204,7 +1197,7 @@
       h('span', { class: 'txt' }, h('b', { text: me.name }), h('small', { text: (LEVELS[me.level] || 'Staff') + (S.token ? ' · master login' : '') })),
       S.token ? h('button', { class: 'btn sm', type: 'button', text: 'Log out', onclick: function () { var t = S.token; S.token = null; try { sessionStorage.removeItem(MOD_TOKEN_KEY); } catch (e) { /* fine */ } S.client.rpc('mod_logout', { token: t }).then(boot, boot); } }) : null),
       prof ? h('button', { class: 'setting link', type: 'button', onclick: function () { showSigninQr(); } }, h('span', { class: 'ico', html: ic('phone') }),
-        h('span', { class: 'txt' }, h('b', { text: 'Sign in on another device' }), h('small', { text: 'Show a QR code to scan with the scuffed_dev app on a tablet or second phone' }))) : null));
+        h('span', { class: 'txt' }, h('b', { text: 'Sign in on another device' }), h('small', { text: 'Show a one-time sign-in QR for a second device' }))) : null));
 
     // notifications
     scr.appendChild(h('div', { class: 'section', text: 'Notifications' }));
@@ -1359,20 +1352,21 @@
 
   /* ======================================================================= QR sign-in (device links: supabase/migrations/2026-10-11-device-links.sql)
      A signed-in device makes a one-time code (link_code_create, 10 minutes) and shows it as a QR of
-     https://kanaris-beans.com/scuffed_dev/app/?signin=CODE. This phone redeems it (link_code_redeem) and from then on
-     acts as that account. The APK claims /scuffed_dev/app/ links, so the phone's own camera app opens it too. */
+     https://kanaris-beans.com/scuffed_dev/app/#link/CODE. Android App Links open the app from the phone camera.
+     The app confirms the account link before redeeming the code (link_code_redeem). */
 
   var pendingSignin = null, signinBusy = false;
-  function signinUrl(code) { return SITE + '/scuffed_dev/app/?signin=' + code; }
-  function parseSignin(text) {
-    var s = String(text || '').trim();
-    try { var u = new URL(s); var q = u.searchParams.get('signin') || u.searchParams.get('link') || ((/#link\/([A-Za-z0-9-]+)/.exec(u.hash) || [])[1]); if (q) s = q; } catch (e) { /* not a URL: a typed code */ }
-    s = s.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    return /^[A-HJ-NP-Z2-9]{8}$/.test(s) ? s : null;
-  }
+  var signin = window.ScuffedSignin;
   function takeSigninFromUrl() {
-    var code = parseSignin(new URLSearchParams(location.search).get('signin') || '');
-    if (new URLSearchParams(location.search).has('signin')) history.replaceState(history.state, '', location.pathname + location.hash);
+    var current = new URL(location.href);
+    var code = signin.read(current);
+    var hasLink = current.hash.indexOf('#link/') === 0;
+    if (hasLink || current.searchParams.has('signin')) {
+      current.searchParams.delete('signin');
+      current.searchParams.delete('web');
+      if (hasLink) current.hash = '';
+      history.replaceState(history.state, '', current.pathname + current.search + current.hash);
+    }
     if (code) pendingSignin = code;
   }
   function confirmSignin(code) {
@@ -1432,7 +1426,7 @@
     var stream = null, stopped = false;
     var stop = function () { stopped = true; if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; };
     var code = h('input', { class: 'input grow', placeholder: 'ABCD-EFGH', maxlength: '9', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', 'aria-label': 'Sign-in code', style: 'font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase' });
-    var typed = function () { var c = parseSignin(code.value); if (!c) { toast('Codes are 8 letters and numbers, like ABCD-EFGH.', 'bad'); return; } stop(); closeSheet(); confirmSignin(c); };
+    var typed = function () { var c = signin.parse(code.value); if (!c) { toast('Codes are 8 letters and numbers, like ABCD-EFGH.', 'bad'); return; } stop(); closeSheet(); confirmSignin(c); };
     code.addEventListener('keydown', function (e) { if (e.key === 'Enter') typed(); });
     openSheet('Scan sign-in QR', [h('div', { class: 'scan' }, video, h('div', { class: 'scan-frame' }, h('i'), h('i'), h('i'), h('i'))), status,
       h('div', { class: 'field', style: 'margin-top:12px' }, h('span', { text: 'Or type the code under the QR' }), h('div', { class: 'row' }, code, h('button', { class: 'btn primary', type: 'button', text: 'Go', style: 'flex:none', onclick: typed })))],
@@ -1447,7 +1441,7 @@
           if (stopped) return;
           read(video).then(function (text) {
             if (stopped) return;
-            var c = text && parseSignin(text);
+            var c = text && signin.parse(text);
             if (c) { haptic(25); stop(); closeSheet(); confirmSignin(c); return; }
             if (text) status.textContent = 'That QR isn\'t a scuffed_dev sign-in code.';
             setTimeout(tick, 180);
@@ -1471,11 +1465,11 @@
       var qr = h('div', { class: 'qr' });
       var left = h('p', { class: 'scan-status' });
       add(box, [qr, h('div', { class: 'qr-code', text: code.slice(0, 4) + '-' + code.slice(4) }), left,
-        h('p', { style: 'margin:6px 0 0;color:var(--ink3);font-size:.8rem;text-align:center', text: 'Open scuffed_dev on the other device and tap Scan sign-in QR. Works once.' })]);
+        h('p', { style: 'margin:6px 0 0;color:var(--ink3);font-size:.8rem;text-align:center', text: 'Scan with the app or your Android camera. Works once.' })]);
       var ends = Date.now() + 600000;
       (function tick() { var s = Math.max(0, Math.round((ends - Date.now()) / 1000)); left.textContent = s ? 'Expires in ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : 'Expired. Close this and make a new one.'; if (s && left.isConnected) setTimeout(tick, 1000); })();
       qrLibLoad = qrLibLoad || loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
-      return qrLibLoad.then(function () { new window.QRCode(qr, { text: signinUrl(code), width: 220, height: 220, colorDark: '#0a0608', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M }); });
+      return qrLibLoad.then(function () { new window.QRCode(qr, { text: signin.url(code), width: 220, height: 220, colorDark: '#0a0608', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M }); });
     }).catch(function (e) { clear(box).appendChild(h('p', { class: 'scan-status', text: errText(e) })); });
   }
   function createProfile() {
@@ -1549,10 +1543,12 @@
         else { ptr.style.opacity = 0; ptr.style.transform = ''; }
       });
     })();
-    if (window.ScuffedDeploy) window.ScuffedDeploy.onChange(function (l) {
-      var bad = l.filter(function (e) { return /failed|stalled/.test(e.state); }).length;
-      $('navMore').textContent = bad ? '!' : '';
+    if (window.ScuffedDeploy) window.ScuffedDeploy.onChange(function (list, status) {
+      var bad = list.some(function (e) { return /failed|stalled/.test(e.state); });
+      var active = window.ScuffedDeploy.siteEntries().filter(deployActive).length;
+      $('navMore').textContent = status.error || bad ? '!' : active ? String(active) : '';
       if (S.route === 'deploys') renderDeploys($('scr-deploys'));
+      if (S.route === 'more') renderMore($('scr-more'));
     });
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/scuffed_dev/app/sw.js', { scope: '/scuffed_dev/app/' }).catch(function () {});
@@ -1562,11 +1558,9 @@
         if (m.type === 'open' && m.url) { var r = /#([a-z]+)(?:\/(.*))?$/.exec(m.url); if (r) go(r[1], r[2] ? decodeURIComponent(r[2]) : ''); }
       });
     }
-    setInterval(refreshDeploys, DEPLOY_POLL_MS);
     document.addEventListener('visibilitychange', function () {
       if (document.hidden || !S.me) return;
       loadHistory().then(paintBadges, function () {});
-      refreshDeploys(true);
     });
     boot();
   });

@@ -740,15 +740,33 @@ async function handleImagesSave(request, env, who) {
 
 const PAGES_RUN = "pages build and deployment";
 
-async function actionsRuns(gh, query) {
-  const url = `${gh.base}/actions/runs?${query}`;
-  // the token may not be allowed to read Actions; the repo is public, so fall back to asking without it
-  let res = await fetch(gh.fresh(url), { headers: { ...gh.headers, "Cache-Control": "no-cache" } });
-  if (res.status === 403 || res.status === 404) res = await fetch(gh.fresh(url), { headers: { Accept: gh.headers.Accept, "User-Agent": "scuffed-perms", "Cache-Control": "no-cache" } });
+async function githubDeployData(gh, path, etag) {
+  const url = gh.fresh(gh.base + path);
+  const signal = AbortSignal.timeout(5000);
+  const publicHeaders = { Accept: gh.headers.Accept, "User-Agent": "scuffed-perms", "Cache-Control": "no-cache" };
+  const headers = { ...gh.headers, "Cache-Control": "no-cache" };
+  if (etag) headers["If-None-Match"] = etag;
+  let res = await fetch(url, { headers, signal });
+  if (gh.headers.Authorization && (res.status === 403 || res.status === 404) &&
+      res.headers.get("X-RateLimit-Remaining") !== "0" && !res.headers.has("Retry-After")) {
+    res = await fetch(url, { headers: publicHeaders, signal });
+  }
+  return res;
+}
+
+async function actionsData(gh, path) {
+  const res = await githubDeployData(gh, path);
   if (!res.ok) throw new HttpError(502, `Couldn't read the GitHub Pages builds (${res.status}).`);
-  const data = await res.json();
+  return res.json();
+}
+
+function pagesRuns(data) {
   return (data.workflow_runs || []).filter((r) => r.name === PAGES_RUN)
     .map((r) => ({ id: r.id, sha: r.head_sha, status: r.status, conclusion: r.conclusion, url: r.html_url, created: r.created_at, message: (r.head_commit && r.head_commit.message) || "" }));
+}
+
+async function actionsRuns(gh, query) {
+  return pagesRuns(await actionsData(gh, `/actions/runs?${query}`));
 }
 
 // What main holds now for some paths: { path: sha | null }. One directory listing per folder, so a watch on an
@@ -771,14 +789,75 @@ function recentPagesRuns(gh) {
   return actionsRuns(gh, `branch=${encodeURIComponent(gh.branch)}&event=dynamic&per_page=20`);
 }
 
-async function handleDeployStatus(env) {
+function pagesJobs({ jobs = [] }) {
+  return jobs.filter((job) => job.name === "build" || job.name === "deploy").map((job) => ({
+    name: job.name,
+    status: job.status,
+    conclusion: job.conclusion,
+    step: (job.steps || []).find((step) => step.status === "in_progress")?.name || null,
+  }));
+}
+
+async function handleDeployStatus(request, env, ctx) {
+  const cache = globalThis.caches?.default;
+  const key = new Request(new URL("/__scuffed-pages-status-v2", request.url));
+  const saved = await cache?.match(key).then((res) => res?.json()).catch(() => null);
+  if (saved?.expires > Date.now()) {
+    if (saved.error) throw new HttpError(502, saved.error);
+    return saved.result;
+  }
+
   const gh = new GitHub(env);
-  const [runs, head, live] = await Promise.all([
-    recentPagesRuns(gh),
-    gh.head(),
-    livePagesRevision(),
-  ]);
-  return { runs, head, live };
+  const sources = {};
+  function store(snapshot) {
+    if (!cache) return;
+    const response = Response.json(snapshot, { headers: { "Cache-Control": "public, max-age=3600" } });
+    ctx.waitUntil(cache.put(key, response).catch(() => {}));
+  }
+  async function read(path, select) {
+    const previous = saved?.sources[path];
+    const res = await githubDeployData(gh, path, previous?.etag);
+    if (res.status === 304 && previous) {
+      sources[path] = previous;
+    } else if (res.ok) {
+      sources[path] = { etag: res.headers.get("ETag"), data: select(await res.json()) };
+    } else {
+      const err = new HttpError(502, `Couldn't read the GitHub Pages builds (${res.status}).`);
+      if (res.status === 403 || res.status === 429) {
+        const reset = res.headers.get("X-RateLimit-Remaining") === "0" ? Number(res.headers.get("X-RateLimit-Reset")) * 1000 : 0;
+        err.retryAt = Math.max(Date.now() + (Number(res.headers.get("Retry-After")) || 60) * 1000, reset);
+      }
+      throw err;
+    }
+    return sources[path].data;
+  }
+
+  try {
+    const [runs, head, live] = await Promise.all([
+      read(`/actions/runs?branch=${encodeURIComponent(gh.branch)}&event=dynamic&per_page=50`, pagesRuns),
+      read(`/git/ref/heads/${gh.branch}`, (data) => data.object.sha),
+      livePagesRevision(),
+    ]);
+    const active = runs.filter((run) => run.status !== "completed");
+    const jobs = new Map();
+    // A job listing can lag the run. Limit concurrent requests and keep the workflow-level status if it does.
+    for (let i = 0; i < active.length; i += 4) {
+      await Promise.all(active.slice(i, i + 4).map(async (run) => {
+        const path = `/actions/runs/${run.id}/jobs?filter=latest&per_page=20`;
+        try {
+          jobs.set(run.id, await read(path, pagesJobs));
+        } catch (err) {
+          if (err.retryAt) throw err;
+        }
+      }));
+    }
+    const result = { runs: runs.map((run) => jobs.has(run.id) ? { ...run, jobs: jobs.get(run.id) } : run), head, live };
+    store({ result, sources, expires: Date.now() + 3000 });
+    return result;
+  } catch (err) {
+    store({ error: err.message, sources: { ...saved?.sources, ...sources }, expires: err.retryAt || Date.now() + 3000 });
+    throw err;
+  }
 }
 
 async function handleDeploy(request, env) {
@@ -865,9 +944,9 @@ export default {
         return json(r, 200, cors);
       }
 
+      // Read-only status from this site's public Pages builds. File checks and retries still require staff.
       if (request.method === "GET" && pathname === "/deploy/status") {
-        await staffOf(request, env, MODERATOR_LEVEL);
-        return json(await handleDeployStatus(env), 200, cors);
+        return json(await handleDeployStatus(request, env, ctx), 200, cors);
       }
       if (request.method === "GET" && pathname === "/deploy") {
         await staffOf(request, env, MODERATOR_LEVEL);

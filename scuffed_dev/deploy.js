@@ -28,7 +28,7 @@
   var KEY = 'scd-deploys-v1';
   var COOLDOWN_KEY = 'scd-redeploy-at';
   var MAX = 12;
-  var TICK_MS = 3000;           // how often this tab looks at the list
+  var TICK_MS = 3000;           // refresh the shared site queue while this page is visible
   var POLL_MS = 8000;           // how often one commit is checked (by whichever tab gets there first)
   var LOCK_MS = 15000;          // a tab "holding" a check; another tab takes over if it stops
   var STALL_MS = 12 * 60000;    // not live after this long: offer Re-deploy
@@ -43,6 +43,11 @@
   var retries = {};             // entry id -> function (this tab only)
   var expanded = false;
   var ui = null;
+  var site = { data: null, error: null };
+  var siteRequest = null;
+  var showSiteUntil = 0;
+  var lastRender = '';
+  var lastPanel = '';
 
   /* ---------- the shared list ---------- */
 
@@ -70,7 +75,7 @@
     if (!c) return Promise.resolve('');
     return c.auth.getSession().then(function (r) { return r.data && r.data.session ? r.data.session.access_token : ''; }, function () { return ''; });
   }
-  function worker(path, body) {
+  function worker(path, body, signal) {
     return accessToken().then(function (at) {
       var h = {};
       var mt = null;
@@ -78,13 +83,93 @@
       if (at) h.Authorization = 'Bearer ' + at;
       if (mt) h['X-Mod-Token'] = mt;
       if (body) h['Content-Type'] = 'application/json';
-      return fetch(WORKER + path, { method: body ? 'POST' : 'GET', headers: h, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
-    }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (d) {
-        if (!r.ok) { var e = new Error(d.error || 'The server answered ' + r.status); e.status = r.status; throw e; }
-        return d;
-      });
+      return fetch(WORKER + path, { method: body ? 'POST' : 'GET', headers: h, body: body ? JSON.stringify(body) : undefined, cache: 'no-store', signal: signal });
+    }).then(readResponse);
+  }
+
+  function readResponse(r) {
+    return r.json().catch(function () { return {}; }).then(function (d) {
+      if (!r.ok) { var e = new Error(d.error || 'The server answered ' + r.status); e.status = r.status; throw e; }
+      return d;
     });
+  }
+
+  /* ---------- the shared site queue ---------- */
+
+  var CONNECTION = { title: 'Server unreachable', detail: 'Check your connection.' };
+  var QUEUED = ['queued', 'pending', 'requested', 'waiting'];
+  var SITE_STEPS = ['Build', 'Publish', 'Verify'];
+
+  function refreshSite() {
+    if (document.hidden) return;
+    if (navigator.onLine === false) { siteOffline(); return; }
+    if (siteRequest) return;
+    var request = new AbortController();
+    siteRequest = request;
+    var timeout = setTimeout(function () { request.abort(); }, 7000);
+    fetch(WORKER + '/deploy/status', { cache: 'no-store', signal: request.signal }).then(readResponse).then(function (data) {
+      if (!Array.isArray(data.runs)) throw new Error('Invalid deployment response.');
+      if (navigator.onLine === false || siteRequest !== request) return;
+      site = { data: data, error: null };
+      if (siteEntries().some(function (e) { return ACTIVE[e.state]; })) showSiteUntil = now() + KEEP_DONE_MS;
+    }).catch(function (err) {
+      if (siteRequest !== request) return;
+      site.error = !err.status ? CONNECTION : { title: 'Could not check deployments', detail: err.message };
+    }).finally(function () {
+      clearTimeout(timeout);
+      if (siteRequest === request) siteRequest = null;
+      render();
+    });
+  }
+
+  function siteOffline() {
+    if (siteRequest) { siteRequest.abort(); siteRequest = null; }
+    site.error = CONNECTION;
+    render();
+  }
+
+  function describeRun(run, current, latestSuccess) {
+    if (run.status === 'completed') {
+      if (run.conclusion === 'success') {
+        if (run.sha === current) return { state: 'live', title: 'Live', stage: 3 };
+        if (run === latestSuccess) return { state: 'checking', title: 'Verifying', stage: 2, detail: 'Waiting for kanaris-beans.com to serve this commit.' };
+        return { state: 'past', title: 'Build completed' };
+      }
+      if (['skipped', 'cancelled', 'neutral'].indexOf(run.conclusion) >= 0) {
+        return { state: 'past', title: run.conclusion === 'neutral' ? 'Closed' : run.conclusion === 'skipped' ? 'Skipped' : 'Cancelled' };
+      }
+      return { state: 'failed', title: 'Build failed' };
+    }
+    var jobs = run.jobs || [];
+    var build = jobs.find(function (job) { return job.name === 'build'; });
+    var publish = jobs.find(function (job) { return job.name === 'deploy'; });
+    if (publish && publish.status === 'in_progress') return { state: 'building', title: 'Publishing', stage: 1, detail: publish.step };
+    if (publish && publish.conclusion === 'success') return { state: 'checking', title: 'Finalising', stage: 2, detail: 'Waiting for GitHub to finish reporting the build.' };
+    if (build && build.conclusion === 'success') return { state: 'building', title: 'Waiting to publish', stage: 1 };
+    if (QUEUED.indexOf(run.status) >= 0 && (!build || build.status !== 'in_progress')) return { state: 'waiting', title: 'Queued', stage: 0 };
+    return { state: 'building', title: 'Building', stage: 0, detail: build && build.step };
+  }
+
+  function siteEntries() {
+    if (!site.data) return [];
+    var data = site.data, runs = data.runs;
+    var latestSuccess = runs.find(function (run) { return run.status === 'completed' && run.conclusion === 'success'; });
+    var entries = runs.map(function (run) {
+      var e = describeRun(run, data.live, latestSuccess);
+      e.id = 'pages-' + run.id;
+      e.commit = run.sha;
+      e.created = Date.parse(run.created) || 0;
+      e.url = run.url;
+      e.label = (run.message || '').split('\n')[0].slice(0, 150) || 'GitHub Pages';
+      e.shared = true;
+      e.kind = 'deploy';
+      return e;
+    });
+    if (data.head && data.head !== data.live && !runs.some(function (run) { return run.sha === data.head; })) {
+      entries.unshift({ id: 'pages-head', shared: true, kind: 'deploy', commit: data.head, label: 'GitHub Pages', state: 'waiting', title: 'Queued', stage: 0, detail: 'Waiting for GitHub to list this commit.' });
+    }
+    var active = entries.filter(function (e) { return ACTIVE[e.state]; });
+    return active.concat(entries.filter(function (e) { return !ACTIVE[e.state]; }).slice(0, 5));
   }
 
   /* ---------- checking the live site ---------- */
@@ -156,6 +241,7 @@
 
   // One tab at a time checks each commit; the others just show the shared result.
   function tick() {
+    refreshSite();
     var l = list(), t = now(), dirty = false;
     // tidy: finished ones after a while, failed saves whose retry is gone (page reloaded) after 30 min
     var kept = l.filter(function (e) {
@@ -165,7 +251,7 @@
     });
     if (kept.length !== l.length) { l = kept; dirty = true; }
     var due = l.filter(function (e) {
-      return ACTIVE[e.state] && t - (e.checkedAt || 0) >= POLL_MS && !(e.lockBy && e.lockBy !== tab && t - (e.lockAt || 0) < LOCK_MS);
+      return !document.hidden && !site.error && ACTIVE[e.state] && t - (e.checkedAt || 0) >= POLL_MS && !(e.lockBy && e.lockBy !== tab && t - (e.lockAt || 0) < LOCK_MS);
     });
     due.forEach(function (e) { e.lockBy = tab; e.lockAt = t; e.checkedAt = t; dirty = true; });
     if (dirty) write(l); else render();
@@ -270,47 +356,75 @@
   function stepIndex(state) { return state === 'waiting' || state === 'building' ? 1 : state === 'checking' ? 2 : state === 'live' || state === 'superseded' ? 3 : 1; }
 
   function render() {
-    listeners.forEach(function (fn) { try { fn(list()); } catch (e) { /* a listener's problem */ } });
+    var local = list(), entries = siteEntries();
+    var state = JSON.stringify([local, site]);
+    if (lastRender !== state) {
+      lastRender = state;
+      listeners.forEach(function (fn) { try { fn(local, site); } catch (e) { /* a listener's problem */ } });
+    }
     build();
     if (!ui) return;
-    var l = list();
-    if (!l.length) { expanded = false; ui.root.className = 'scd-dep hidden'; return; }
-    var bad = l.filter(function (e) { return /failed|stalled/.test(e.state); });
-    var active = l.filter(function (e) { return ACTIVE[e.state]; });
-    var mood = bad.length ? 'bad' : active.length ? 'busy' : 'done';
-    if (bad.length && !ui.root.classList.contains('is-bad')) expanded = true;   // problems open the panel
+
+    var shared = entries.filter(function (e) { return ACTIVE[e.state]; });
+    var localRows = local.slice().reverse().filter(function (e) {
+      return !ACTIVE[e.state] || !shared.some(function (row) { return row.commit === e.commit; });
+    });
+    var rows = shared.concat(localRows);
+    if (!shared.length && showSiteUntil > now()) {
+      var result = entries[0];
+      if (result && !localRows.some(function (e) { return e.commit === result.commit; })) rows.unshift(result);
+    }
+    if (!rows.length && !site.error) { expanded = false; lastPanel = ''; ui.root.className = 'scd-dep hidden'; return; }
+    var bad = rows.filter(function (e) { return /failed|stalled/.test(e.state); });
+    var active = rows.filter(function (e) { return ACTIVE[e.state]; });
+    var verified = rows.some(function (e) { return e.state === 'live'; });
+    var mood = site.error || bad.length ? 'bad' : active.length ? 'busy' : verified ? 'done' : 'idle';
+    if (bad.length && !ui.root.classList.contains('is-bad')) expanded = true;
     var pulsing = ui.root.classList.contains('is-pulse');
-    ui.root.className = 'scd-dep is-' + mood + (expanded ? ' is-open' : '') + (pulsing ? ' is-pulse' : '');
+    ui.root.className = 'scd-dep is-' + mood + (site.error ? ' is-unreachable' : '') + (expanded ? ' is-open' : '') + (pulsing ? ' is-pulse' : '');
     var say = ui.pill.querySelector('.scd-dep-say');
-    say.querySelector('strong').textContent = bad.length ? 'Needs attention' : active.length ? 'Deploying' : 'All live';
-    say.querySelector('small').textContent = bad.length ? bad.length + ' problem' + (bad.length === 1 ? '' : 's') + ': tap to see'
-      : active.length ? (active[active.length - 1].detail || '').replace(/…$/, '') : 'kanaris-beans.com is up to date';
-    ui.pill.querySelector('.scd-dep-glyph').innerHTML = ico(bad.length ? ICON.alert : active.length ? ICON.rocket : ICON.check, 16);
-    ui.pill.querySelector('.scd-dep-n').textContent = active.length > 1 ? String(active.length) : '';
+    say.querySelector('strong').textContent = site.error ? site.error.title : bad.length ? 'Needs attention' : active.length ? 'Deploying' : verified ? 'Live' : 'Deploys';
+    say.querySelector('small').textContent = site.error ? site.error.detail : active.length ? active.length + (active.length === 1 ? ' active build' : ' active builds')
+      : bad.length ? bad.length + (bad.length === 1 ? ' problem' : ' problems') + ' · tap to see' : verified ? 'Verified on kanaris-beans.com' : 'Recent activity';
+    ui.pill.querySelector('.scd-dep-glyph').innerHTML = ico(site.error || bad.length ? ICON.alert : verified && !active.length ? ICON.check : ICON.rocket, 16);
+    ui.pill.querySelector('.scd-dep-n').textContent = !site.error && active.length > 1 ? String(active.length) : '';
     ui.pill.setAttribute('aria-expanded', String(expanded));
 
+    var panelState = JSON.stringify([rows, site.error, Math.ceil(cooldownLeft() / 1000)]);
+    if (lastPanel === panelState) return;
+    lastPanel = panelState;
     var ol = ui.list;
+    var previousScroll = ol.scrollTop;
     ol.textContent = '';
-    l.slice().reverse().forEach(function (e) {
+    if (site.error) {
+      var warning = el('li', 'scd-dep-item is-failed');
+      warning.setAttribute('role', 'status');
+      warning.appendChild(el('strong', 'scd-dep-warning', site.error.title));
+      warning.appendChild(el('p', 'scd-dep-detail', site.error.detail + (rows.length ? ' Showing the last known status.' : '')));
+      ol.appendChild(warning);
+    }
+    rows.forEach(function (e) {
       var li = el('li', 'scd-dep-item is-' + e.state);
       var top = el('div', 'scd-dep-top');
       top.appendChild(el('strong', null, e.label));
-      var when = el('time', null, ago(e.created));
-      when.title = new Date(e.created).toLocaleString();
-      top.appendChild(when);
+      if (e.created) {
+        var when = el('time', null, ago(e.created));
+        when.title = new Date(e.created).toLocaleString();
+        top.appendChild(when);
+      }
       li.appendChild(top);
       if (e.page) li.appendChild(el('span', 'scd-dep-page', e.page));
-      if (e.kind === 'deploy') {
+      if (e.kind === 'deploy' && (!e.shared || e.stage != null)) {
         var steps = el('ol', 'scd-dep-steps');
-        var at = stepIndex(e.state);
-        STEPS.forEach(function (s, i) {
+        var at = e.shared ? e.stage : stepIndex(e.state);
+        (e.shared ? SITE_STEPS : STEPS).forEach(function (s, i) {
           var si = el('li', i < at ? 'is-done' : i === at ? 'is-on' : '', s);
           if (i === at && e.state === 'failed' || i === at && e.state === 'stalled') si.className = 'is-bad';
           steps.appendChild(si);
         });
         li.appendChild(steps);
       }
-      li.appendChild(el('p', 'scd-dep-detail', e.detail || ''));
+      li.appendChild(el('p', 'scd-dep-detail', [e.title, e.detail].filter(Boolean).join(' · ')));
       var acts = el('div', 'scd-dep-acts');
       if (e.state === 'save-failed') {
         if (retries[e.id]) {
@@ -320,7 +434,7 @@
           acts.appendChild(rb);
         } else acts.appendChild(el('span', 'scd-dep-note', 'Redo it on its page (the retry was lost when the page reloaded).'));
       }
-      if (e.state === 'failed' || e.state === 'stalled') {
+      if (!e.shared && (e.state === 'failed' || e.state === 'stalled')) {
         var left = cooldownLeft();
         var dep = el('button', 'scd-dep-btn is-main', left ? 'Re-deploy in ' + Math.ceil(left / 1000) + 's' : 'Re-deploy');
         dep.type = 'button';
@@ -344,7 +458,7 @@
         c.title = 'Open the commit on GitHub';
         acts.appendChild(c);
       }
-      if (!ACTIVE[e.state]) {
+      if (!e.shared && !ACTIVE[e.state]) {
         var x = el('button', 'scd-dep-x');
         x.type = 'button';
         x.setAttribute('aria-label', 'Dismiss');
@@ -355,6 +469,7 @@
       li.appendChild(acts);
       ol.appendChild(li);
     });
+    ol.scrollTop = previousScroll;
   }
 
   function boot() {
@@ -364,6 +479,9 @@
     setTimeout(tick, 800);
     window.addEventListener('storage', function (ev) { if (ev.key === KEY || ev.key === COOLDOWN_KEY) render(); });
     document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
+    window.addEventListener('offline', siteOffline);
+    window.addEventListener('online', refreshSite);
+    if (navigator.onLine === false) siteOffline();
   }
 
   function byId(id) { return list().filter(function (x) { return x.id === id; })[0]; }
@@ -371,6 +489,9 @@
     watch: watch, saveFailed: saveFailed, dismiss: remove, _tick: tick, _list: list,
     // for the app's Deploys screen
     list: list,
+    status: function () { return site; },
+    siteEntries: siteEntries,
+    refresh: refreshSite,
     onChange: function (fn) { if (typeof fn === 'function') listeners.push(fn); },
     redeploy: function (id) { var e = byId(id); if (e) redeploy(e); },
     retry: function (id) { var e = byId(id); if (e) retry(e); },

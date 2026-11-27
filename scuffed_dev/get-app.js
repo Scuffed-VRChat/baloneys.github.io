@@ -1,12 +1,11 @@
 // scuffed_dev/get-app.js: the "Get the app" card on the scuffed_dev hub (/scuffed_dev/).
 //   Android: the APK from GitHub Releases. iOS: the web app (Safari › Share › Add to Home Screen) for now.
 //   Then "Show sign-in QR": a one-time code from this browser's account (link_code_create, 10 minutes,
-//   supabase/migrations/2026-10-11-device-links.sql) as a QR of kanaris-beans.com/scuffed_dev/app/?signin=CODE.
+//   supabase/migrations/2026-10-11-device-links.sql) as an Android App Link.
 //   The app's "Scan sign-in QR" redeems it, and the phone acts as this account from then on.
 (function () {
   'use strict';
 
-  var APK_URL = 'https://github.com/Scuffed-VRChat/baloneys.github.io/releases/latest/download/scuffed-dev.apk';
   var APP_URL = 'https://kanaris-beans.com/scuffed_dev/app/';
   var QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
 
@@ -65,10 +64,10 @@
     var steps = el('ol', 'ga-steps');
     if (platform === 'android') {
       var dl = el('a', 'btn btn-primary btn-sm ga-dl', 'Download for Android');
-      dl.href = APK_URL; dl.rel = 'noopener';
+      dl.href = '/scuffed_dev/download/'; dl.rel = 'noopener';
       steps.appendChild(step(1, 'Download the APK on your phone', [dl, 'Not on the Play Store: it comes straight from the site\'s GitHub releases.']));
       steps.appendChild(step(2, 'Open it and tap Install', 'If Android asks, allow your browser to install apps.'));
-      steps.appendChild(step(3, 'Open scuffed_dev and tap Scan sign-in QR', 'Then scan the sign-in QR on this card. Or just point your phone camera at it.'));
+      steps.appendChild(step(3, 'Scan the sign-in QR on this card', 'Use your Android camera or the scanner in scuffed_dev, then confirm in the app.'));
     } else {
       var a = el('a', 'ga-link', 'kanaris-beans.com/scuffed_dev/app');
       a.href = APP_URL; a.rel = 'noopener';
@@ -107,7 +106,7 @@
     out.appendChild(el('p', 'perms-note', 'Making a code…'));
     window.GameSocial.device.create({}, label()).then(function (code) {
       out.textContent = '';
-      var url = APP_URL + '?signin=' + code;
+      var url = window.ScuffedSignin.url(code);
       var qr = el('div', 'ga-qr');
       out.appendChild(qr);
       out.appendChild(el('div', 'ga-code', code.slice(0, 4) + '-' + code.slice(4)));

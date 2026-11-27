@@ -48,6 +48,7 @@ a { color: inherit; }
   --gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.1) 45%, rgba(255, 255, 255, 0) 52%, rgba(0, 0, 0, 0.16) 100%);
   --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.42), inset 0 -2px 0 rgba(0, 0, 0, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
   --lift: 0 8px 22px -8px color-mix(in srgb, var(--acc1) 55%, transparent), 0 0 0 1px color-mix(in srgb, var(--acc1) 35%, black);
+  --selected-fill: linear-gradient(120deg, color-mix(in srgb, var(--acc1) 38%, transparent), color-mix(in srgb, var(--acc1) 12%, transparent));
   color-scheme: dark;
   /* the shared cropper (images-crop.js / images.css) reads these */
   --db-ink: var(--ink2);
@@ -139,10 +140,10 @@ body {
   border-top: 1px solid var(--line);
 }
 .nav button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--ink3); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.01em; }
-.nav button .pill { display: grid; place-items: center; width: 56px; height: 30px; border-radius: 99px; transition: background 0.2s ease, box-shadow 0.2s ease; }
+.nav button .pill { display: grid; place-items: center; width: 56px; height: 30px; border: 1px solid transparent; border-radius: 99px; transition: background 0.2s ease, border-color 0.2s ease; }
 .nav button svg { width: 22px; height: 22px; transition: transform 0.2s cubic-bezier(0.3, 1.5, 0.5, 1); }
 .nav button.on { color: var(--ink); }
-.nav button.on .pill { background: var(--gloss), var(--fill); box-shadow: var(--lift), var(--bevel); color: #fff; }
+.nav button.on .pill { border-color: var(--acc1); background: var(--selected-fill); color: #fff; }
 .nav button.on svg { transform: scale(1.06); }
 .nav button .count { position: absolute; top: 2px; left: calc(50% + 10px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--acc1); color: #fff; font-family: var(--mono); font-size: 0.62rem; font-weight: 800; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--bg0); }
 .nav button .count:empty { display: none; }
@@ -154,10 +155,11 @@ body {
 
 .chips { display: flex; gap: 8px; margin: -4px calc(-1 * var(--pad)) 8px; padding: 6px var(--pad) 10px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; scroll-padding-inline: var(--pad); }
 .chips::-webkit-scrollbar { display: none; }
-.chip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink2); font-size: 0.82rem; font-weight: 600; scroll-snap-align: start; white-space: nowrap; }
-.chip b { font-family: var(--mono); font-size: 0.7rem; color: var(--ink3); }
-.chip.on { border-color: transparent; background: var(--gloss), var(--fill); color: #fff; box-shadow: var(--lift), var(--bevel); }
-.chip.on b { color: rgba(255, 255, 255, 0.8); }
+.chip { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px; border-radius: 99px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink2); font-family: var(--mono); font-size: 0.82rem; font-weight: 700; scroll-snap-align: start; white-space: nowrap; }
+.chip b { min-width: 1.5rem; padding: 1px 6px; border-radius: 99px; background: rgba(0, 0, 0, 0.35); color: var(--ink2); font-size: 0.7rem; text-align: center; }
+.chip.on { border-color: var(--acc1); background: var(--selected-fill); color: #fff; }
+.chip.on b { background: rgba(0, 0, 0, 0.45); color: #fff; }
+.chip:focus-visible { outline: 2px solid var(--acc1); outline-offset: 2px; }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 18px; border-radius: 14px; border: 1px solid var(--line2); background: rgba(255, 255, 255, 0.05); color: var(--ink); font-weight: 650; font-size: 0.92rem; transition: transform 0.1s ease, filter 0.15s ease; }
 .btn:active { transform: scale(0.97); }
@@ -273,6 +275,15 @@ body {
 .dep { padding: 14px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--panel); box-shadow: inset 3px 0 0 var(--st, var(--acc2)); }
 .dep.s-live, .dep.s-superseded { --st: var(--good); }
 .dep.s-failed, .dep.s-stalled, .dep.s-save-failed { --st: var(--bad); }
+.deploy-heading { justify-content: space-between; align-items: baseline; gap: 8px; }
+.deploy-heading b { min-width: 0; overflow-wrap: anywhere; }
+.deploy-heading span { flex: none; color: var(--st); font-size: .75rem; text-align: right; }
+.deploy-meta { margin-top: 6px; color: var(--ink3); font-family: var(--mono); font-size: .7rem; }
+.deploy-detail { margin: 7px 0 0; color: var(--ink2); font-size: .8rem; }
+.deploy-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.deploy-stages span { border-top: 3px solid rgba(255,255,255,.12); padding-top: 4px; color: var(--ink3); font-size: .7rem; }
+.deploy-stages .done { border-color: var(--good); }
+.deploy-stages .current { border-color: var(--acc1); color: var(--ink1); }
 .dep .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 10px 0 6px; }
 .dep .steps i { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); }
 .dep .steps i.d { background: linear-gradient(90deg, var(--acc1), var(--acc2)); }
