@@ -246,20 +246,32 @@
       previewQueued = false;
       if (!st || !st.W) return;
       var o = output();   // always the latest: several paints can land in one frame
-      var cv = $('imCropPreview');
-      var fit = Math.min(1, 220 / Math.max(o.w, o.h));
-      cv.width = Math.max(1, Math.round(o.w * fit)); cv.height = Math.max(1, Math.round(o.h * fit));
-      var g = cv.getContext('2d');
-      g.clearRect(0, 0, cv.width, cv.height);
-      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
       var img = $('imCropImg');
+      // 1. the PNG exactly as it will be made, at its real size (so 64px really looks like 64px)
+      var real = document.createElement('canvas');
+      real.width = o.w; real.height = o.h;
+      var rg = real.getContext('2d');
+      rg.imageSmoothingEnabled = true; rg.imageSmoothingQuality = 'high';
       if (st.pad && locked()) {
-        var s = Math.min(cv.width / st.W, cv.height / st.H), dw = st.W * s, dh = st.H * s;
-        g.drawImage(img, (cv.width - dw) / 2, (cv.height - dh) / 2, dw, dh);
+        var s = Math.min(o.w / st.W, o.h / st.H), dw = st.W * s, dh = st.H * s;
+        rg.drawImage(img, (o.w - dw) / 2, (o.h - dh) / 2, dw, dh);
       } else {
         var c = st.shape === 'original' ? { x: 0, y: 0, w: st.W, h: st.H } : st.crop;
-        g.drawImage(img, c.x, c.y, c.w, c.h, 0, 0, cv.width, cv.height);
+        rg.drawImage(img, c.x, c.y, c.w, c.h, 0, 0, o.w, o.h);
       }
+      // 2. the whole of it fitted into the square preview box (never cropped), crisp on high-DPI screens
+      var cv = $('imCropPreview'), box = cv.parentNode;
+      var room = Math.max(40, Math.min(box.clientWidth, box.clientHeight || box.clientWidth) - 24);
+      var k = Math.min(room / o.w, room / o.h);
+      var cssW = Math.max(1, Math.round(o.w * k)), cssH = Math.max(1, Math.round(o.h * k));
+      var dpr = window.devicePixelRatio || 1;
+      cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr);
+      cv.style.width = cssW + 'px'; cv.style.height = cssH + 'px';
+      var g = cv.getContext('2d');
+      g.clearRect(0, 0, cv.width, cv.height);
+      g.imageSmoothingEnabled = k * dpr < 1;   // shrinking: smooth; enlarging a small PNG: show its real pixels
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(real, 0, 0, cv.width, cv.height);
     }, 16);
   }
 

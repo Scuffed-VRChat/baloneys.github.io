@@ -85,7 +85,7 @@
 }
 
 .db-seg button:hover { color: var(--color-on-surface); }
-.db-seg button[aria-pressed="true"] { background: var(--color-primary); color: #fff; }
+.db-seg button[aria-pressed="true"] { background: var(--scd-gloss), var(--scd-fill); box-shadow: var(--scd-lift), var(--scd-bevel); color: #fff; }
 .db-seg button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 
 .db-select {
@@ -273,7 +273,7 @@
   cursor: pointer;
 }
 
-.db-claim:hover { background: var(--color-primary); }
+.db-claim:hover { background: var(--scd-gloss), var(--scd-fill); box-shadow: var(--scd-lift), var(--scd-bevel); }
 .db-claim:disabled { opacity: 0.5; cursor: progress; }
 
 .db-empty {
@@ -306,7 +306,7 @@
 }
 
 .db-page:hover:not(:disabled) { color: var(--color-on-surface); border-color: var(--color-primary); }
-.db-page[aria-current="page"] { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.db-page[aria-current="page"] { background: var(--scd-gloss), var(--scd-fill); box-shadow: var(--scd-lift), var(--scd-bevel); border-color: transparent; color: #fff; }
 .db-page:disabled { opacity: 0.35; cursor: default; }
 .db-page-gap { color: var(--db-ink); padding: 0 4px; }
 
