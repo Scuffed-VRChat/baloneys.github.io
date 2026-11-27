@@ -394,10 +394,13 @@
     status('saveStatus', 'Saving…');
     var changes = {};
     changed.forEach(function (r) { changes[r.file] = { sha: r.sha, names: finalNames(r) }; });
+    var what = 'Permissions: ' + changed.map(function (r) { return r.label || r.file; }).join(', ');
     worker('/save', { changes: changes }).then(function (res) {
       busy = false;
       $('saveBtn').disabled = false;
       status('saveStatus', '');
+      // follow the commit until kanaris-beans.com serves it (the corner watcher, scuffed_dev/deploy.js)
+      if (res.commit && window.ScuffedDeploy) window.ScuffedDeploy.watch({ commit: res.commit, live: res.live, label: what });
       roles.forEach(function (r) { r.added = {}; r.removed = {}; r.note = ''; });
       return load(res.commit
         ? 'Saved (' + res.commit.slice(0, 7) + '). The world picks it up at its next role refresh, usually within 5–10 minutes.'
@@ -407,6 +410,8 @@
       $('saveBtn').disabled = false;
       if (e.status === 401 || e.status === 403) { status('saveStatus', 'Not saved: ' + e.message, 'bad'); checkAccess(); return; }
       status('saveStatus', 'Not saved: ' + e.message, 'bad');
+      // your changes are still on the page, so a retry sends them again as they are now
+      if (window.ScuffedDeploy) window.ScuffedDeploy.saveFailed({ label: what, error: e, retry: save });
     });
   }
 
@@ -489,15 +494,18 @@
     announce.busy = true;
     $('announceSave').disabled = true;
     status('announceStatus', 'Saving…');
+    var what = WORLD_NAMES[announce.world] + ' announcements';
     worker('/announcements', { world: announce.world, text: composeAnnouncements(), sha: announce.sha }).then(function (res) {
       announce.busy = false; $('announceSave').disabled = false;
+      if (res.commit && window.ScuffedDeploy) window.ScuffedDeploy.watch({ commit: res.commit, live: res.live, label: what });
       loadAnnouncements(res.commit
         ? 'Saved (' + res.commit.slice(0, 7) + '). ' + WORLD_NAMES[announce.world] + ' shows it within about 15 minutes; new notifications pop up for the lobby then.'
         : 'Nothing to save: it already matched.');
     }).catch(function (e) {
       announce.busy = false; $('announceSave').disabled = false;
       status('announceStatus', 'Not saved: ' + e.message, 'bad');
-      if (e.status === 401 || e.status === 403) checkAccess();
+      if (e.status === 401 || e.status === 403) { checkAccess(); return; }
+      if (window.ScuffedDeploy) window.ScuffedDeploy.saveFailed({ label: what, error: e, retry: saveAnnouncements });
     });
   }
 

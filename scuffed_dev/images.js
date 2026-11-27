@@ -668,6 +668,13 @@
       var x = iconBtn('Dismiss', 'M18 6L6 18M6 6l12 12', function () { S.pending = S.pending.filter(function (q) { return q !== item; }); renderGrid(); });
       x.classList.add('im-dismiss');
       c.appendChild(x);
+      if (item.state === 'failed' && item.retry && item.blob) {
+        var rb = el('button', 'btn btn-sm btn-primary im-retry', 'Retry');
+        rb.type = 'button';
+        rb.title = 'Send this picture again';
+        rb.addEventListener('click', function (ev) { ev.stopPropagation(); item.retry(); });
+        c.appendChild(rb);
+      }
     }
     return c;
   }
@@ -1169,6 +1176,7 @@
           });
           S.pending = S.pending.filter(function (it) { return batch.indexOf(it) < 0; });
           log('good', 'Saved ' + batch.map(function (it) { return it.path; }).join(', ') + '.');
+          watchDeploy(res, 'Images: ' + batch.map(function (it) { return it.path; }).join(', '));
           render();
           refreshLog();
         }, function (e) {
@@ -1189,10 +1197,43 @@
             });
           }
           batch.forEach(function (it) { fail(it, SD.errText(e)); });
+          saveFailedFor(batch, 'save', null, e);
           renderGrid();
         });
       });
     }, Promise.resolve());
+  }
+
+  /* ---------- deploys + retries (the corner watcher, scuffed_dev/deploy.js) ---------- */
+
+  // A commit to main: follow it until kanaris-beans.com serves its files.
+  function watchDeploy(res, label) {
+    if (res && res.commit && window.ScuffedDeploy) window.ScuffedDeploy.watch({ commit: res.commit, live: res.live, label: label });
+  }
+
+  // Pictures that failed to save / send: put them back in line and try again (the PNGs are still in memory).
+  function retryItems(items, mode, note) {
+    items = items.filter(function (it) { return it.blob; });
+    if (!items.length) return;
+    items.forEach(function (it) {
+      it.state = mode === 'save' ? 'converted' : 'ready';
+      it.error = null;
+      if (it.failId && window.ScuffedDeploy) { window.ScuffedDeploy.dismiss(it.failId); it.failId = null; }   // one retry clears both places
+      if (S.pending.indexOf(it) < 0) S.pending.push(it);
+    });
+    renderGrid();
+    log('work', 'Retrying ' + items.map(function (it) { return it.path; }).join(', ') + '…');
+    if (mode === 'save') enqueue('retrying ' + plural(items.length, 'image'), function () { return saveItems(items, false); });
+    else enqueue('retrying ' + plural(items.length, 'suggestion'), function () { return suggestItems(items, note || ''); });
+  }
+  function saveFailedFor(items, mode, note, e) {
+    items.forEach(function (it) { it.retry = function () { retryItems([it], mode, note); }; });
+    if (!window.ScuffedDeploy) return;
+    var id = window.ScuffedDeploy.saveFailed({
+      label: (mode === 'save' ? 'Images: ' : 'Suggestions: ') + items.map(function (it) { return it.path; }).join(', '),
+      error: e, retry: function () { retryItems(items, mode, note); }
+    });
+    items.forEach(function (it) { it.failId = id; });
   }
 
   // Admins: send the converted pictures as suggestions (one commit on the suggestions branch per batch).
@@ -1203,6 +1244,15 @@
     var items = j.items.filter(function (it) { return it.state === 'ready'; });
     setPhase('uploading');
     enqueue('sending ' + plural(items.length, 'suggestion'), function () {
+      return suggestItems(items, note).then(function () {
+        if (job === j) finishJob();
+        load(true);   // picks up the branch head so the new suggestions' pictures show
+      });
+    });
+  }
+
+  // Send pictures as suggestions, a batch per request (the suggestions branch isn't served, so no deploy to watch).
+  function suggestItems(items, note) {
       return batches(items).reduce(function (chain, batch) {
         return chain.then(function () {
           batch = batch.filter(function (it) {
@@ -1230,14 +1280,11 @@
             log('good', 'Sent for approval: ' + batch.map(function (it) { return it.path; }).join(', ') + '.');
           }, function (e) {
             batch.forEach(function (it) { fail(it, SD.errText(e)); });
+            saveFailedFor(batch, 'suggest', note, e);
             if (e.status === 409) load(true);
           });
         });
-      }, Promise.resolve()).then(function () {
-        if (job === j) finishJob();
-        load(true);   // picks up the branch head so the new suggestions' pictures show
-      });
-    });
+      }, Promise.resolve());
   }
 
   function applyChange(c, batch) {
@@ -1294,6 +1341,7 @@
           S.manifest[s.path] = { w: s.w, h: s.h, from: s.from, by: s.by, approvedBy: myName(), at: new Date().toISOString(), note: s.note };
         }
         log('good', { approve: 'Approved: ' + s.path + ' is on the site now.', reject: 'Rejected the suggestion for ' + s.path + '.', withdraw: 'Withdrew your suggestion for ' + s.path + '.' }[action]);
+        if (action === 'approve') watchDeploy(res, 'Approved ' + s.path);
         render();
         refreshLog();
         setTimeout(function () { load(true); }, 2500);
@@ -1306,6 +1354,9 @@
         }
         log('bad', words[action] + ' failed: ' + SD.errText(e));
         if (e.status === 404 || e.status === 409) load(true);
+        else if (window.ScuffedDeploy && e.status !== 401 && e.status !== 403) {
+          window.ScuffedDeploy.saveFailed({ label: words[action] + ' ' + s.path, error: e, retry: function () { review(s, action, null, force); } });
+        }
       });
     });
   }
@@ -1334,12 +1385,15 @@
         (res.changes || []).forEach(function (c) { if (!c.sha) applyChange(c); });
         ops.forEach(function (o) { delete S.selected[o.path]; });
         log('good', what + ': done.');
+        watchDeploy(res, what);
         render();
         refreshLog();
         return true;
       }, function (e) {
         log('bad', what + ' failed: ' + SD.errText(e));
         if (e.status === 409) load(true);
+        // the ops are rebuilt from the images as they are when the retry runs, so a retry never acts on stale data
+        if (window.ScuffedDeploy && e.status !== 401 && e.status !== 403) window.ScuffedDeploy.saveFailed({ label: what, error: e, retry: function () { save(build, what); } });
         return false;
       });
     });

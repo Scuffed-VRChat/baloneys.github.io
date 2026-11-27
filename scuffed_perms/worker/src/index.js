@@ -114,6 +114,26 @@ function nameProblem(name) {
   return "";
 }
 
+// ---------- deploy checks ----------
+// git's id for a file's bytes: sha1("blob <length>\0" + bytes). The page computes the same from the file it gets
+// back from kanaris-beans.com, so "it's live" means the exact bytes are being served, not just "a build ran".
+async function gitBlobSha(content) {
+  const body = new TextEncoder().encode(content);
+  const head = new TextEncoder().encode(`blob ${body.length}\0`);
+  const all = new Uint8Array(head.length + body.length);
+  all.set(head); all.set(body, head.length);
+  const digest = await crypto.subtle.digest("SHA-1", all);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// What a commit's tree should make the site serve: [{ path, sha }] (sha null = the file should be gone).
+async function liveFiles(tree) {
+  return Promise.all(tree.map(async (e) => ({
+    path: e.path,
+    sha: e.content !== undefined ? await gitBlobSha(e.content) : e.sha === null ? null : e.sha,
+  })));
+}
+
 // ---------- Supabase: who is asking? ----------
 
 async function staffOf(request, env, need = ADMIN_LEVEL) {
@@ -305,7 +325,7 @@ async function handleSave(request, env, who) {
 
     try {
       const commit = await gh.commit(head, tree, message);
-      return { commit };
+      return { commit, live: await liveFiles(tree) };
     } catch (err) {
       // The branch moved between our read and our write: start again from the new head once.
       if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
@@ -357,9 +377,10 @@ async function handleAnnouncementSave(request, env, who) {
     if (current !== null && current.replace(/\r/g, "") === text) return { commit: null, unchanged: true };
     const content = text.endsWith("\n") || !text ? text : text + "\n";
     try {
-      const commit = await gh.commit(head, [{ path, mode: "100644", type: "blob", content }],
+      const entry = [{ path, mode: "100644", type: "blob", content }];
+      const commit = await gh.commit(head, entry,
         `${WORLDS[world]} announcements update\n\nSaved by ${who.actor} from kanaris-beans.com/scuffed_perms/`);
-      return { commit, sha: await textId(content) };
+      return { commit, sha: await textId(content), live: await liveFiles(entry) };
     } catch (err) {
       if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
       throw err;
@@ -562,7 +583,7 @@ async function handleImagesReview(request, env, who) {
   if (action === "withdraw" && s.by !== who.actor && who.level < IMAGE_DEV_LEVEL) throw new HttpError(403, "Only the person who suggested it can withdraw it.");
   if (action !== "withdraw" && who.level < IMAGE_DEV_LEVEL) throw new HttpError(403, "Only developers can approve or reject suggestions.");
 
-  let commit = null;
+  let commit = null, live = [];
   if (action === "approve") {
     for (let attempt = 0; ; attempt++) {
       const head = await gh.head();
@@ -583,7 +604,7 @@ async function handleImagesReview(request, env, who) {
         { path: `${IMAGES_DIR}/${IMAGE_MANIFEST}`, mode: "100644", type: "blob", content: JSON.stringify({ ...manifest, files: sorted }, null, 1) + "\n" },
       ];
       const message = `Scuffed images: approve ${now ? "replacement" : "new image"}\n\n${now ? "~" : "+"} ${s.path}  (${s.from ? `from ${s.from}, ` : ""}suggested by ${s.by})\n\nApproved by ${who.actor}; suggested by ${s.by} from kanaris-beans.com/scuffed_dev/images/`;
-      try { commit = await gh.commit(head, tree, message); break; } catch (err) {
+      try { commit = await gh.commit(head, tree, message); live = await liveFiles(tree); break; } catch (err) {
         if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
         throw err;
       }
@@ -606,7 +627,7 @@ async function handleImagesReview(request, env, who) {
       throw err;
     }
   }
-  return { ok: true, action, commit, path: s.path, sha: action === "approve" ? s.blob : null };
+  return { ok: true, action, commit, live, path: s.path, sha: action === "approve" ? s.blob : null };
 }
 
 async function handleImagesSave(request, env, who) {
@@ -700,7 +721,81 @@ async function handleImagesSave(request, env, who) {
     const message = `Scuffed images: ${words.join(", ")}\n\n${lines.join("\n")}\n\nSaved by ${who.actor} from kanaris-beans.com/scuffed_dev/images/`;
     try {
       const commit = await gh.commit(head, tree, message);
-      return { commit, changes };
+      return { commit, changes, live: await liveFiles(tree) };
+    } catch (err) {
+      if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
+      throw err;
+    }
+  }
+}
+
+// ---------- deploys: is a commit live on kanaris-beans.com yet? ----------
+//
+// GET  /deploy?sha=<commit>  -> { run: { status, conclusion, url, created } | null, latest: { sha, status,
+//                               conclusion, created } | null }   the "pages build and deployment" run for that
+//                               commit, and the newest one (GitHub skips a build when a newer commit came first)
+// POST /redeploy  <- { sha }  -> { commit }   an empty commit on main, so GitHub Pages builds the site again
+
+const PAGES_RUN = "pages build and deployment";
+
+async function actionsRuns(gh, query) {
+  const url = `${gh.base}/actions/runs?${query}`;
+  // the token may not be allowed to read Actions; the repo is public, so fall back to asking without it
+  let res = await fetch(gh.fresh(url), { headers: { ...gh.headers, "Cache-Control": "no-cache" } });
+  if (res.status === 403 || res.status === 404) res = await fetch(gh.fresh(url), { headers: { Accept: gh.headers.Accept, "User-Agent": "scuffed-perms", "Cache-Control": "no-cache" } });
+  if (!res.ok) throw new HttpError(502, `Couldn't read the GitHub Pages builds (${res.status}).`);
+  const data = await res.json();
+  return (data.workflow_runs || []).filter((r) => r.name === PAGES_RUN)
+    .map((r) => ({ sha: r.head_sha, status: r.status, conclusion: r.conclusion, url: r.html_url, created: r.created_at }));
+}
+
+// What main holds now for some paths: { path: sha | null }. One directory listing per folder, so a watch on an
+// image + the manifest costs two requests. Lets the watcher tell "replaced by a newer commit" from "not live yet".
+async function currentShas(gh, paths) {
+  const head = await gh.head();
+  const dirs = {};
+  paths.forEach((p) => { const d = p.split("/").slice(0, -1).join("/"); (dirs[d] = dirs[d] || []).push(p); });
+  const out = {};
+  await Promise.all(Object.keys(dirs).slice(0, 10).map(async (d) => {
+    let list = [];
+    try { list = await gh.call(`/contents/${d.split("/").map(encodeURIComponent).join("/")}?ref=${head}`); } catch (e) { if (e.github !== 404) throw e; }
+    const byName = Object.fromEntries((Array.isArray(list) ? list : []).map((it) => [it.path, it.sha]));
+    dirs[d].forEach((p) => { out[p] = byName[p] || null; });
+  }));
+  return { head, shas: out };
+}
+
+async function handleDeploy(request, env) {
+  const q = new URL(request.url).searchParams;
+  const sha = String(q.get("sha") || "");
+  if (!/^[0-9a-f]{40}$/.test(sha)) throw new HttpError(400, "Give the full commit sha.");
+  const paths = String(q.get("paths") || "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 40);
+  const gh = new GitHub(env);
+  const [mine, recent, cur] = await Promise.all([
+    actionsRuns(gh, `head_sha=${sha}&per_page=5`),
+    actionsRuns(gh, "per_page=10"),
+    paths.length && env.GITHUB_TOKEN ? currentShas(gh, paths) : Promise.resolve(null),
+  ]);
+  return { run: mine[0] || null, latest: recent[0] || null, head: cur && cur.head, current: cur ? cur.shas : null };
+}
+
+async function handleRedeploy(request, env, who) {
+  if (!env.GITHUB_TOKEN) throw new HttpError(503, "The perms server still needs its GitHub token.");
+  let body = {};
+  try { body = await request.json(); } catch { /* sha is optional */ }
+  const was = /^[0-9a-f]{40}$/.test(String(body.sha || "")) ? String(body.sha) : "";
+  const gh = new GitHub(env);
+  for (let attempt = 0; ; attempt++) {
+    const head = await gh.head();
+    const parent = await gh.call(`/git/commits/${head}`);
+    // same files as now, new commit: GitHub Pages sees a push and builds again
+    const commit = await gh.call("/git/commits", "POST", {
+      message: `Redeploy kanaris-beans.com${was ? ` (for ${was.slice(0, 7)})` : ""}\n\nRequested by ${who.actor} from scuffed_dev`,
+      tree: parent.tree.sha, parents: [head],
+    });
+    try {
+      await gh.call(`/git/refs/heads/${gh.branch}`, "PATCH", { sha: commit.sha, force: false });
+      return { commit: commit.sha };
     } catch (err) {
       if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
       throw err;
@@ -716,6 +811,15 @@ export default {
 
     try {
       if (request.method === "GET" && pathname === "/health") return json({ ok: true }, 200, cors);
+
+      if (request.method === "GET" && pathname === "/deploy") {
+        await staffOf(request, env, MODERATOR_LEVEL);
+        return json(await handleDeploy(request, env), 200, cors);
+      }
+      if (request.method === "POST" && pathname === "/redeploy") {
+        const who = await staffOf(request, env, MODERATOR_LEVEL);
+        return json(await handleRedeploy(request, env, who), 200, cors);
+      }
 
       if (request.method === "GET" && pathname === "/lists") {
         const who = await staffOf(request, env);
