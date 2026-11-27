@@ -22,6 +22,10 @@ const ADMIN_LEVEL = 3;      // role lists: admin and up
 const MODERATOR_LEVEL = 2;  // announcements: moderator and up
 // (helper 1, moderator 2, admin 3, dev 4, master 5 - supabase/migrations/2026-10-10-chat-moderation.sql)
 const BUNDLE = "all.txt";
+// When two saves land at the same moment, GitHub accepts one and refuses the other (not a fast-forward). The
+// refused one starts again from the new newest commit, re-checks its files and tries again.
+const SAVE_RETRIES = 4;
+const backoff = (n) => new Promise((r) => setTimeout(r, 120 + Math.random() * 250 * (n + 1)));
 const MAX_NAMES = 500;
 const MAX_NAME_LENGTH = 64;
 
@@ -162,7 +166,7 @@ class GitHub {
   async call(path, method, body) {
     const res = await fetch(this.base + path, {
       method: method || "GET",
-      headers: body ? { ...this.headers, "Content-Type": "application/json" } : this.headers,
+      headers: body ? { ...this.headers, "Content-Type": "application/json" } : { ...this.headers, "Cache-Control": "no-cache" },
       body: body ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
@@ -177,7 +181,13 @@ class GitHub {
     return data;
   }
 
-  head() { return this.call(`/git/ref/heads/${this.branch}`).then((d) => d.object.sha); }
+  // "What's the newest commit?" is cached by GitHub for up to 60 s (Cache-Control: public, s-maxage=60), so
+  // right after a save a plain request can return the commit from BEFORE it: the next save then builds on that,
+  // GitHub refuses it (not a fast-forward) and two quick saves in a row looked like a clash. A unique query
+  // string + no-cache gets a fresh answer every time. (Reads by commit sha never change, so they don't need it.)
+  fresh(path) { return `${path}${path.includes("?") ? "&" : "?"}nocache=${Date.now()}${Math.random().toString(36).slice(2, 8)}`; }
+
+  head() { return this.call(this.fresh(`/git/ref/heads/${this.branch}`)).then((d) => d.object.sha); }
 
   // Every role list at a commit, all.txt left out.
   async lists(commit) {
@@ -218,7 +228,7 @@ class GitHub {
 
   // A branch's newest commit, or null if there's no such branch.
   async branchHead(name) {
-    const res = await fetch(`${this.base}/git/ref/heads/${name}`, { headers: this.headers });
+    const res = await fetch(this.base + this.fresh(`/git/ref/heads/${name}`), { headers: { ...this.headers, "Cache-Control": "no-cache" } });
     if (res.status === 404) return null;
     if (!res.ok) throw new HttpError(502, `GitHub GET branch ${name} failed: ${res.status}`);
     return (await res.json()).object.sha;
@@ -298,7 +308,7 @@ async function handleSave(request, env, who) {
       return { commit };
     } catch (err) {
       // The branch moved between our read and our write: start again from the new head once.
-      if (err.github === 422 && attempt < 1) continue;
+      if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
       throw err;
     }
   }
@@ -351,7 +361,7 @@ async function handleAnnouncementSave(request, env, who) {
         `${WORLDS[world]} announcements update\n\nSaved by ${who.actor} from kanaris-beans.com/scuffed_perms/`);
       return { commit, sha: await textId(content) };
     } catch (err) {
-      if (err.github === 422 && attempt < 1) continue;
+      if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
       throw err;
     }
   }
@@ -480,8 +490,8 @@ async function handleImagesLog(env) {
   const gh = new GitHub(env);
   const pick = (branch) => (c) => ({ sha: c.sha, date: c.commit.author.date, message: c.commit.message, branch });
   const [main, sugg] = await Promise.all([
-    gh.call(`/commits?sha=${gh.branch}&path=${IMAGES_DIR}&per_page=40`),
-    gh.branchHead(SUGGEST_BRANCH).then((h) => (h ? gh.call(`/commits?sha=${SUGGEST_BRANCH}&per_page=30`) : [])),
+    gh.call(gh.fresh(`/commits?sha=${gh.branch}&path=${IMAGES_DIR}&per_page=40`)),
+    gh.branchHead(SUGGEST_BRANCH).then((h) => (h ? gh.call(gh.fresh(`/commits?sha=${SUGGEST_BRANCH}&per_page=30`)) : [])),
   ]);
   // an approval shows once: as the main commit that put the picture on the site
   const commits = [...(main || []).map(pick("main")), ...(sugg || []).map(pick("suggestions"))
@@ -532,7 +542,7 @@ async function handleImagesSuggest(request, env, who) {
       const commit = await gh.commitOn(SUGGEST_BRANCH, sugg.head, tree, message);
       return { commit, suggestions: added };
     } catch (err) {
-      if (err.github === 422 && attempt < 1) continue;
+      if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
       throw err;
     }
   }
@@ -574,7 +584,7 @@ async function handleImagesReview(request, env, who) {
       ];
       const message = `Scuffed images: approve ${now ? "replacement" : "new image"}\n\n${now ? "~" : "+"} ${s.path}  (${s.from ? `from ${s.from}, ` : ""}suggested by ${s.by})\n\nApproved by ${who.actor}; suggested by ${s.by} from kanaris-beans.com/scuffed_dev/images/`;
       try { commit = await gh.commit(head, tree, message); break; } catch (err) {
-        if (err.github === 422 && attempt < 1) continue;
+        if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
         throw err;
       }
     }
@@ -592,7 +602,7 @@ async function handleImagesReview(request, env, who) {
       await gh.commitOn(SUGGEST_BRANCH, now.head, suggestionsTree(list, [{ path: s.file, mode: "100644", type: "blob", sha: null }]), message);
       break;
     } catch (err) {
-      if (err.github === 422 && attempt < 1) continue;
+      if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
       throw err;
     }
   }
@@ -692,7 +702,7 @@ async function handleImagesSave(request, env, who) {
       const commit = await gh.commit(head, tree, message);
       return { commit, changes };
     } catch (err) {
-      if (err.github === 422 && attempt < 1) continue;
+      if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
       throw err;
     }
   }

@@ -68,7 +68,29 @@
   };
   var job = null;       // the current batch: { items, mode: 'save'|'suggest', started, popup, cancelled, phase }
   var saveChain = Promise.resolve();
+  var chainDepth = 0;   // saves running or waiting (one at a time, in the order you did them)
   var reserved = {};    // new-slot names held by crop windows that are still open / minimised
+  var mine = {};        // path -> the sha OUR last save put there
+
+  // Run a save after the ones in front of it. Everything that changes the site goes through here, so two quick
+  // actions (upload one image, delete another, crop a third) happen one after another, never on top of each other.
+  function enqueue(label, fn) {
+    chainDepth++;
+    if (chainDepth > 1 && label) log('info', 'Queued: ' + label + ' (starts when the save in front of it finishes).');
+    var p = saveChain.then(fn).catch(function (e) { log('bad', SD.errText(e)); }).then(function (v) { chainDepth--; return v; });
+    saveChain = p;
+    return p;
+  }
+
+  // An image's sha at the moment an action runs. `expected` is what the person saw when they clicked: if the image
+  // has since changed because of OUR earlier save (replace, then crop it again), carry on from that; if SOMEONE
+  // ELSE changed it, stop rather than overwrite their version.
+  function shaNow(path, expected) {
+    var f = S.files[path];
+    if (!f) return { gone: true };
+    if (!expected || f.sha === expected || mine[path] === f.sha) return { sha: f.sha };
+    return { changed: true };
+  }
   var timer = 0;
   var seq = 0;
 
@@ -436,8 +458,13 @@
   }
 
   var lastSig = '';
+  var loadSeq = 0, appliedSeq = 0;
   function load(quiet) {
+    var mySeq = ++loadSeq;
     return Promise.all([worker('/images'), worker('/images/log').catch(function () { return null; })]).then(function (r) {
+      // two loads can overlap (a poll and a refresh after a save): an older answer arriving last is dropped
+      if (mySeq < appliedSeq) return;
+      appliedSeq = mySeq;
       var d = r[0];
       // An answer from before one of our own saves (GitHub caches "newest commit" for up to a minute): keep what
       // we have rather than flipping back to the old pictures. The next poll gets the real state.
@@ -971,6 +998,9 @@
     var paths = files.map(function (file) { var p = opts.replace || newName(folder, file.name, taken); taken[p] = true; return p; });
     if (!opts.replace) paths.forEach(function (p) { reserved[p] = true; });
     var cur = opts.replace ? S.manifest[opts.replace] || {} : null;
+    // the version you're replacing is the one you saw when you started, not whatever is there when the cropper
+    // closes: if someone else changes it while you crop, the save stops instead of overwriting their version
+    var sawSha = opts.replace ? S.files[opts.replace].sha : null;
     var prefs = prefsFor(folder);
     if (opts.recrop) {
       // re-cropping a picture that's already up: start free, at the biggest size that doesn't enlarge it
@@ -994,7 +1024,7 @@
       if (opts.replace && !S.files[opts.replace]) { log('bad', opts.replace + ' was deleted while you were cropping, so nothing was sent.'); return; }
       var chosen = res.items.map(function (r) {
         var i = files.indexOf(r.file);
-        return { id: ++seq, file: r.file, folder: folder, path: paths[i], name: nameOf(paths[i]), replaceSha: opts.replace ? S.files[opts.replace].sha : null, state: 'queued', opts: r.opts, mode: mode };
+        return { id: ++seq, file: r.file, folder: folder, path: paths[i], name: nameOf(paths[i]), replaceSha: sawSha, state: 'queued', opts: r.opts, mode: mode };
       });
       // hold the names straight away, even if the batch has to wait its turn
       S.pending = S.pending.filter(function (it) { return it.state !== 'failed' && it.state !== 'cancelled'; }).concat(chosen);
@@ -1098,7 +1128,7 @@
 
   function queueSave(items) {
     var j = job;
-    saveChain = saveChain.then(function () { return saveItems(items, false); }).then(function () { if (job === j) finishJob(); });
+    enqueue('saving ' + plural(items.length, 'image'), function () { return saveItems(items, false); }).then(function () { if (job === j) finishJob(); });
   }
 
   function batches(items) {
@@ -1115,6 +1145,16 @@
   function saveItems(items, retried) {
     return batches(items).reduce(function (chain, batch) {
       return chain.then(function () {
+        // replacements: use the image's sha as it is NOW (an earlier save of ours may have changed it)
+        batch = batch.filter(function (it) {
+          if (!it.replaceSha) return true;
+          var now = shaNow(it.path, it.replaceSha);
+          if (now.gone) { fail(it, it.path + ' was deleted before this could be saved.'); return false; }
+          if (now.changed) { fail(it, 'Someone else changed ' + it.path + ' first. Check it, then replace it again.'); return false; }
+          it.replaceSha = now.sha;
+          return true;
+        });
+        if (!batch.length) { renderGrid(); return; }
         batch.forEach(function (it) { setState(it, 'uploading'); });
         renderGrid();
         return Promise.all(batch.map(function (it) { return toBase64(it.blob); })).then(function (datas) {
@@ -1162,9 +1202,18 @@
     var note = $('imProgNote').value.trim();
     var items = j.items.filter(function (it) { return it.state === 'ready'; });
     setPhase('uploading');
-    saveChain = saveChain.then(function () {
+    enqueue('sending ' + plural(items.length, 'suggestion'), function () {
       return batches(items).reduce(function (chain, batch) {
         return chain.then(function () {
+          batch = batch.filter(function (it) {
+            if (!it.replaceSha) return true;
+            var now = shaNow(it.path, it.replaceSha);
+            if (now.gone) { fail(it, it.path + ' was deleted, so there is nothing to replace.'); return false; }
+            if (now.changed) { fail(it, 'Someone else changed ' + it.path + ' first. Check it, then suggest again.'); return false; }
+            it.replaceSha = now.sha;
+            return true;
+          });
+          if (!batch.length) return;
           batch.forEach(function (it) { setState(it, 'uploading'); });
           renderGrid();
           return Promise.all(batch.map(function (it) { return toBase64(it.blob); })).then(function (datas) {
@@ -1192,7 +1241,8 @@
   }
 
   function applyChange(c, batch) {
-    if (!c.sha) { delete S.files[c.path]; delete S.manifest[c.path]; return; }
+    if (!c.sha) { delete S.files[c.path]; delete S.manifest[c.path]; delete mine[c.path]; return; }
+    mine[c.path] = c.sha;
     var it = batch && batch.filter(function (b) { return b.path === c.path; })[0];
     var old = S.files[c.path];
     S.files[c.path] = { path: c.path, folder: folderOf(c.path), name: nameOf(c.path), sha: c.sha, size: it ? it.blob.size : (old ? old.size : 0) };
@@ -1230,13 +1280,14 @@
     if (action === 'withdraw' && !window.confirm('Withdraw your suggestion for ' + s.path + '?')) return;
     if (btn) btn.disabled = true;
     var words = { approve: 'Approving', reject: 'Rejecting', withdraw: 'Withdrawing' };
-    log('work', words[action] + ' ' + s.by + '’s suggestion for ' + s.path + '…');
-    saveChain = saveChain.then(function () {
+    enqueue(words[action].toLowerCase() + ' the suggestion for ' + s.path, function () {
+      log('work', words[action] + ' ' + s.by + '’s suggestion for ' + s.path + '…');
       return worker('/images/review', { id: s.id, action: action, reason: reason, force: !!force }).then(function (res) {
         S.suggestions = S.suggestions.filter(function (x) { return x.id !== s.id; });
         newHead('suggest', null);   // the suggestions branch moved on (its new commit isn't returned)
         if (action === 'approve' && res.sha) {
           newHead('main', res.commit);
+          mine[s.path] = res.sha;
           var old = S.files[s.path];
           S.files[s.path] = { path: s.path, folder: folderOf(s.path), name: nameOf(s.path), sha: res.sha, size: old ? old.size : 0 };
           // same blob as the suggestion, so its cached picture is already the right one
@@ -1261,8 +1312,11 @@
 
   /* ---------- delete, rename (developers) ---------- */
 
-  function save(ops, what) {
-    saveChain = saveChain.then(function () {
+  // build() makes the ops when the save actually runs (not when it was clicked), from the images as they are then.
+  function save(build, what) {
+    return enqueue(what.charAt(0).toLowerCase() + what.slice(1), function () {
+      var ops = build();
+      if (!ops.length) { renderGrid(); return false; }
       log('work', what + '…');
       return worker('/images', { ops: ops }).then(function (res) {
         newHead('main', res.commit);
@@ -1271,6 +1325,7 @@
         (res.changes || []).forEach(function (c) {
           if (c.sha && moved[c.path]) {
             var from = moved[c.path];   // same sha after a rename, so the cached picture carries over
+            mine[c.path] = c.sha;
             S.manifest[c.path] = S.manifest[from];
             var old = S.files[from];
             S.files[c.path] = { path: c.path, folder: folderOf(c.path), name: nameOf(c.path), sha: c.sha, size: old ? old.size : 0 };
@@ -1288,7 +1343,19 @@
         return false;
       });
     });
-    return saveChain;
+  }
+
+  // Which of these paths can still be acted on now: gone ones are skipped quietly (a double-click, or someone
+  // already deleted it), ones someone else changed since you clicked are skipped with a warning.
+  function stillThere(paths, expected, verb) {
+    var ops = [];
+    paths.forEach(function (p) {
+      var now = shaNow(p, expected[p]);
+      if (now.gone) { log('info', p + ' is already gone, nothing to ' + verb + '.'); return; }
+      if (now.changed) { log('bad', 'Someone else changed ' + p + ' after you clicked, so it was left alone. Check it and try again.'); return; }
+      ops.push({ path: p, sha: now.sha });
+    });
+    return ops;
   }
 
   function removePaths(paths) {
@@ -1297,7 +1364,11 @@
     if (!paths.length) return;
     var msg = paths.length === 1 ? 'Delete ' + paths[0] + '?' : 'Delete ' + paths.length + ' images?';
     if (!window.confirm(msg + '\n\nThe world stops finding ' + (paths.length === 1 ? 'it' : 'them') + ' at the old address. Old versions stay in the site\'s history on GitHub.')) return;
-    save(paths.map(function (p) { return { op: 'delete', path: p, sha: S.files[p].sha }; }), 'Deleting ' + (paths.length === 1 ? paths[0] : paths.length + ' images'));
+    var expected = {};
+    paths.forEach(function (p) { expected[p] = S.files[p].sha; });
+    save(function () {
+      return stillThere(paths, expected, 'delete').map(function (o) { return { op: 'delete', path: o.path, sha: o.sha }; });
+    }, 'Deleting ' + (paths.length === 1 ? paths[0] : paths.length + ' images'));
   }
 
   function rename() {
@@ -1308,10 +1379,13 @@
     var to = folderOf(p) + '/' + name + '.png';
     if (to === p) return SD.status('imDlgStatus', 'That\'s already its name.');
     if (S.files[to]) return SD.status('imDlgStatus', to + ' already exists.', 'bad');
-    SD.status('imDlgStatus', 'Renaming…');
-    save([{ op: 'move', path: p, to: to, sha: S.files[p].sha }], 'Renaming ' + p + ' → ' + to).then(function (ok) {
-      if (ok) { closeDialog(); } else SD.status('imDlgStatus', 'Couldn\'t rename it. See the console.', 'bad');
-    });
+    var expected = {};
+    expected[p] = S.files[p].sha;
+    closeDialog();   // the rename runs in its turn; the console says when it's done (or why it couldn't)
+    save(function () {
+      if (S.files[to]) { log('bad', to + ' was taken in the meantime, so ' + p + ' kept its name.'); return []; }
+      return stillThere([p], expected, 'rename').map(function (o) { return { op: 'move', path: o.path, to: to, sha: o.sha }; });
+    }, 'Renaming ' + p + ' → ' + to);
   }
 
   function copy(text) {
@@ -1426,13 +1500,14 @@
         if (first) {
           log('info', 'Signed in as ' + me.name + ' (' + (SD.LEVEL_NAMES[me.level] || 'staff') + ').');
           clearInterval(timer);
-          timer = setInterval(function () { if (!document.hidden && SD.me() && !job) load(true); }, POLL_MS);
+          // background refreshes wait while anything is being saved (the save updates the page itself)
+          timer = setInterval(function () { if (!document.hidden && SD.me() && !job && !chainDepth) load(true); }, POLL_MS);
         }
         load(!first);
       },
       onOut: function () { clearInterval(timer); S.loaded = false; }
     });
-    document.addEventListener('visibilitychange', function () { if (!document.hidden && SD.me() && S.loaded && !job) load(true); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && SD.me() && S.loaded && !job && !chainDepth) load(true); });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
