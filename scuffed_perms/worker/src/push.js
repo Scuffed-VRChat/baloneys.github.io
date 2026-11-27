@@ -213,26 +213,75 @@ async function boardUpdates(env) {
   return rows.length;
 }
 
-// Finished GitHub Pages builds since last time (developers only).
-async function deployUpdates(env, pagesRuns) {
-  const runs = (await pagesRuns()).filter((r) => r.status === "completed").sort((a, b) => a.id - b.id);
-  if (!runs.length) return 0;
-  const last = Number(await getState(env, "deploy_last_run")) || 0;
-  if (!last) { await setState(env, "deploy_last_run", runs[runs.length - 1].id); return 0; }
-  const fresh = runs.filter((r) => r.id > last);
-  for (const r of fresh) {
-    const ok = r.conclusion === "success";
-    if (r.conclusion === "cancelled" || r.conclusion === "skipped") continue;   // a newer build took over; its own result follows
-    const what = (r.message || "").split("\n")[0].slice(0, 200) || r.sha.slice(0, 7);
-    await notify(env, {
-      kind: "deploy",
-      title: ok ? "🚀 Live on kanaris-beans.com" : "❌ Deploy failed",
-      body: ok ? what : `${what}\n\nThe GitHub Pages build failed. Open the app to re-deploy.`,
-      url: "/scuffed_dev/app/#deploys", tag: `deploy-${r.sha.slice(0, 12)}`, meta: { sha: r.sha, run: r.url, ok },
+// GitHub Pages stamps the checkout's SHA once per build. Read it from the public site so a successful
+// workflow with an older copy still being served cannot trigger a "live" notification.
+export async function livePagesRevision(fetchFn = fetch) {
+  try {
+    const url = new URL("/scuffed_dev/deploy-revision.txt", CONTACT);
+    url.searchParams.set("check", String(Date.now()));
+    const res = await fetchFn(url, {
+      headers: { "Cache-Control": "no-cache" },
+      cf: { cacheTtl: 0 },
+      signal: AbortSignal.timeout(8000),
     });
+    if (!res.ok) return null;
+    const sha = (await res.text()).trim();
+    return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+  } catch {
+    return null;
   }
-  if (fresh.length) await setState(env, "deploy_last_run", fresh[fresh.length - 1].id);
-  return fresh.length;
+}
+
+// Keep the last completed run and the newest success still awaiting verification in one checkpoint.
+// An outstanding CDN check should not hold up notices about a different run that failed.
+async function deployUpdates(env, pagesRuns, fetchFn) {
+  const runs = await pagesRuns();
+  const completed = runs.filter((r) => r.status === "completed").sort((a, b) => a.id - b.id);
+  const key = "deploy_progress";
+  const stored = await getState(env, key);
+  const state = stored ? JSON.parse(stored) : { last: Number(await getState(env, "deploy_last_run")) || 0, pending: null };
+  if (!state.last) {
+    if (completed.length) {
+      state.last = completed[completed.length - 1].id;
+      await setState(env, key, JSON.stringify(state));
+    }
+    return 0;
+  }
+
+  let count = 0;
+  for (const run of completed.filter((r) => r.id > state.last)) {
+    if (run.conclusion === "success") {
+      state.pending = run;
+    } else if (["failure", "timed_out", "action_required", "startup_failure"].includes(run.conclusion)) {
+      await deployNotice(env, run, false);
+      count++;
+    }
+    state.last = run.id;
+    await setState(env, key, JSON.stringify(state));
+  }
+  const pending = state.pending;
+  if (pending && !runs.some((r) => r.id > pending.id && r.status !== "completed") &&
+      await livePagesRevision(fetchFn) === pending.sha) {
+    await deployNotice(env, pending, true);
+    state.pending = null;
+    await setState(env, key, JSON.stringify(state));
+    count++;
+  }
+  return count;
+}
+
+function deployNotice(env, run, live) {
+  const sha = run.sha.slice(0, 7);
+  const what = (run.message || "").split("\n")[0].slice(0, 200);
+  const detail = what ? `${what} · ${sha}` : `Commit ${sha}`;
+  return notify(env, {
+    kind: "deploy",
+    title: live ? "🚀 Site deploy live" : "❌ Site deploy failed",
+    body: live ? `${detail} is live on kanaris-beans.com.` : `${detail}\n\nThe GitHub Pages build failed.`,
+    url: "/scuffed_dev/app/#deploys",
+    tag: `deploy-${run.sha.slice(0, 12)}`,
+    meta: { sha: run.sha, run: run.url, ok: live },
+  });
 }
 
 // A new world build: the Unity editor commits <world>/version.txt after each PC / Quest upload. This reads the copy
@@ -292,6 +341,6 @@ export async function runSchedule(env, pagesRuns, fetchFn = fetch) {
   const out = {};
   try { out.world = await worldUpdates(env, fetchFn); } catch (e) { out.worldError = String(e.message || e); }
   try { out.board = await boardUpdates(env); } catch (e) { out.boardError = String(e.message || e); }
-  try { out.deploys = await deployUpdates(env, pagesRuns); } catch (e) { out.deployError = String(e.message || e); }
+  try { out.deploys = await deployUpdates(env, pagesRuns, fetchFn); } catch (e) { out.deployError = String(e.message || e); }
   return out;
 }

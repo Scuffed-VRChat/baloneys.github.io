@@ -321,6 +321,7 @@
     if (changed) $('main').scrollTop = 0;
     setFab(null);
     SCREENS[r.name](scr, r.arg);
+    if (r.name === 'deploys') refreshDeploys(changed);
   }
   function setFab(text, fn, iconName) {
     var f = $('fab');
@@ -333,7 +334,7 @@
   function bigHeader(title, sub, tag) {
     return h('div', { class: 'big' }, h('h1', { text: title }), sub ? h('p', { text: sub }) : null, tag || null);
   }
-  function refreshCurrent() { S.loaded[S.route] = 0; route(); }
+  function refreshCurrent() { if (S.route === 'deploys') refreshDeploys(true); S.loaded[S.route] = 0; route(); }
 
   /* ======================================================================= Inbox: notification history */
 
@@ -1005,10 +1006,9 @@
     clear(scr);
     scr.appendChild(bigHeader('More'));
     var deps = window.ScuffedDeploy ? window.ScuffedDeploy.list() : [];
-    var active = deps.filter(function (e) { return /waiting|building|checking/.test(e.state); }).length;
     var bad = deps.filter(function (e) { return /failed|stalled/.test(e.state); }).length;
     var rows = [
-      ['rocket', 'Deploys', bad ? bad + ' need attention' : active ? active + ' deploying now' : 'What\'s going live on kanaris-beans.com', function () { go('deploys'); }],
+      ['rocket', 'Deploys', bad ? bad + ' need attention' : 'GitHub Pages build status', function () { go('deploys'); }],
       isAdmin() ? ['shield', 'Permissions', 'Who holds which role in the world', function () { go('perms'); }] : null,
       ['gear', 'Settings', 'Notifications, appearance, account', function () { go('settings'); }],
       ['globe', 'Open the website', 'kanaris-beans.com/scuffed_dev', function () { window.open(SITE + '/scuffed_dev/', '_blank', 'noopener'); }],
@@ -1020,12 +1020,81 @@
     scr.appendChild(h('p', { style: 'margin:18px 4px;color:var(--ink3);font-family:var(--mono);font-size:.7rem', text: 'scuffed_dev ' + VERSION + ' · ' + (LEVELS[lvl()] || 'Staff') + ' · ' + deviceLabel() }));
   }
 
+  var siteDeploys = { data: null, error: '', request: null, checked: 0 };
+  var DEPLOY_POLL_MS = 12000;
+
+  function refreshDeploys(force) {
+    if (!S.me || S.route !== 'deploys' || document.hidden || siteDeploys.request) return;
+    if (!force && Date.now() - siteDeploys.checked < DEPLOY_POLL_MS) return;
+    siteDeploys.checked = Date.now();
+    siteDeploys.request = worker('/deploy/status').then(function (data) {
+      var changed = siteDeploys.error || JSON.stringify(siteDeploys.data) !== JSON.stringify(data);
+      siteDeploys.data = data;
+      siteDeploys.error = '';
+      if (changed && S.route === 'deploys') renderDeploys($('scr-deploys'));
+    }, function (error) {
+      var message = errText(error);
+      if (message === siteDeploys.error) return;
+      siteDeploys.error = message;
+      if (S.route === 'deploys') renderDeploys($('scr-deploys'));
+    }).finally(function () { siteDeploys.request = null; });
+  }
+
+  function deployRunState(run, live, newestSuccess) {
+    if (['queued', 'pending', 'requested', 'waiting'].indexOf(run.status) >= 0) return ['waiting', 'Queued'];
+    if (run.status !== 'completed') return ['building', 'Building'];
+    if (run.conclusion === 'success') {
+      if (run.sha === live) return ['live', 'Live'];
+      if (run === newestSuccess) return ['checking', 'Waiting for the public site'];
+      return ['past', 'Build completed'];
+    }
+    if (['cancelled', 'skipped', 'neutral'].indexOf(run.conclusion) >= 0) return ['past', run.conclusion === 'neutral' ? 'Closed' : run.conclusion === 'skipped' ? 'Skipped' : 'Cancelled'];
+    return ['failed', 'Failed'];
+  }
+
+  function renderSiteDeploys(scr) {
+    var data = siteDeploys.data;
+    if (siteDeploys.error) {
+      scr.appendChild(emptyState('!', data ? 'Showing the last check' : 'Could not check deployments', siteDeploys.error));
+    }
+    if (!data) {
+      if (!siteDeploys.error) scr.appendChild(skeleton(2, 72));
+      return;
+    }
+
+    var runs = data.runs || [];
+    var newestSuccess = runs.find(function (run) { return run.status === 'completed' && run.conclusion === 'success'; });
+    var cards = h('div', { class: 'list' });
+    if (data.head && data.head !== data.live && !runs.some(function (run) { return run.sha === data.head; })) {
+      cards.appendChild(siteDeployCard({ sha: data.head }, ['waiting', 'Waiting for GitHub Pages']));
+    }
+    var active = runs.filter(function (run) { return run.status !== 'completed'; });
+    var recent = runs.filter(function (run) { return run.status === 'completed'; }).slice(0, 5);
+    active.concat(recent).forEach(function (run) { cards.appendChild(siteDeployCard(run, deployRunState(run, data.live, newestSuccess))); });
+    if (data.live) scr.appendChild(h('p', { class: 'section', text: 'Public site serves ' + data.live.slice(0, 7) }));
+    if (cards.childNodes.length) scr.appendChild(cards);
+    else scr.appendChild(emptyState('🚀', 'No recent Pages builds', 'New builds will appear here automatically.'));
+  }
+
+  function siteDeployCard(run, state) {
+    var label = (run.message || '').split('\n')[0].slice(0, 150) || 'GitHub Pages';
+    return h('div', { class: 'dep s-' + state[0] },
+      h('div', { class: 'row', style: 'justify-content:space-between;gap:8px' },
+        h('b', { text: label, style: 'min-width:0;overflow-wrap:anywhere' }),
+        h('span', { style: 'color:var(--st);font-size:.75rem;text-align:right;flex-shrink:0', text: state[1] })),
+      h('div', { class: 'row wrap', style: 'margin-top:6px;color:var(--ink3);font-family:var(--mono);font-size:.7rem' },
+        h('span', { text: run.sha.slice(0, 7) + (run.created ? ' · ' + ago(run.created) : '') }),
+        run.url ? h('a', { href: run.url, target: '_blank', rel: 'noopener', text: 'View run ↗' }) : null));
+  }
+
   function renderDeploys(scr) {
     clear(scr);
-    scr.appendChild(bigHeader('Deploys', 'Every save, followed until kanaris-beans.com serves it.'));
+    scr.appendChild(bigHeader('Deploys', 'GitHub Pages builds and saves from this device.'));
+    renderSiteDeploys(scr);
     var D = window.ScuffedDeploy;
     var list = D ? D.list().slice().reverse() : [];
-    if (!list.length) { scr.appendChild(emptyState('🚀', 'Nothing deploying', 'Save something (an image, a role, an announcement) and it shows up here until it\'s live.')); return; }
+    if (!list.length) return;
+    scr.appendChild(h('h2', { class: 'section', text: 'Tracked saves' }));
     var ul = h('div', { class: 'list' });
     list.forEach(function (e) {
       var at = /waiting|building/.test(e.state) ? 1 : e.state === 'checking' ? 2 : /live|superseded/.test(e.state) ? 3 : 1;
@@ -1493,7 +1562,12 @@
         if (m.type === 'open' && m.url) { var r = /#([a-z]+)(?:\/(.*))?$/.exec(m.url); if (r) go(r[1], r[2] ? decodeURIComponent(r[2]) : ''); }
       });
     }
-    document.addEventListener('visibilitychange', function () { if (!document.hidden && S.me) loadHistory().then(paintBadges, function () {}); });
+    setInterval(refreshDeploys, DEPLOY_POLL_MS);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden || !S.me) return;
+      loadHistory().then(paintBadges, function () {});
+      refreshDeploys(true);
+    });
     boot();
   });
   function dropCaches() { if (S.route === 'board') board.data = null; if (S.route === 'images') imgs.data = null; if (S.route === 'history') hist.items = null; if (S.route === 'announce') ann.data = null; if (S.route === 'perms') perms.data = null; }

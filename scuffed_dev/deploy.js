@@ -118,31 +118,20 @@
       var run = d.run, latest = d.latest;
       if (run && run.status === 'completed' && run.conclusion === 'failure') return set(e.id, 'failed', 'The GitHub Pages build failed.', run.url);
       var laterBuild = latest && latest.sha !== e.commit && Date.parse(latest.created) >= e.created - 5000;
-      var built = (run && run.status === 'completed' && run.conclusion === 'success') ||
-        (laterBuild && latest.status === 'completed' && latest.conclusion === 'success');
-      if (!built) {
-        var why = run
-          ? (run.status === 'queued' ? 'Queued on GitHub Pages…' : run.status === 'completed' ? 'GitHub skipped this build for a newer one; waiting for that…' : 'GitHub Pages is building the site…')
-          : (latest && latest.status !== 'completed' ? 'Waiting for the build in front of it…' : 'Waiting for GitHub Pages to start…');
-        // GitHub's list of builds can lag behind the site itself, and the files are the real answer. While the
-        // build isn't reported done, check one small "sentinel" file per poll (cheap); if it's live, check them all.
-        var sentinel = pickSentinel(ours);
-        return served(sentinel).then(function (ok) {
-          if (!ok) return stallOr(e, 'building', why, (run || latest || {}).url);
-          return verifyAll(e, ours, run || latest);
-        });
+      var verifiedRun = run && run.status === 'completed' && run.conclusion === 'success' && d.live === e.commit;
+      var verifiedLater = laterBuild && latest.status === 'completed' && latest.conclusion === 'success' && d.live === latest.sha;
+      if (verifiedRun || verifiedLater || (!run && d.live === e.commit)) return verifyAll(e, ours, run || latest);
+      if (run && run.status === 'completed' && run.conclusion === 'success') {
+        return stallOr(e, 'checking', 'Build finished. Waiting for the new revision on kanaris-beans.com…', run.url);
       }
-      return verifyAll(e, ours, run || latest);
+      var why = run
+        ? (['queued', 'pending', 'waiting', 'requested'].indexOf(run.status) >= 0 ? 'Queued on GitHub Pages…' : run.status === 'completed' ? 'Waiting for a newer build…' : 'GitHub Pages is building the site…')
+        : (latest && latest.status !== 'completed' ? 'Waiting for the build in front of it…' : 'Waiting for GitHub Pages to start…');
+      return stallOr(e, 'building', why, (run || latest || {}).url);
     }, function (err) {
       if (err.status === 401 || err.status === 403) return change(e.id, function (x) { x.detail = 'Sign in as staff on a scuffed_dev page to keep checking.'; });
       return change(e.id, function (x) { x.detail = 'Couldn\'t check just now (' + err.message + '). Trying again…'; });
     });
-  }
-
-  // the cheapest file to fetch: a deletion (just a 404), then text (manifest / lists), then anything
-  function pickSentinel(files) {
-    return files.filter(function (f) { return f.sha === null; })[0] ||
-      files.filter(function (f) { return /\.(json|txt|js|css|html)$/i.test(f.path); })[0] || files[0];
   }
 
   // Every file of ours must be served exactly as committed (deleted ones gone) before it counts as live.

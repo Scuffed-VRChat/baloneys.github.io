@@ -1,4 +1,4 @@
-import { notify, runSchedule, pushReady } from "./push.js";
+import { notify, runSchedule, pushReady, livePagesRevision } from "./push.js";
 
 // scuffed-perms Worker: the only thing that can change the Scuffed role lists from the site.
 // It also saves the spawn announcements (/announcements) and the world images (/images, see further down).
@@ -767,18 +767,33 @@ async function currentShas(gh, paths) {
   return { head, shas: out };
 }
 
+function recentPagesRuns(gh) {
+  return actionsRuns(gh, `branch=${encodeURIComponent(gh.branch)}&event=dynamic&per_page=20`);
+}
+
+async function handleDeployStatus(env) {
+  const gh = new GitHub(env);
+  const [runs, head, live] = await Promise.all([
+    recentPagesRuns(gh),
+    gh.head(),
+    livePagesRevision(),
+  ]);
+  return { runs, head, live };
+}
+
 async function handleDeploy(request, env) {
   const q = new URL(request.url).searchParams;
   const sha = String(q.get("sha") || "");
   if (!/^[0-9a-f]{40}$/.test(sha)) throw new HttpError(400, "Give the full commit sha.");
   const paths = String(q.get("paths") || "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 40);
   const gh = new GitHub(env);
-  const [mine, recent, cur] = await Promise.all([
+  const [mine, recent, cur, live] = await Promise.all([
     actionsRuns(gh, `head_sha=${sha}&per_page=5`),
-    actionsRuns(gh, "per_page=10"),
+    recentPagesRuns(gh),
     paths.length && env.GITHUB_TOKEN ? currentShas(gh, paths) : Promise.resolve(null),
+    livePagesRevision(),
   ]);
-  return { run: mine[0] || null, latest: recent[0] || null, head: cur && cur.head, current: cur ? cur.shas : null };
+  return { run: mine[0] || null, latest: recent[0] || null, head: cur && cur.head, current: cur ? cur.shas : null, live };
 }
 
 async function handleRedeploy(request, env, who) {
@@ -823,7 +838,7 @@ function announceNotice(world, text) {
 export default {
   async scheduled(event, env, ctx) {
     // once a minute: new world builds, new dev board activity, finished GitHub Pages builds -> notifications
-    ctx.waitUntil(runSchedule(env, () => actionsRuns(new GitHub(env), "per_page=10")).then((r) => {
+    ctx.waitUntil(runSchedule(env, () => recentPagesRuns(new GitHub(env))).then((r) => {
       if (r && (r.boardError || r.deployError || r.worldError)) console.error("push schedule:", JSON.stringify(r));
     }));
   },
@@ -850,6 +865,10 @@ export default {
         return json(r, 200, cors);
       }
 
+      if (request.method === "GET" && pathname === "/deploy/status") {
+        await staffOf(request, env, MODERATOR_LEVEL);
+        return json(await handleDeployStatus(env), 200, cors);
+      }
       if (request.method === "GET" && pathname === "/deploy") {
         await staffOf(request, env, MODERATOR_LEVEL);
         return json(await handleDeploy(request, env), 200, cors);
