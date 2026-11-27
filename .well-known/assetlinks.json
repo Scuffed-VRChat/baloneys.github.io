@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.kanarisbeans.scuffeddev",
+      "sha256_cert_fingerprints": ["79:39:BE:15:49:5E:D2:92:E1:29:42:1A:A9:B9:A4:7C:8D:F3:61:E7:C6:3B:99:8D:50:0F:EA:02:BE:BD:1C:B5"]
+    }
+  }
+]

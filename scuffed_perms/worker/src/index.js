@@ -822,9 +822,9 @@ function announceNotice(world, text) {
 
 export default {
   async scheduled(event, env, ctx) {
-    // once a minute: new dev board activity + finished GitHub Pages builds -> notifications
+    // once a minute: new world builds, new dev board activity, finished GitHub Pages builds -> notifications
     ctx.waitUntil(runSchedule(env, () => actionsRuns(new GitHub(env), "per_page=10")).then((r) => {
-      if (r && (r.boardError || r.deployError)) console.error("push schedule:", JSON.stringify(r));
+      if (r && (r.boardError || r.deployError || r.worldError)) console.error("push schedule:", JSON.stringify(r));
     }));
   },
 
