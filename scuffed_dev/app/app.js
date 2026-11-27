@@ -127,37 +127,90 @@
   var ACCENTS = [['#ff1f3d', '#ff6b8b'], ['#e60065', '#ff8a00'], ['#9d00ff', '#e60065'], ['#7c3aed', '#db2777'], ['#2563eb', '#06b6d4'],
     ['#06b6d4', '#a78bfa'], ['#10b981', '#06b6d4'], ['#f59e0b', '#ef4444'], ['#ec4899', '#8b5cf6'], ['#a3a3a3', '#f5f5f5']];
   var SCENES = { tetris: ['Surge', 'Pulse', 'Tide', 'Afterglow', 'Strata', 'Storm', 'Warp', 'Stars', 'Circuit City', 'Pixel Aurora'], pong: ['Neon Court', 'Ping Waves', 'LED Rain', 'Arcade Sunset', 'Orbit'], battleships: ['Sonar Sweep', 'Night Swell', 'The Deep'], chess: ['Endless Board', 'Marble', 'Velvet', 'Star Board'] };
-  var LOOK_DEFAULT = { bg: 'scuffed', solid: '#0b0608', image: null, scene: 'tetris', sceneIndex: 0, dim: 35, blur: 0, accent: 0, panel: 82, glass: 18, size: 15 };
+  // look.accent: an index into ACCENTS, or a [from, to] pair (copied from /chat). look.bg 'gradient' uses look.grad.
+  var LOOK_DEFAULT = { bg: 'scuffed', solid: '#0b0608', image: null, grad: null, scene: 'tetris', sceneIndex: 0, pixel: 2, dim: 35, blur: 0, accent: 0, panel: 82, glass: 18, size: 16 };
   var look = Object.assign({}, LOOK_DEFAULT, load(LOOK_KEY, {}));
   function saveLook() { save(LOOK_KEY, look); }
   function gradCss(t) { return 'linear-gradient(' + t.angle + 'deg, ' + t.stops.join(', ') + ')'; }
+  function isHex(c) { return typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c); }
+  function accentPair() {
+    if (Array.isArray(look.accent) && isHex(look.accent[0])) return [look.accent[0], isHex(look.accent[1]) ? look.accent[1] : look.accent[0]];
+    return ACCENTS[look.accent] || ACCENTS[0];
+  }
 
   function applyLook() {
     var root = document.documentElement.style;
-    var acc = ACCENTS[look.accent] || ACCENTS[0];
+    var acc = accentPair();
     root.setProperty('--acc1', acc[0]);
     root.setProperty('--acc2', acc[1]);
     root.setProperty('--panel-a', String(Math.max(0.2, look.panel / 100)));
     root.setProperty('--glass', look.glass + 'px');
     root.setProperty('--fs', look.size + 'px');
+    // text size scales the whole app: nearly everything is sized in rem, which follows the root font size
+    root.fontSize = Math.max(12, Math.min(22, look.size || 16)) + 'px';
     $('app').classList.toggle('compact', !!prefs.compact);
     $('app').classList.toggle('calm', !!prefs.calm);
-    var bg = clear($('appBg'));
+    var bg = $('appBg');
+    var sceneSrc = look.bg === 'animated' ? '/chat-scene.html?game=' + encodeURIComponent(look.scene) + '&scene=' + (look.sceneIndex | 0) + '&pixel=' + Math.max(1, Math.min(5, look.pixel | 0 || 2)) : null;
+    var running = bg.querySelector('iframe');
+    // keep a running scene when only dim / blur / colours change (rebuilding it restarts the animation)
+    if (!(running && sceneSrc && running.getAttribute('src') === sceneSrc)) { clear(bg); running = null; }
     bg.className = 'app-bg';
     bg.style.background = '';
     bg.style.setProperty('--img-dim', String(look.dim / 100));
     bg.style.setProperty('--img-blur', look.blur + 'px');
     var th = THEMES.filter(function (t) { return t.id === look.bg; })[0];
     if (th && th.stops) bg.style.background = gradCss(th);
+    else if (look.bg === 'gradient' && look.grad && Array.isArray(look.grad.stops)) bg.style.background = gradCss({ angle: Number(look.grad.angle) || 150, stops: look.grad.stops.filter(isHex).slice(0, 3) });
     else if (look.bg === 'solid') bg.style.background = look.solid;
     else if (look.bg === 'image' && look.image) { bg.style.background = '#000'; var d = h('div', { class: 'bg-img' }); d.style.setProperty('--img', 'url("' + look.image + '")'); bg.appendChild(d); }
-    else if (look.bg === 'animated') {
+    else if (sceneSrc) {
       bg.style.background = '#070710';
-      var f = h('iframe', { title: 'Animated background', tabindex: '-1', 'aria-hidden': 'true', src: '/chat-scene.html?game=' + look.scene + '&scene=' + look.sceneIndex + '&pixel=2' });
-      bg.appendChild(f);
+      if (!running) bg.appendChild(h('iframe', { title: 'Animated background', tabindex: '-1', 'aria-hidden': 'true', src: sceneSrc }));
     }
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', '#0a0608');
+  }
+
+  // Copy your /chat look (chat.js saves it as localStorage 'chat.look'; the APK runs in Chrome, so it shares the
+  // site's storage). A /chat photo background lives in chat's own IndexedDB ('baloneys-chat', store 'kv',
+  // key 'lookImage'); it's only read if that database already exists, so the app never creates an empty one.
+  function importChatLook(c) {
+    var num = function (v, lo, hi, def) { v = Number(v); return isNaN(v) ? def : Math.max(lo, Math.min(hi, Math.round(v))); };
+    if (isHex(c.accent)) look.accent = [c.accent, isHex(c.accent2) ? c.accent2 : c.accent];
+    look.panel = num(c.panel, 30, 100, look.panel);
+    look.glass = num(c.glassBlur, 0, 30, look.glass);
+    look.size = num(c.size, 13, 20, look.size);
+    look.dim = num(c.imgDim, 0, 85, look.dim);
+    look.blur = num(c.imgBlur, 0, 20, look.blur);
+    if (c.grad && Array.isArray(c.grad.stops) && c.grad.stops.filter(isHex).length >= 2) look.grad = { stops: c.grad.stops.filter(isHex).slice(0, 3), angle: num(c.grad.angle, 0, 360, 150) };
+    if (c.bg === 'gradient' && look.grad) look.bg = 'gradient';
+    else if (c.bg === 'solid' && isHex(c.solid)) { look.bg = 'solid'; look.solid = c.solid; }
+    else if (c.bg === 'animated' && SCENES[c.sceneGame]) { look.bg = 'animated'; look.scene = c.sceneGame; look.sceneIndex = num(c.sceneIndex, 0, SCENES[c.sceneGame].length - 1, 0); look.pixel = num(c.scenePixel, 1, 5, 1); }
+    else if (c.bg === 'default') look.bg = 'scuffed';
+    if (c.bg !== 'image') return Promise.resolve('');
+    return readChatImage().then(function (img) {
+      if (!img) return 'Copied your /chat look (your /chat photo isn\'t on this phone, so the background stayed)';
+      return (/^data:image\//.test(img) ? Promise.resolve(img) : Promise.reject()).then(function (url) { look.image = url; look.bg = 'image'; return ''; });
+    }).catch(function () { return 'Copied your /chat look, except the photo background'; });
+  }
+  function readChatImage() {
+    if (!window.indexedDB || !indexedDB.databases) return Promise.resolve(null);
+    return indexedDB.databases().then(function (list) {
+      if (!list.some(function (d) { return d.name === 'baloneys-chat'; })) return null;
+      return new Promise(function (res) {
+        var req = indexedDB.open('baloneys-chat');
+        req.onupgradeneeded = function () { try { req.transaction.abort(); } catch (e) { /* fine */ } res(null); };
+        req.onerror = function () { res(null); };
+        req.onsuccess = function () {
+          var db = req.result;
+          if (!db.objectStoreNames.contains('kv')) { db.close(); res(null); return; }
+          var g = db.transaction('kv').objectStore('kv').get('lookImage');
+          g.onsuccess = function () { db.close(); var r = g.result; res(r && typeof r === 'object' ? (r.v || r.value || null) : r || null); };
+          g.onerror = function () { db.close(); res(null); };
+        };
+      });
+    }, function () { return null; });
   }
 
   /* ======================================================================= bottom sheet (Android Back closes it) */
@@ -301,7 +354,8 @@
 
   function renderHistory(scr) {
     clear(scr);
-    scr.appendChild(bigHeader('Notifications', 'Everything scuffed_dev has told you, newest first.'));
+    scr.appendChild(bigHeader('Notifications', 'Everything scuffed_dev has told you, newest first.',
+      h('button', { class: 'tag', type: 'button', html: ic('gear') + 'Choose notifications', style: 'cursor:pointer', onclick: function () { go('settings'); } })));
     scr.appendChild(pushBanner());
     var kinds = [['all', 'All'], ['announce', 'Announcements'], ['world', 'World'], ['board', 'Board']];
     if (isDev()) kinds.push(['deploy', 'Deploys'], ['suggest', 'Suggestions']);
@@ -375,7 +429,7 @@
   function enablePush() {
     if (!push.supported) { toast('This browser can\'t do push notifications. Install the app, or use Chrome.', 'bad'); return Promise.resolve(false); }
     return Notification.requestPermission().then(function (p) {
-      if (p !== 'granted') { toast('Notifications are blocked. Allow them for scuffed_dev in Android settings.', 'bad'); return false; }
+      if (p !== 'granted') { toast('Notifications are blocked. Allow them for scuffed_dev in your phone settings.', 'bad'); return false; }
       return worker('/push/key').then(function (k) {
         if (!k.key) throw new Error('Notifications aren\'t switched on on the server yet.');
         return swReady().then(function (reg) {
@@ -391,8 +445,61 @@
       return s.unsubscribe().then(function () { return S.client.rpc('push_unsubscribe', { sub_endpoint: ep }); });
     }).then(function () { push.sub = null; toast('Notifications off for this phone.'); }, function (e) { toast(errText(e), 'bad'); });
   }
+  // what you can be notified about (developers also get deploys and suggestions); the Worker checks levels too
+  function notifKinds() {
+    var k = [['announce', 'Announcements', 'The full announcement, when one is saved'], ['world', 'World updates', 'A new PC or Quest build of Scuffed or Straya is up'], ['board', 'Dev board', 'New cards, claims, status changes, notes']];
+    if (isDev()) k.push(['deploy', 'Deploys', 'Live on kanaris-beans.com, or a failed build'], ['suggest', 'Suggestions', 'New image and board suggestions']);
+    return k;
+  }
+  var KIND_ICONS = { announce: 'megaphone', world: 'globe', board: 'board', deploy: 'rocket', suggest: 'image' };
+  // one switch per kind; saved on this phone and sent to the server with the subscription
+  function kindToggles() {
+    return notifKinds().map(function (k) {
+      return settingRow(KIND_ICONS[k[0]], k[1], k[2], sw(prefs.kinds[k[0]] !== false, function (v) {
+        prefs.kinds[k[0]] = v; savePrefs();
+        if (push.sub) registerSub(push.sub).catch(function (e) { toast(errText(e), 'bad'); });
+      }));
+    });
+  }
+
+  // First launch after signing in: ask for notifications (and say what they'll be about). Shown once per phone;
+  // the camera is only asked for when you scan a sign-in QR.
+  var WELCOME_KEY = 'scd-app-welcomed';
+  function maybeWelcome() {
+    if (load(WELCOME_KEY, 0) || sheetOpen) return;
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    currentSub().then(function (sub) {
+      if (sub || (push.supported && Notification.permission === 'denied')) { save(WELCOME_KEY, 1); return; }
+      var done = function () { save(WELCOME_KEY, 1); };
+      var body = h('div', null, h('p', { style: 'margin:0 0 12px;color:var(--ink2)', text: 'scuffed_dev can tell you when things happen, even when the app is closed. Pick what you want: you can change it any time in Settings.' }));
+      if (ios && !standalone) {
+        body.appendChild(h('div', { class: 'panel', style: 'padding:14px' }, h('b', { text: 'First, add it to your Home Screen' }),
+          h('div', { style: 'color:var(--ink3);font-size:.84rem;margin-top:4px', text: 'On iPhone, notifications only work from the Home Screen app: tap Share, then Add to Home Screen, and open scuffed_dev from there.' })));
+        openSheet('Welcome to scuffed_dev', body, [h('button', { class: 'btn primary block', type: 'button', text: 'Got it', onclick: function () { closeSheet(); } })], done);
+        return;
+      }
+      if (!push.supported) { done(); return; }
+      body.appendChild(h('div', { class: 'panel' }, kindToggles()));
+      body.appendChild(h('p', { style: 'margin:12px 2px 0;color:var(--ink3);font-size:.8rem', text: 'Android will ask to allow notifications next. The camera is only used when you scan a sign-in QR.' }));
+      openSheet('Welcome to scuffed_dev', body, [
+        h('button', { class: 'btn', type: 'button', text: 'Not now', onclick: function () { closeSheet(); toast('You can turn notifications on in Settings any time.'); } }),
+        h('button', { class: 'btn primary', type: 'button', html: ic('bell') + 'Turn on notifications', onclick: function () { closeSheet(); enablePush().then(function (ok) { if (ok && S.route === 'history') renderHistory($('scr-history')); }); } })
+      ], done);
+    });
+  }
+
   function pushBanner() {
     var box = h('div');
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (ios && !standalone) {
+      // iOS only allows web notifications for apps added to the Home Screen
+      box.appendChild(h('div', { class: 'panel', style: 'padding:14px;margin-bottom:14px' },
+        h('b', { text: 'Add scuffed_dev to your Home Screen' }),
+        h('div', { style: 'color:var(--ink3);font-size:.82rem;margin-top:4px', text: 'On iPhone, notifications only work from the Home Screen app: tap Share, then Add to Home Screen, then open scuffed_dev from there.' })));
+      return box;
+    }
     currentSub().then(function (s) {
       if (s || !push.supported) return;
       box.appendChild(h('div', { class: 'panel', style: 'padding:14px;margin-bottom:14px;display:flex;gap:12px;align-items:center' },
@@ -1010,6 +1117,12 @@
     return b;
   }
   function settingRow(iconName, title, sub, control) { return h('div', { class: 'setting' }, iconName ? h('span', { class: 'ico', html: ic(iconName) }) : null, h('span', { class: 'txt' }, h('b', { text: title }), sub ? h('small', { text: sub }) : null), control || null); }
+  // a labelled slider whose label shows the value as you drag, applied straight away
+  function liveSlider(label, min, max, val, unit, set, top) {
+    var out = h('b', { text: val + unit, style: 'color:var(--ink);font-family:var(--mono);font-weight:700' });
+    return h('div', { class: 'field', style: top ? 'margin-top:' + top : null }, h('span', { class: 'row', style: 'justify-content:space-between' }, label, out),
+      slider(min, max, val, function (v) { out.textContent = v + unit; set(v); saveLook(); applyLook(); }));
+  }
   function slider(min, max, val, onInput) { var r = h('input', { class: 'range', type: 'range', min: String(min), max: String(max), value: String(val) }); r.addEventListener('input', function () { onInput(Number(r.value)); }); return r; }
 
   function renderSettings(scr) {
@@ -1020,7 +1133,9 @@
     scr.appendChild(h('div', { class: 'section', text: 'Account' }));
     scr.appendChild(h('div', { class: 'panel' }, h('div', { class: 'setting' }, avatarEl({ name: me.name, avatar: prof && prof.avatar }, 44),
       h('span', { class: 'txt' }, h('b', { text: me.name }), h('small', { text: (LEVELS[me.level] || 'Staff') + (S.token ? ' · master login' : '') })),
-      S.token ? h('button', { class: 'btn sm', type: 'button', text: 'Log out', onclick: function () { var t = S.token; S.token = null; try { sessionStorage.removeItem(MOD_TOKEN_KEY); } catch (e) { /* fine */ } S.client.rpc('mod_logout', { token: t }).then(boot, boot); } }) : null)));
+      S.token ? h('button', { class: 'btn sm', type: 'button', text: 'Log out', onclick: function () { var t = S.token; S.token = null; try { sessionStorage.removeItem(MOD_TOKEN_KEY); } catch (e) { /* fine */ } S.client.rpc('mod_logout', { token: t }).then(boot, boot); } }) : null),
+      prof ? h('button', { class: 'setting link', type: 'button', onclick: function () { showSigninQr(); } }, h('span', { class: 'ico', html: ic('phone') }),
+        h('span', { class: 'txt' }, h('b', { text: 'Sign in on another device' }), h('small', { text: 'Show a QR code to scan with the scuffed_dev app on a tablet or second phone' }))) : null));
 
     // notifications
     scr.appendChild(h('div', { class: 'section', text: 'Notifications' }));
@@ -1028,12 +1143,9 @@
     scr.appendChild(np);
     currentSub().then(function (sub) {
       var on = !!sub;
-      np.appendChild(settingRow('bell', 'This phone', !push.supported ? 'Not supported in this browser: install the app' : Notification.permission === 'denied' ? 'Blocked: allow notifications in Android settings' : on ? 'On · ' + deviceLabel() : 'Off', sw(on, function (v) { (v ? enablePush() : disablePush()).then(function () { renderSettings(scr); }); }, !push.supported)));
-      var kinds = [['announce', 'Announcements', 'The full announcement, when one is saved'], ['world', 'World updates', 'A new PC or Quest build of Scuffed or Straya is up'], ['board', 'Dev board', 'New cards, claims, status changes, notes']];
-      if (isDev()) kinds.push(['deploy', 'Deploys', 'Live on kanaris-beans.com, or a failed build'], ['suggest', 'Suggestions', 'New image and board suggestions']);
-      kinds.forEach(function (k) {
-        np.appendChild(settingRow(null, k[1], k[2], sw(prefs.kinds[k[0]] !== false, function (v) { prefs.kinds[k[0]] = v; savePrefs(); if (push.sub) registerSub(push.sub).catch(function (e) { toast(errText(e), 'bad'); }); }, !on)));
-      });
+      np.appendChild(settingRow('bell', 'This phone', !push.supported ? (/iPhone|iPad|iPod/.test(navigator.userAgent) ? 'Add scuffed_dev to your Home Screen first, then open it from there' : 'Not supported in this browser: install the app') : Notification.permission === 'denied' ? 'Blocked: allow notifications for scuffed_dev in your phone settings' : on ? 'On · ' + deviceLabel() : 'Off', sw(on, function (v) { (v ? enablePush() : disablePush()).then(function () { renderSettings(scr); }); }, !push.supported)));
+      np.appendChild(h('div', { class: 'setting', style: 'padding-bottom:4px' }, h('span', { class: 'txt' }, h('small', { text: on ? 'Choose what this phone gets:' : 'Choose what you want, then turn notifications on above:' }))));
+      kindToggles().forEach(function (row) { np.appendChild(row); });
       if (on) np.appendChild(h('div', { class: 'setting' }, h('button', { class: 'btn sm primary', type: 'button', html: ic('send') + 'Send a test', onclick: function () { worker('/push/test', { endpoint: sub.endpoint }).then(function (r) { toast(r.sent ? 'Sent: check your notifications' : 'The test didn\'t go through.', r.sent ? 'good' : 'bad'); }, function (e) { toast(errText(e), 'bad'); }); } })));
     });
 
@@ -1041,8 +1153,21 @@
     scr.appendChild(h('div', { class: 'section', text: 'Appearance' }));
     var ap = h('div', { class: 'panel', style: 'padding:14px' });
     scr.appendChild(ap);
+    var chatLook = load('chat.look', null);
+    if (chatLook && typeof chatLook === 'object') {
+      ap.appendChild(h('div', { class: 'row', style: 'justify-content:space-between;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line)' },
+        h('span', { style: 'color:var(--ink2);font-size:.86rem', text: 'You have a look saved in /chat on this phone.' }),
+        h('button', { class: 'btn sm primary', type: 'button', html: ic('palette') + 'Use my /chat look', style: 'flex:none', onclick: function () {
+          importChatLook(chatLook).then(function (note) { saveLook(); applyLook(); renderSettings(scr); toast(note || 'Copied your /chat look', 'good'); haptic(12); });
+        } })));
+    }
     ap.appendChild(h('div', { class: 'field' }, h('span', { text: 'Background' })));
     var bgs = h('div', { class: 'bgs' });
+    if (look.grad && Array.isArray(look.grad.stops)) {
+      var cg = h('button', { class: 'bgopt' + (look.bg === 'gradient' ? ' on' : ''), type: 'button', text: 'From /chat', onclick: function () { look.bg = 'gradient'; saveLook(); applyLook(); renderSettings(scr); } });
+      cg.style.background = gradCss({ angle: Number(look.grad.angle) || 150, stops: look.grad.stops.filter(isHex).slice(0, 3) });
+      bgs.appendChild(cg);
+    }
     THEMES.forEach(function (t) {
       var o = h('button', { class: 'bgopt' + (look.bg === t.id ? ' on' : ''), type: 'button', text: t.name, onclick: function () { look.bg = t.id; saveLook(); applyLook(); renderSettings(scr); } });
       o.style.background = t.stops ? gradCss(t) : 'radial-gradient(120% 60% at 50% -10%, rgba(255,31,61,.35), transparent 70%), #0a0608';
@@ -1064,18 +1189,24 @@
       var sc = h('div', { class: 'chips', style: 'margin-top:12px' });
       Object.keys(SCENES).forEach(function (g) { SCENES[g].forEach(function (n, i) { sc.appendChild(h('button', { class: 'chip' + (look.scene === g && look.sceneIndex === i ? ' on' : ''), type: 'button', text: n, onclick: function () { look.scene = g; look.sceneIndex = i; saveLook(); applyLook(); renderSettings(scr); } })); }); });
       ap.appendChild(sc);
+      ap.appendChild(liveSlider('Pixelation', 1, 5, look.pixel || 2, '×', function (v) { look.pixel = v; }, '12px'));
     }
     if (look.bg === 'image' || look.bg === 'animated') {
-      ap.appendChild(h('div', { class: 'field', style: 'margin-top:12px' }, h('span', { text: 'Dim ' + look.dim + '%' }), slider(0, 85, look.dim, function (v) { look.dim = v; saveLook(); applyLook(); })));
-      ap.appendChild(h('div', { class: 'field' }, h('span', { text: 'Blur' }), slider(0, 20, look.blur, function (v) { look.blur = v; saveLook(); applyLook(); })));
+      ap.appendChild(liveSlider('Dim', 0, 85, look.dim, '%', function (v) { look.dim = v; }, '12px'));
+      ap.appendChild(liveSlider('Blur', 0, 20, look.blur, 'px', function (v) { look.blur = v; }));
     }
     ap.appendChild(h('div', { class: 'field', style: 'margin-top:14px' }, h('span', { text: 'Accent' })));
     var sws = h('div', { class: 'swatches' });
+    if (Array.isArray(look.accent)) {
+      var mine = h('button', { class: 'swatch on', type: 'button', 'aria-label': 'Your /chat accent', title: 'From /chat' });
+      mine.style.background = 'linear-gradient(135deg,' + accentPair()[0] + ',' + accentPair()[1] + ')';
+      sws.appendChild(mine);
+    }
     ACCENTS.forEach(function (a, i) { var s = h('button', { class: 'swatch' + (look.accent === i ? ' on' : ''), type: 'button', 'aria-label': 'Accent ' + (i + 1), onclick: function () { look.accent = i; saveLook(); applyLook(); renderSettings(scr); haptic(6); } }); s.style.background = 'linear-gradient(135deg,' + a[0] + ',' + a[1] + ')'; sws.appendChild(s); });
     ap.appendChild(sws);
-    ap.appendChild(h('div', { class: 'field', style: 'margin-top:14px' }, h('span', { text: 'Panel opacity' }), slider(30, 100, look.panel, function (v) { look.panel = v; saveLook(); applyLook(); })));
-    ap.appendChild(h('div', { class: 'field' }, h('span', { text: 'Glass blur' }), slider(0, 30, look.glass, function (v) { look.glass = v; saveLook(); applyLook(); })));
-    ap.appendChild(h('div', { class: 'field' }, h('span', { text: 'Text size ' + look.size + 'px' }), slider(13, 19, look.size, function (v) { look.size = v; saveLook(); applyLook(); })));
+    ap.appendChild(liveSlider('Panel opacity', 30, 100, look.panel, '%', function (v) { look.panel = v; }, '14px'));
+    ap.appendChild(liveSlider('Glass blur', 0, 30, look.glass, 'px', function (v) { look.glass = v; }));
+    ap.appendChild(liveSlider('Text size', 13, 20, look.size, 'px', function (v) { look.size = v; }));
     ap.appendChild(h('button', { class: 'btn sm ghost', type: 'button', text: 'Reset appearance', onclick: function () { look = Object.assign({}, LOOK_DEFAULT); saveLook(); applyLook(); renderSettings(scr); } }));
 
     scr.appendChild(h('div', { class: 'section', text: 'Feel' }));
@@ -1109,29 +1240,174 @@
     scr.appendChild(box);
     if (state === 'checking') { box.appendChild(h('h1', { text: 'scuffed_dev' })); box.appendChild(h('div', { class: 'row' }, h('span', { class: 'spinner' }), h('p', { text: 'Signing you in…' }))); return; }
     if (state === 'offline') { box.appendChild(h('h1', { text: 'Can\'t connect' })); box.appendChild(h('p', { text: text || 'Check your connection.' })); box.appendChild(h('button', { class: 'btn primary', type: 'button', text: 'Try again', onclick: boot })); return; }
+    var prof = window.GameSocial && window.GameSocial.me && window.GameSocial.me();
+    var scanBtn = h('button', { class: 'btn primary block', type: 'button', html: ic('scan') + 'Scan sign-in QR', onclick: function () { openScanner(); } });
+    var howTo = h('ol', { class: 'gate-steps' },
+      h('li', null, 'On your PC, open ', h('b', { text: 'kanaris-beans.com/scuffed_dev' }), '.'),
+      h('li', null, 'Under ', h('b', { text: 'Get the app' }), ', tap ', h('b', { text: 'Show sign-in QR' }), '.'),
+      h('li', null, 'Scan it here. You\'re signed in with the same account.'));
     if (state === 'create') {
-      box.appendChild(h('h1', { text: 'Make your profile' }));
-      box.appendChild(h('p', { text: 'scuffed_dev uses the same profile as the site\'s games and chat. Already have one on your PC? Link this phone from chat › Settings › Devices & sync, then reopen the app.' }));
-      var ed = h('div', { class: 'panel' }); box.appendChild(ed);
-      if (window.Games && window.Games.Profile) window.Games.Profile.mount(ed, function (pr) { if (window.GameSocial && window.GameSocial.localProfileChanged) window.GameSocial.localProfileChanged(pr); });
-      box.appendChild(h('button', { class: 'btn primary block', type: 'button', text: 'Create profile', onclick: createProfile }));
-      return;
+      box.appendChild(h('h1', { text: 'Sign in' }));
+      box.appendChild(h('p', { text: 'scuffed_dev uses your kanaris-beans.com account: the same one as the site\'s chat and games.' }));
+      box.appendChild(howTo);
+      box.appendChild(scanBtn);
+      var ed = h('div', { class: 'panel', style: 'padding:14px' });
+      var made = false;
+      box.appendChild(disclosure('New here? Make a profile', function (body) {
+        if (!made) { made = true; body.appendChild(ed); if (window.Games && window.Games.Profile) window.Games.Profile.mount(ed, function (pr) { if (window.GameSocial && window.GameSocial.localProfileChanged) window.GameSocial.localProfileChanged(pr); }); body.appendChild(h('button', { class: 'btn primary block', type: 'button', text: 'Create profile', style: 'margin-top:10px', onclick: createProfile })); }
+      }));
+    } else {
+      // denied: signed in, but this account isn't staff (or not yet)
+      box.appendChild(h('h1', { text: 'Staff only' }));
+      box.appendChild(h('p', { text: 'scuffed_dev is for Scuffed staff (moderator and up).' + (prof && prof.name ? ' This phone is signed in as ' + prof.name + ', which isn\'t staff.' : '') + ' If your staff account is on your PC, scan its sign-in QR to switch this phone to it.' }));
+      box.appendChild(howTo);
+      box.appendChild(scanBtn);
     }
-    // denied: not staff (or not yet)
-    box.appendChild(h('h1', { text: 'Staff only' }));
-    box.appendChild(h('p', { text: 'scuffed_dev is for Scuffed staff (moderator and up on the moderation panel). If you are staff on another device, link this phone from chat › Settings › Devices & sync.' }));
-    var u = h('input', { class: 'input', autocomplete: 'username', placeholder: 'Master login username' }), p = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', placeholder: 'Password' });
-    var msg = h('p', { style: 'color:var(--bad);min-height:1.2em;font-size:.86rem' });
-    box.appendChild(h('div', { class: 'panel' }, h('div', { class: 'field' }, h('span', { text: 'Master login' }), u), h('div', { class: 'field' }, p), msg,
-      h('button', { class: 'btn primary block', type: 'button', text: 'Log in', onclick: function () {
-        msg.textContent = 'Checking…';
-        S.client.rpc('mod_master_login', { username: u.value, password: p.value }).then(function (r) {
-          p.value = '';
-          if (r.error) { msg.textContent = r.error.message; return; }
-          S.token = r.data; try { sessionStorage.setItem(MOD_TOKEN_KEY, S.token); } catch (e) { /* fine */ } boot();
-        });
-      } })));
+    var u = h('input', { class: 'input', autocomplete: 'username', placeholder: 'Username' }), p = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', placeholder: 'Password' });
+    var msg = h('p', { style: 'color:var(--bad);min-height:1.2em;font-size:.86rem;margin:6px 0' });
+    box.appendChild(disclosure('Master login', function (body) {
+      if (body.childNodes.length) return;
+      add(body, [h('div', { class: 'field' }, u), h('div', { class: 'field' }, p), msg,
+        h('button', { class: 'btn block', type: 'button', text: 'Log in', onclick: function () {
+          msg.textContent = 'Checking…';
+          S.client.rpc('mod_master_login', { username: u.value, password: p.value }).then(function (r) {
+            p.value = '';
+            if (r.error) { msg.textContent = r.error.message; return; }
+            S.token = r.data; try { sessionStorage.setItem(MOD_TOKEN_KEY, S.token); } catch (e) { /* fine */ } boot();
+          });
+        } })]);
+    }));
     box.appendChild(h('button', { class: 'btn ghost', type: 'button', text: 'Check again', onclick: boot }));
+    if (pendingSignin) { var code = pendingSignin; pendingSignin = null; setTimeout(function () { confirmSignin(code); }, 250); }
+  }
+  // a tap-to-open section (the body is filled the first time it opens)
+  function disclosure(title, fill) {
+    var body = h('div', { class: 'disc-body hidden' });
+    var btn = h('button', { class: 'disc-head', type: 'button', 'aria-expanded': 'false' }, h('span', { text: title }), h('i', { text: '›' }));
+    btn.addEventListener('click', function () { var open = body.classList.contains('hidden'); if (open) fill(body); body.classList.toggle('hidden', !open); btn.setAttribute('aria-expanded', String(open)); haptic(5); });
+    return h('div', { class: 'disc' }, btn, body);
+  }
+
+  /* ======================================================================= QR sign-in (device links: supabase/migrations/2026-10-11-device-links.sql)
+     A signed-in device makes a one-time code (link_code_create, 10 minutes) and shows it as a QR of
+     https://kanaris-beans.com/scuffed_dev/app/?signin=CODE. This phone redeems it (link_code_redeem) and from then on
+     acts as that account. The APK claims /scuffed_dev/app/ links, so the phone's own camera app opens it too. */
+
+  var pendingSignin = null, signinBusy = false;
+  function signinUrl(code) { return SITE + '/scuffed_dev/app/?signin=' + code; }
+  function parseSignin(text) {
+    var s = String(text || '').trim();
+    try { var u = new URL(s); var q = u.searchParams.get('signin') || u.searchParams.get('link') || ((/#link\/([A-Za-z0-9-]+)/.exec(u.hash) || [])[1]); if (q) s = q; } catch (e) { /* not a URL: a typed code */ }
+    s = s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return /^[A-HJ-NP-Z2-9]{8}$/.test(s) ? s : null;
+  }
+  function takeSigninFromUrl() {
+    var code = parseSignin(new URLSearchParams(location.search).get('signin') || '');
+    if (new URLSearchParams(location.search).has('signin')) history.replaceState(history.state, '', location.pathname + location.hash);
+    if (code) pendingSignin = code;
+  }
+  function confirmSignin(code) {
+    var prof = window.GameSocial && window.GameSocial.me && window.GameSocial.me();
+    var mine = S.me ? 'You\'re signed in as ' + S.me.name + '. ' : prof && prof.name ? 'This phone has its own profile (' + prof.name + '). ' : '';
+    var body = h('div', null, h('p', { style: 'margin:0 0 10px;color:var(--ink2)', text: mine + 'Sign this phone in with the account that made code ' + code.slice(0, 4) + '-' + code.slice(4) + '?' }),
+      h('p', { style: 'margin:0;color:var(--ink3);font-size:.82rem', text: 'Only scan codes you made yourself: this phone will act as that account.' }));
+    var foot = [h('button', { class: 'btn', type: 'button', text: 'Cancel', onclick: function () { closeSheet(); } })];
+    if (prof && !S.me) {
+      foot.push(h('button', { class: 'btn', type: 'button', text: 'Leave it behind', onclick: function () { closeSheet(); redeemSignin(code, false); } }));
+      foot.push(h('button', { class: 'btn primary', type: 'button', text: 'Merge & sign in', onclick: function () { closeSheet(); redeemSignin(code, true); } }));
+      body.appendChild(h('p', { style: 'margin:10px 0 0;color:var(--ink3);font-size:.82rem', text: 'Merge brings this phone\'s XP, achievements and friends along; leave it behind keeps them out.' }));
+    } else foot.push(h('button', { class: 'btn primary', type: 'button', text: 'Sign in', onclick: function () { closeSheet(); redeemSignin(code, true); } }));
+    openSheet('Sign in with this code?', body, foot);
+  }
+  function redeemSignin(code, merge) {
+    if (signinBusy) return;
+    var D = window.GameSocial && window.GameSocial.device;
+    if (!D || !D.available()) { toast('Signing in with a code needs the site\'s player accounts.', 'bad'); return; }
+    signinBusy = true;
+    toast('Signing in…');
+    D.redeem(code, deviceLabel().slice(0, 40), merge).then(function () {
+      toast('Signed in. Loading your account…', 'good'); haptic(20);
+      setTimeout(function () { location.replace('/scuffed_dev/app/' + location.hash); }, 900);
+    }, function (e) {
+      signinBusy = false;
+      var m = errText(e);
+      if (/already part of that account/i.test(m)) toast('This phone is already signed in with that account.', 'good');
+      else toast(/function|schema|does not exist/i.test(m) ? 'Signing in with a code isn\'t set up on the site yet.' : m, 'bad');
+    });
+  }
+
+  // camera scanner: the browser's own QR reader (Chrome on Android) or jsQR (iPhone Safari has no reader)
+  var jsqrLoad = null;
+  function loadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('Couldn\'t load ' + src)); }; document.head.appendChild(s); }); }
+  function qrReader() {
+    var native = 'BarcodeDetector' in window ? Promise.resolve(window.BarcodeDetector.getSupportedFormats ? window.BarcodeDetector.getSupportedFormats() : ['qr_code']).catch(function () { return []; }) : Promise.resolve([]);
+    return native.then(function (formats) {
+      if (formats.indexOf('qr_code') >= 0) { var det = new window.BarcodeDetector({ formats: ['qr_code'] }); return function (video) { return det.detect(video).then(function (r) { return r && r[0] ? r[0].rawValue : null; }); }; }
+      jsqrLoad = jsqrLoad || loadScript('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js');
+      return jsqrLoad.then(function () {
+        var c = document.createElement('canvas'), g = c.getContext('2d', { willReadFrequently: true });
+        return function (video) {
+          var w = video.videoWidth, hh = video.videoHeight; if (!w || !hh) return Promise.resolve(null);
+          var k = Math.min(1, 720 / Math.max(w, hh)); c.width = Math.round(w * k); c.height = Math.round(hh * k);
+          g.drawImage(video, 0, 0, c.width, c.height);
+          var r = window.jsQR(g.getImageData(0, 0, c.width, c.height).data, c.width, c.height, { inversionAttempts: 'dontInvert' });
+          return Promise.resolve(r ? r.data : null);
+        };
+      });
+    });
+  }
+  function openScanner() {
+    var video = h('video', { playsinline: true, muted: true, autoplay: true });
+    video.muted = true; video.setAttribute('playsinline', '');
+    var status = h('p', { class: 'scan-status', text: 'Starting the camera…' });
+    var stream = null, stopped = false;
+    var stop = function () { stopped = true; if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; };
+    var code = h('input', { class: 'input grow', placeholder: 'ABCD-EFGH', maxlength: '9', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', 'aria-label': 'Sign-in code', style: 'font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase' });
+    var typed = function () { var c = parseSignin(code.value); if (!c) { toast('Codes are 8 letters and numbers, like ABCD-EFGH.', 'bad'); return; } stop(); closeSheet(); confirmSignin(c); };
+    code.addEventListener('keydown', function (e) { if (e.key === 'Enter') typed(); });
+    openSheet('Scan sign-in QR', [h('div', { class: 'scan' }, video, h('div', { class: 'scan-frame' }, h('i'), h('i'), h('i'), h('i'))), status,
+      h('div', { class: 'field', style: 'margin-top:12px' }, h('span', { text: 'Or type the code under the QR' }), h('div', { class: 'row' }, code, h('button', { class: 'btn primary', type: 'button', text: 'Go', style: 'flex:none', onclick: typed })))],
+      null, stop);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { status.textContent = 'This browser can\'t use the camera here. Type the code instead.'; return; }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } }, audio: false }).then(function (s) {
+      if (stopped) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
+      stream = s; video.srcObject = s; video.play().catch(function () {});
+      status.textContent = 'Point it at the QR on your PC.';
+      return qrReader().then(function (read) {
+        (function tick() {
+          if (stopped) return;
+          read(video).then(function (text) {
+            if (stopped) return;
+            var c = text && parseSignin(text);
+            if (c) { haptic(25); stop(); closeSheet(); confirmSignin(c); return; }
+            if (text) status.textContent = 'That QR isn\'t a scuffed_dev sign-in code.';
+            setTimeout(tick, 180);
+          }, function () { setTimeout(tick, 400); });
+        })();
+      }, function () { status.textContent = 'Couldn\'t start the QR reader. Type the code instead.'; });
+    }, function (e) {
+      status.textContent = e && e.name === 'NotAllowedError' ? 'Camera blocked. Allow camera access for scuffed_dev, or type the code instead.' : 'Couldn\'t open the camera. Type the code instead.';
+    });
+  }
+
+  // show a sign-in QR from this phone, for another device
+  var qrLibLoad = null;
+  function showSigninQr() {
+    var D = window.GameSocial && window.GameSocial.device;
+    var box = h('div', { class: 'qr-box' }, h('p', { class: 'scan-status', text: 'Making a code…' }));
+    openSheet('Sign in on another device', box, null);
+    if (!D || !D.available()) { clear(box).appendChild(h('p', { class: 'scan-status', text: 'This needs the site\'s player accounts.' })); return; }
+    D.create({}, deviceLabel().slice(0, 40)).then(function (code) {
+      clear(box);
+      var qr = h('div', { class: 'qr' });
+      var left = h('p', { class: 'scan-status' });
+      add(box, [qr, h('div', { class: 'qr-code', text: code.slice(0, 4) + '-' + code.slice(4) }), left,
+        h('p', { style: 'margin:6px 0 0;color:var(--ink3);font-size:.8rem;text-align:center', text: 'Open scuffed_dev on the other device and tap Scan sign-in QR. Works once.' })]);
+      var ends = Date.now() + 600000;
+      (function tick() { var s = Math.max(0, Math.round((ends - Date.now()) / 1000)); left.textContent = s ? 'Expires in ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : 'Expired. Close this and make a new one.'; if (s && left.isConnected) setTimeout(tick, 1000); })();
+      qrLibLoad = qrLibLoad || loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+      return qrLibLoad.then(function () { new window.QRCode(qr, { text: signinUrl(code), width: 220, height: 220, colorDark: '#0a0608', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M }); });
+    }).catch(function (e) { clear(box).appendChild(h('p', { class: 'scan-status', text: errText(e) })); });
   }
   function createProfile() {
     var pr = window.Games.Profile.get();
@@ -1166,6 +1442,8 @@
           if (prof && prof.avatar && /^data:image\//.test(prof.avatar)) mb.appendChild(h('img', { src: prof.avatar, alt: '' })); else mb.textContent = S.me.name.charAt(0).toUpperCase();
           $('nav').classList.remove('hidden');
           route();
+          if (pendingSignin) { var sc = pendingSignin; pendingSignin = null; setTimeout(function () { confirmSignin(sc); }, 300); }
+          else setTimeout(maybeWelcome, 700);
           // background: history badge, board badge, keep this phone's notification level/prefs current
           loadHistory().then(paintBadges, function () {});
           if (!board.data) loadBoard().catch(function () {});
@@ -1177,6 +1455,7 @@
   /* ======================================================================= wiring */
 
   document.addEventListener('DOMContentLoaded', function () {
+    takeSigninFromUrl();
     applyLook();
     // Android Back: close the sheet first, then step back through screens
     window.addEventListener('popstate', function () { if (backPending) backLanded(); else if (sheetOpen) closeSheet(true); });

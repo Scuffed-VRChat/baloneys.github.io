@@ -152,7 +152,7 @@ body {
 .section { margin: 18px 0 8px; padding: 0 4px; color: var(--ink3); font-family: var(--mono); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
 .list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
 
-.chips { display: flex; gap: 8px; margin: 0 calc(-1 * var(--pad)) 12px; padding: 2px var(--pad) 4px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+.chips { display: flex; gap: 8px; margin: -4px calc(-1 * var(--pad)) 8px; padding: 6px var(--pad) 10px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; scroll-padding-inline: var(--pad); }
 .chips::-webkit-scrollbar { display: none; }
 .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink2); font-size: 0.82rem; font-weight: 600; scroll-snap-align: start; white-space: nowrap; }
 .chip b { font-family: var(--mono); font-size: 0.7rem; color: var(--ink3); }
@@ -202,6 +202,7 @@ body {
 .note { position: relative; display: flex; gap: 12px; padding: 14px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--panel); text-align: left; width: 100%; }
 .note.unread { border-color: var(--hot); background: linear-gradient(110deg, color-mix(in srgb, var(--acc1) 12%, transparent), transparent 60%), var(--panel); }
 .note.unread::before { content: ""; position: absolute; top: 18px; right: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--acc1); box-shadow: 0 0 10px var(--acc1); }
+.note + .note { margin-top: 10px; }
 .note .kico { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 13px; background: rgba(255, 255, 255, 0.06); font-size: 1.15rem; }
 .note.k-deploy .kico { background: color-mix(in srgb, var(--good) 16%, transparent); }
 .note.k-announce .kico { background: color-mix(in srgb, var(--acc1) 22%, transparent); }
@@ -342,6 +343,31 @@ body {
 .gate h1 { margin: 0; font-family: var(--mono); font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; }
 .gate p { margin: 0; color: var(--ink2); }
 .gate .panel { padding: 16px; }
+
+/* sign-in: steps, tap-to-open sections */
+.gate-steps { margin: 0; padding: 14px 14px 14px 34px; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--panel); color: var(--ink2); font-size: 0.9rem; line-height: 1.5; }
+.gate-steps li + li { margin-top: 6px; }
+.gate-steps b { color: var(--ink); }
+.disc { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }
+.disc-head { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 50px; padding: 0 16px; color: var(--ink2); font-weight: 600; text-align: left; }
+.disc-head i { font-style: normal; font-size: 1.3rem; color: var(--ink3); transition: transform 0.2s ease; }
+.disc-head[aria-expanded="true"] i { transform: rotate(90deg); }
+.disc-body { padding: 0 14px 14px; }
+
+/* QR scanner + showing a sign-in QR */
+.scan { position: relative; width: 100%; max-width: 380px; margin: 0 auto; aspect-ratio: 1; border-radius: var(--r-xl); overflow: hidden; background: #000; }
+.scan video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scan-frame { position: absolute; inset: 16%; pointer-events: none; }
+.scan-frame i { position: absolute; width: 34px; height: 34px; border: 4px solid #fff; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--acc1) 70%, transparent)); }
+.scan-frame i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 14px; }
+.scan-frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 14px; }
+.scan-frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 14px; }
+.scan-frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 14px; }
+.scan-status { margin: 10px 0 0; color: var(--ink2); font-size: 0.86rem; text-align: center; }
+.qr-box { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0; }
+.qr { padding: 14px; border-radius: var(--r-lg); background: #fff; box-shadow: 0 18px 40px -18px var(--acc1); line-height: 0; }
+.qr img, .qr canvas { display: block; width: 220px; height: 220px; }
+.qr-code { font-family: var(--mono); font-size: 1.5rem; font-weight: 800; letter-spacing: 0.14em; }
 .spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.12); border-top-color: var(--acc1); border-right-color: var(--acc2); animation: spin 0.8s linear infinite; }
 
 /* ---------- studio (Settings > Appearance) ---------- */

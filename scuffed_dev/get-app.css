@@ -1,0 +1,50 @@
+/* scuffed_dev/get-app.css: the "Get the app" card on the scuffed_dev hub (get-app.js). Panels, buttons and notes
+   come from /scuffed_perms/perms.css and /scuffed_dev/theme.css. */
+
+.get-app {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 60%),
+    var(--color-surface);
+}
+.ga-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); }
+.ga-head h2 { margin: 0; }
+.ga-head .perms-note { margin: 4px 0 0; }
+
+/* Android / iOS switch */
+.ga-seg { display: inline-flex; padding: 4px; gap: 4px; border: 1px solid var(--perms-line); border-radius: var(--border-radius-full); background: rgba(0, 0, 0, 0.35); }
+.ga-seg button {
+  min-width: 6.5rem; padding: 8px 16px; border: 0; border-radius: var(--border-radius-full); background: transparent;
+  color: var(--db-ink); font-family: var(--font-family-heading); font-size: var(--font-size-sm); font-weight: 700; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ga-seg button:hover { color: #fff; }
+.ga-seg button.on { color: #fff; background: var(--scd-gloss), var(--scd-fill); box-shadow: var(--scd-bevel); }
+
+.ga-cols { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: var(--spacing-xl); align-items: start; }
+.ga-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--spacing-md); }
+.ga-step { display: flex; gap: var(--spacing-md); align-items: flex-start; }
+.ga-n {
+  flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  font-family: var(--font-family-heading); font-weight: 800; color: #fff; background: var(--scd-gloss), var(--scd-fill); box-shadow: var(--scd-bevel);
+}
+.ga-step-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-top: 4px; }
+.ga-step-text span { color: var(--db-ink); font-size: var(--font-size-sm); }
+.ga-dl { align-self: flex-start; margin: 4px 0; }
+.ga-link { font-family: var(--font-family-heading); overflow-wrap: anywhere; }
+
+.ga-qr-col { padding: var(--spacing-md); border: 1px solid var(--perms-line); border-radius: var(--border-radius-lg); background: rgba(0, 0, 0, 0.3); }
+.ga-qr-out { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); text-align: center; }
+.ga-qr-out .perms-note { margin: 0; }
+.ga-qr { padding: 12px; border-radius: var(--border-radius-md); background: #fff; line-height: 0; box-shadow: 0 18px 40px -18px var(--color-primary); transition: opacity 0.2s ease; }
+.ga-qr img, .ga-qr canvas { display: block; width: 200px; height: 200px; }
+.ga-qr.is-expired { opacity: 0.25; }
+.ga-code { font-family: var(--font-family-heading); font-size: var(--font-size-xl); font-weight: 800; letter-spacing: 0.14em; }
+
+@media (max-width: 760px) {
+  .ga-cols { grid-template-columns: 1fr; }
+  .ga-seg { width: 100%; }
+  .ga-seg button { flex: 1; }
+}

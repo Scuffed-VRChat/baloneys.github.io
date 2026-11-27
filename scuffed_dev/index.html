@@ -7,7 +7,9 @@
     <meta name="description" content="Staff hub for Scuffed VRChat world development: the dev board, permissions and announcements." />
     <meta name="theme-color" content="#050505" />
     <meta name="robots" content="noindex, nofollow" />
-    <link rel="icon" href="/public/pw64s5dmavz539gvjm065tw71xp1.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/scuffed_dev/app/icons/icon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/scuffed_dev/app/icons/icon-96.png" type="image/png" sizes="96x96" />
+    <link rel="apple-touch-icon" href="/scuffed_dev/app/icons/icon-180.png" />
 
     <script>document.documentElement.classList.remove("no-js")</script>
 
@@ -31,6 +33,7 @@
     <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-7" />
     <link rel="stylesheet" href="/scuffed_dev/board.css?v=20261128-1" />
     <link rel="stylesheet" href="/scuffed_dev/home.css?v=20261124-2" />
+    <link rel="stylesheet" href="/scuffed_dev/get-app.css?v=20261128-1" />
 
     <!-- the site's player accounts and social dock (profile, friends, notifications), same as /chat -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
@@ -45,6 +48,7 @@
     <script src="/scuffed_dev/deploy.js?v=20261128-3" defer></script>
     <script src="/scuffed_dev/core.js?v=20261124-2" defer></script>
     <script src="/scuffed_dev/home.js?v=20261127-2" defer></script>
+    <script src="/scuffed_dev/get-app.js?v=20261128-1" defer></script>
     <link rel="stylesheet" href="/scuffed_dev/deploy.css?v=20261128-1" />
     <link rel="stylesheet" href="/scuffed_dev/theme.css?v=20261128-1" />
   </head>
@@ -156,6 +160,9 @@
         <p class="perms-status hidden" id="hubStatus" role="status"></p>
 
         <div class="hub-pages" id="hubPages" aria-label="scuffed_dev pages"></div>
+
+        <!-- the scuffed_dev app: download (Android APK / iOS web app) + sign-in QR (get-app.js) -->
+        <section class="perms-panel get-app" id="getApp" aria-label="Get the scuffed_dev app"></section>
 
         <div class="hub-panes">
           <section class="perms-panel" aria-labelledby="hubActiveTitle">
