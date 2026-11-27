@@ -22,4 +22,4 @@ baloneys is tired
 Epsi is a femboy
 Fenic is hungry
 
-[notifier] @2026-11-27T14:02:18Z A new update was released yesterday! Check the patch notes in spawn as they're now live!
+[notifier] @2026-11-27T21:56:47Z Test mobile push
