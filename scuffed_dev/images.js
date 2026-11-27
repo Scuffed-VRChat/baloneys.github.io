@@ -54,7 +54,6 @@
     head: null,
     files: {},          // path -> { path, folder, name, sha, size }
     manifest: {},       // path -> { w, h, from, by, at, placeholder, source, approvedBy, note }
-    thumbs: {},         // path -> { sha, url }  (keeps a picture's URL while its sha doesn't change)
     suggestions: [],    // [{ id, path, sha, file, blob, w, h, from, note, by, at }]
     suggestHead: null,
     suggFilter: null,   // show only the suggestions for this path
@@ -99,8 +98,77 @@
   }
   function inFolder(f) { return Object.keys(S.files).filter(function (p) { return folderOf(p) === f; }).sort(function (a, b) { return natural(nameOf(a), nameOf(b)); }); }
   function suggFor(p) { return S.suggestions.filter(function (s) { return s.path === p; }); }
-  function thumb(p) { var t = S.thumbs[p]; return t ? t.url : ''; }
-  function suggThumb(s) { return S.suggestHead ? RAW + S.suggestHead + '/' + s.file : ''; }
+  /* ---------- pictures: cached by content hash ---------- */
+  // A picture's git blob sha only changes when its bytes do, so the sha is the verifiable change. Each picture is
+  // downloaded once, kept in the browser's Cache Storage under its sha (it survives reloads) and as an object URL
+  // for this tab. Polls, other people's saves and re-renders never download it again; a new sha does.
+  var PIC_CACHE = 'scd-images-pics-v1';
+  var pics = {};      // sha -> object URL
+  var picWait = {};   // sha -> [img, ...] waiting for it
+  var picBusy = {};   // sha -> fetching now
+  function picKey(sha) { return 'https://scd-pics.invalid/' + sha; }
+  function rawFor(p) { return RAW + S.head + '/' + DIR + p; }
+  function rawSugg(s) { return S.suggestHead ? RAW + S.suggestHead + '/' + s.file : ''; }
+  function thumb(p) { var f = S.files[p]; return f ? pics[f.sha] || rawFor(p) : ''; }
+  function suggThumb(s) { return pics[s.blob] || rawSugg(s); }
+
+  // Show picture `sha` in img: the cached copy straight away, or as soon as it arrives. A shown picture is never
+  // reloaded (same src = no request, no flash).
+  function setPic(img, sha, url) {
+    img.setAttribute('data-sha', sha || '');
+    if (sha && pics[sha]) {
+      if (img.getAttribute('src') !== pics[sha]) img.src = pics[sha];
+      img.classList.remove('is-loading');
+      return;
+    }
+    if (!sha) { if (url) img.src = url; return; }
+    img.classList.add('is-loading');
+    (picWait[sha] = picWait[sha] || []).push(img);
+    loadPic(sha, url);
+  }
+
+  function loadPic(sha, url) {
+    if (picBusy[sha] || !url) return;
+    picBusy[sha] = true;
+    var done = function (src) {
+      delete picBusy[sha];
+      (picWait[sha] || []).forEach(function (img) {
+        if (img.getAttribute('data-sha') !== sha) return;   // the element has moved on to another picture
+        img.src = src;
+        img.classList.remove('is-loading');
+      });
+      delete picWait[sha];
+    };
+    var fromNet = function (cache) {
+      return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (cache) cache.put(picKey(sha), r.clone()).catch(function () {});
+        return r.blob();
+      });
+    };
+    var get = window.caches
+      ? caches.open(PIC_CACHE).then(function (c) { return c.match(picKey(sha)).then(function (hit) { return hit ? hit.blob() : fromNet(c); }); })
+      : fromNet(null);
+    get.then(function (blob) { pics[sha] = URL.createObjectURL(blob); done(pics[sha]); }, function () { done(url); });
+  }
+
+  // A picture we already hold (just uploaded): no download needed, now or after a reload.
+  function rememberPic(sha, blob) {
+    if (!sha || !blob || pics[sha]) return;
+    pics[sha] = URL.createObjectURL(blob);
+    if (window.caches) caches.open(PIC_CACHE).then(function (c) { return c.put(picKey(sha), new Response(blob, { headers: { 'Content-Type': 'image/png' } })); }).catch(function () {});
+  }
+
+  // Drop cached pictures no file or suggestion uses any more, so the cache doesn't grow forever.
+  function prunePics() {
+    if (!window.caches) return;
+    var keep = {};
+    Object.keys(S.files).forEach(function (p) { keep[picKey(S.files[p].sha)] = true; });
+    S.suggestions.forEach(function (s) { keep[picKey(s.blob)] = true; });
+    caches.open(PIC_CACHE).then(function (c) {
+      return c.keys().then(function (reqs) { reqs.forEach(function (r) { if (!keep[r.url]) c.delete(r); }); });
+    }).catch(function () {});
+  }
   function worldUrl(p) { return SITE + p; }
   // The cropper's last shape / resolution / fit for a folder, so the next upload starts the same way.
   function prefsFor(f) {
@@ -189,7 +257,7 @@
         a.title = 'Open this commit on GitHub';
         li.appendChild(a);
       }
-      ol.appendChild(li);
+      ol.appendChild(fresh(li, r.local ? 'log:' + r.local.at + r.local.text : 'log:' + r.commit.sha));
     });
   }
 
@@ -358,8 +426,6 @@
     (data.files || []).forEach(function (f) {
       if (!/\.png$/i.test(f.path) || f.path.indexOf('/') < 0) return;
       files[f.path] = { path: f.path, folder: folderOf(f.path), name: nameOf(f.path), sha: f.sha, size: f.size };
-      var t = S.thumbs[f.path];
-      if (!t || t.sha !== f.sha) S.thumbs[f.path] = { sha: f.sha, url: RAW + data.head + '/' + DIR + f.path };
     });
     S.files = files;
     S.suggestions = (data.suggestions || []).slice().sort(function (a, b) { return SD.time(a.at) - SD.time(b.at); });
@@ -369,10 +435,24 @@
     S.loaded = true;
   }
 
+  var lastSig = '';
   function load(quiet) {
     return Promise.all([worker('/images'), worker('/images/log').catch(function () { return null; })]).then(function (r) {
+      var d = r[0];
+      // An answer from before one of our own saves (GitHub caches "newest commit" for up to a minute): keep what
+      // we have rather than flipping back to the old pictures. The next poll gets the real state.
+      if (S.loaded && (oldHeads[d.head] || (d.suggestHead && oldSuggHeads[d.suggestHead]))) { renderLog(); return; }
+      // Nothing changed since the last answer: leave the grid exactly as it is.
+      var sig = d.head + '|' + (d.suggestHead || '') + '|' + (d.suggestions || []).length;
+      if (S.loaded && quiet && sig === lastSig) {
+        if (r[1]) S.commits = (r[1].commits || []).map(parseCommit);
+        renderLog();
+        return;
+      }
+      lastSig = sig;
       var before = S.head, beforeSugg = S.suggestions.length;
-      applyList(r[0]);
+      applyList(d);
+      if (!quiet) prunePics();
       if (r[1]) S.commits = (r[1].commits || []).map(parseCommit);
       if (!S.folder || (S.folder !== SUGG && folders().indexOf(S.folder) < 0)) pickFolder(fromHash() || folders()[0] || 'posters', true);
       SD.status('imStatus', '');
@@ -494,8 +574,8 @@
     th.type = 'button';
     th.title = 'Open ' + f.name;
     var img = el('img');
-    img.loading = 'lazy'; img.decoding = 'async'; img.alt = f.name;
-    img.src = thumb(p);
+    img.decoding = 'async'; img.alt = f.name;
+    setPic(img, f.sha, rawFor(p));
     th.appendChild(img);
     th.addEventListener('click', function () { openDialog(p); });
     c.appendChild(th);
@@ -572,7 +652,7 @@
     var before = el('div', 'im-sugg-side');
     before.appendChild(el('span', 'im-sugg-cap', S.files[s.path] ? 'Now on the site' : 'New slot'));
     var bt = el('div', 'im-thumb im-checker');
-    if (S.files[s.path]) { var bi = el('img'); bi.src = thumb(s.path); bi.alt = 'Current ' + s.path; bt.appendChild(bi); }
+    if (S.files[s.path]) { var bi = el('img'); setPic(bi, S.files[s.path].sha, rawFor(s.path)); bi.alt = 'Current ' + s.path; bt.appendChild(bi); }
     else bt.appendChild(el('span', 'im-sugg-empty', '+'));
     before.appendChild(bt);
     pair.appendChild(before);
@@ -580,8 +660,8 @@
     var after = el('div', 'im-sugg-side');
     after.appendChild(el('span', 'im-sugg-cap is-new', 'Suggested'));
     var at = el('a', 'im-thumb im-checker');
-    at.href = suggThumb(s); at.target = '_blank'; at.rel = 'noopener'; at.title = 'Open full size';
-    var ai = el('img'); ai.src = suggThumb(s); ai.alt = 'Suggested ' + s.path; ai.loading = 'lazy';
+    at.href = rawSugg(s); at.target = '_blank'; at.rel = 'noopener'; at.title = 'Open full size';
+    var ai = el('img'); setPic(ai, s.blob, rawSugg(s)); ai.alt = 'Suggested ' + s.path;
     at.appendChild(ai);
     after.appendChild(at);
     pair.appendChild(after);
@@ -640,7 +720,7 @@
       f.appendChild(all);
       grid.appendChild(f);
     }
-    list.forEach(function (s) { grid.appendChild(suggCard(s)); });
+    list.forEach(function (s) { grid.appendChild(fresh(suggCard(s), 'sugg:' + s.id)); });
     var pend = S.pending.filter(function (it) { return it.mode === 'suggest'; });
     pend.forEach(function (it) { grid.appendChild(pendingCard(it)); });
     var empty = !list.length && !pend.length;
@@ -649,10 +729,31 @@
     $('imEmpty').querySelector('span').textContent = canSuggest() && !canEdit() ? 'Pick a folder and drop images in to suggest them.' : 'When an admin suggests an image it shows up here.';
   }
 
+  // Cards are kept between renders and only rebuilt when something about that image changed (its sha, details,
+  // selection, suggestion count or your level), so a re-render never reloads or re-animates a picture.
+  var cardCache = {};   // path -> { key, el }
+  var seen = {};        // things already drawn once: only brand-new cards / rows fade in
+  function cardKey(p) {
+    var f = S.files[p];
+    return [f.sha, f.size, JSON.stringify(S.manifest[p] || {}), !!S.selected[p], suggFor(p).length, SD.level()].join('|');
+  }
+  function cardFor(p) {
+    var k = cardKey(p), c = cardCache[p];
+    if (!c || c.key !== k) { c = cardCache[p] = { key: k, el: card(p) }; }
+    return c.el;
+  }
+  function fresh(el, id) {
+    if (seen[id]) { el.classList.remove('is-new'); return el; }
+    seen[id] = true;
+    el.classList.add('is-new');
+    return el;
+  }
+
   function renderGrid() {
     var grid = $('imGrid');
     grid.textContent = '';
     grid.classList.remove('is-sugg');
+    Object.keys(cardCache).forEach(function (p) { if (!S.files[p]) delete cardCache[p]; });
     if (S.folder === SUGG) return renderSuggestions(grid);
     var q = S.search.trim().toLowerCase();
     var list = inFolder(S.folder).filter(function (p) {
@@ -663,7 +764,7 @@
     var pend = S.pending.filter(function (it) { return it.folder === S.folder; });
     var replacing = {};
     pend.forEach(function (it) { if (it.replaceSha && it.mode === 'save') replacing[it.path] = it; });
-    list.forEach(function (p) { grid.appendChild(replacing[p] ? pendingCard(replacing[p]) : card(p)); });
+    list.forEach(function (p) { grid.appendChild(replacing[p] ? pendingCard(replacing[p]) : fresh(cardFor(p), 'card:' + p + ':' + S.files[p].sha)); });
     pend.forEach(function (it) { if (!replacing[it.path] || !S.files[it.path]) grid.appendChild(pendingCard(it)); });
     show('imEmpty', !grid.childNodes.length);
     $('imEmpty').querySelector('strong').textContent = q ? 'No images match “' + S.search.trim() + '”' : 'This folder is empty';
@@ -695,11 +796,11 @@
     dlgPath = p;
     var m = S.manifest[p] || {};
     $('imDlgTitle').textContent = f.name;
-    $('imDlgImg').src = thumb(p);
+    setPic($('imDlgImg'), f.sha, rawFor(p));
     $('imDlgImg').alt = f.name;
     $('imDlgUrl').value = worldUrl(p);
     $('imDlgName').value = f.name.replace(/\.png$/, '');
-    $('imDlgDownload').href = thumb(p);
+    $('imDlgDownload').href = rawFor(p);
     var dl = $('imDlgFacts');
     dl.textContent = '';
     function fact(k, v) { if (!v) return; dl.appendChild(el('dt', null, k)); dl.appendChild(el('dd', null, v)); }
@@ -921,7 +1022,7 @@
   function recrop(p) {
     if (!canAdd() || !S.files[p]) return;
     log('work', 'Opening ' + p + ' in the cropper…');
-    fetch(thumb(p), { cache: 'force-cache' }).then(function (r) {
+    fetch(thumb(p)).then(function (r) {   // the cached copy when we have it, no download
       if (!r.ok) throw new Error('the site answered ' + r.status);
       return r.blob();
     }).then(function (blob) {
@@ -1020,6 +1121,7 @@
           var ops = batch.map(function (it, i) { return { op: 'put', path: it.path, sha: it.replaceSha, data: datas[i], from: it.file.name }; });
           return worker('/images', { ops: ops });
         }).then(function (res) {
+          newHead('main', res.commit);
           (res.changes || []).forEach(function (c) { applyChange(c, batch); });
           batch.forEach(function (it) {
             S.manifest[it.path] = { w: it.w, h: it.h, from: it.file.name, by: myName() || 'you', at: new Date().toISOString() };
@@ -1068,7 +1170,12 @@
           return Promise.all(batch.map(function (it) { return toBase64(it.blob); })).then(function (datas) {
             return worker('/images/suggest', { note: note, items: batch.map(function (it, i) { return { path: it.path, sha: it.replaceSha, data: datas[i], from: it.file.name }; }) });
           }).then(function (res) {
-            (res.suggestions || []).forEach(function (s) { S.suggestions.push(s); });
+            newHead('suggest', res.commit);
+            (res.suggestions || []).forEach(function (s) {
+              S.suggestions.push(s);
+              var it = batch.filter(function (b) { return b.path === s.path; })[0];
+              if (it) rememberPic(s.blob, it.blob);   // we already have its picture: never download it
+            });
             batch.forEach(function (it) { setState(it, 'sent'); });
             S.pending = S.pending.filter(function (it) { return batch.indexOf(it) < 0; });
             log('good', 'Sent for approval: ' + batch.map(function (it) { return it.path; }).join(', ') + '.');
@@ -1085,11 +1192,24 @@
   }
 
   function applyChange(c, batch) {
-    if (!c.sha) { delete S.files[c.path]; delete S.thumbs[c.path]; delete S.manifest[c.path]; return; }
+    if (!c.sha) { delete S.files[c.path]; delete S.manifest[c.path]; return; }
     var it = batch && batch.filter(function (b) { return b.path === c.path; })[0];
     var old = S.files[c.path];
     S.files[c.path] = { path: c.path, folder: folderOf(c.path), name: nameOf(c.path), sha: c.sha, size: it ? it.blob.size : (old ? old.size : 0) };
-    if (it) S.thumbs[c.path] = { sha: c.sha, url: it.url };
+    if (it) rememberPic(c.sha, it.blob);   // the PNG we just sent is the picture for that sha
+  }
+
+  // Our own save moved a branch on. Remember the commit it replaced: GitHub can still answer "newest commit" with
+  // that older one for up to a minute, and a poll must not take the page back to it (that was the flashing).
+  var oldHeads = {}, oldSuggHeads = {};
+  function newHead(kind, commit) {
+    if (kind === 'main') {
+      if (S.head && S.head !== commit) oldHeads[S.head] = true;
+      if (commit) S.head = commit;
+    } else {
+      if (S.suggestHead && S.suggestHead !== commit) oldSuggHeads[S.suggestHead] = true;
+      if (commit) S.suggestHead = commit;
+    }
   }
 
   function refreshLog() {
@@ -1114,10 +1234,12 @@
     saveChain = saveChain.then(function () {
       return worker('/images/review', { id: s.id, action: action, reason: reason, force: !!force }).then(function (res) {
         S.suggestions = S.suggestions.filter(function (x) { return x.id !== s.id; });
+        newHead('suggest', null);   // the suggestions branch moved on (its new commit isn't returned)
         if (action === 'approve' && res.sha) {
+          newHead('main', res.commit);
           var old = S.files[s.path];
           S.files[s.path] = { path: s.path, folder: folderOf(s.path), name: nameOf(s.path), sha: res.sha, size: old ? old.size : 0 };
-          S.thumbs[s.path] = { sha: res.sha, url: suggThumb(s) };
+          // same blob as the suggestion, so its cached picture is already the right one
           S.manifest[s.path] = { w: s.w, h: s.h, from: s.from, by: s.by, approvedBy: myName(), at: new Date().toISOString(), note: s.note };
         }
         log('good', { approve: 'Approved: ' + s.path + ' is on the site now.', reject: 'Rejected the suggestion for ' + s.path + '.', withdraw: 'Withdrew your suggestion for ' + s.path + '.' }[action]);
@@ -1143,12 +1265,12 @@
     saveChain = saveChain.then(function () {
       log('work', what + '…');
       return worker('/images', { ops: ops }).then(function (res) {
+        newHead('main', res.commit);
         var moved = {};
         ops.forEach(function (o) { if (o.op === 'move') moved[o.to] = o.path; });
         (res.changes || []).forEach(function (c) {
           if (c.sha && moved[c.path]) {
-            var from = moved[c.path];
-            S.thumbs[c.path] = S.thumbs[from];
+            var from = moved[c.path];   // same sha after a rename, so the cached picture carries over
             S.manifest[c.path] = S.manifest[from];
             var old = S.files[from];
             S.files[c.path] = { path: c.path, folder: folderOf(c.path), name: nameOf(c.path), sha: c.sha, size: old ? old.size : 0 };
