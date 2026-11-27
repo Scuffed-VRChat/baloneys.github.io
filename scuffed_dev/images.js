@@ -29,21 +29,20 @@
   var POLL_MS = 30000;
   var BATCH_BYTES = 4 * 1024 * 1024;   // per request to the Worker (it refuses more than 10 MB)
   var BATCH_COUNT = 8;
-  var POPUP_AFTER_MS = 250;            // quick single conversions finish before the pop-up would even show
+  var POPUP_AFTER_MS = 0;              // the progress pop-up opens as soon as a conversion starts
   var SLOW_AFTER_MS = 3000;
   var NAME_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
   var SUGG = '@suggestions';           // the folder bar's Suggestions tab
 
   // Folders the world already uses, in this order; any other folder shows after them.
   var KNOWN = {
-    posters: { label: 'Posters', shape: 'a4fill', note: 'A4 poster slots, numbered. New images are cropped to A4 unless you pick another shape.' },
+    posters: { label: 'Posters', shape: 'a4p', note: 'A4 poster slots, numbered. The cropper starts on A4 portrait here.' },
     players: { label: 'Players', note: 'Player and premium member photos.' },
     scuffed: { label: 'Scuffed', note: 'Scuffed’s own pictures and logos.' },
     events: { label: 'Events', note: 'Event and partner group logos.' },
     ads: { label: 'Ads', note: 'Advertisement boards and wall art.' }
   };
   var ORDER = Object.keys(KNOWN);
-  var SHAPES = { keep: 'Keep shape', a4fill: 'A4 fill', a4fit: 'A4 fit' };
   var STAGES = {   // how far along a file is at each stage (the overall bar averages these)
     queued: [0, 'Waiting'], reading: [0.08, 'Reading'], decoded: [0.35, 'Resizing'], resized: [0.6, 'Encoding PNG'],
     converted: [0.82, 'Converted'], ready: [0.85, 'Ready to send'], uploading: [0.92, 'Uploading'],
@@ -102,11 +101,18 @@
   function thumb(p) { var t = S.thumbs[p]; return t ? t.url : ''; }
   function suggThumb(s) { return S.suggestHead ? RAW + S.suggestHead + '/' + s.file : ''; }
   function worldUrl(p) { return SITE + p; }
-  function shapeFor(f) {
-    try { var v = localStorage.getItem('scd-images-shape:' + f); if (SHAPES[v]) return v; } catch (e) { /* private mode */ }
-    return (KNOWN[f] && KNOWN[f].shape) || 'keep';
+  // The cropper's last shape / resolution / fit for a folder, so the next upload starts the same way.
+  function prefsFor(f) {
+    try { var v = JSON.parse(localStorage.getItem('scd-images-crop:' + f) || 'null'); if (v && v.shape) return v; } catch (e) { /* private mode */ }
+    return { shape: (KNOWN[f] && KNOWN[f].shape) || 'original', size: 512, pad: false };
   }
-  function setShape(f, v) { try { localStorage.setItem('scd-images-shape:' + f, v); } catch (e) { /* fine */ } }
+  function setPrefs(f, v) { try { localStorage.setItem('scd-images-crop:' + f, JSON.stringify(v)); } catch (e) { /* fine */ } }
+  function isPng(blob) {
+    return blob.slice(0, 8).arrayBuffer().then(function (b) {
+      var u = new Uint8Array(b), sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+      return u.length === 8 && sig.every(function (v, i) { return u[i] === v; });
+    });
+  }
 
   /* ---------- the console ---------- */
 
@@ -216,18 +222,27 @@
 
   /* ---------- converting: any image -> PNG, in a background worker ---------- */
 
-  // Where the picture goes on the output canvas. Pure: also runs inside the background worker.
-  function plan(sw, sh, shape) {
-    var MAX = 512, AW = 362, AH = 512, s;
-    if (shape === 'a4fill' || shape === 'a4fit') {
-      s = shape === 'a4fill' ? Math.max(AW / sw, AH / sh) : Math.min(AW / sw, AH / sh);
-      var cw = shape === 'a4fill' ? AW / s : sw, ch = shape === 'a4fill' ? AH / s : sh;
-      var dw = shape === 'a4fill' ? AW : Math.max(1, Math.round(sw * s)), dh = shape === 'a4fill' ? AH : Math.max(1, Math.round(sh * s));
-      return { w: AW, h: AH, sx: (sw - cw) / 2, sy: (sh - ch) / 2, sw: cw, sh: ch, dx: Math.round((AW - dw) / 2), dy: Math.round((AH - dh) / 2), dw: dw, dh: dh };
+  // Where the picture goes on the output canvas, from the cropper's choice o = { crop, ratio, size, pad }:
+  //   crop {x,y,w,h}  cut exactly that part (source px)      pad + ratio  whole picture, padded to that shape
+  //   ratio only      the centred part with that shape        nothing     the whole picture
+  // The longest side of the result is o.size (Unity max size: 512 or less). Pure: also runs in the worker.
+  function plan(sw, sh, o) {
+    o = o || {};
+    var N = Math.max(1, Math.min(512, o.size || 512)), r = o.ratio, c = o.crop;
+    if (o.pad && r) {
+      var W = r >= 1 ? N : Math.max(1, Math.round(N * r)), H = r >= 1 ? Math.max(1, Math.round(N / r)) : N;
+      var s = Math.min(W / sw, H / sh), dw = Math.max(1, Math.round(sw * s)), dh = Math.max(1, Math.round(sh * s));
+      return { w: W, h: H, sx: 0, sy: 0, sw: sw, sh: sh, dx: Math.round((W - dw) / 2), dy: Math.round((H - dh) / 2), dw: dw, dh: dh };
     }
-    s = MAX / Math.max(sw, sh);
-    var w = Math.max(1, Math.round(sw * s)), h = Math.max(1, Math.round(sh * s));
-    return { w: w, h: h, sx: 0, sy: 0, sw: sw, sh: sh, dx: 0, dy: 0, dw: w, dh: h };
+    if (!c && r) {
+      if (sw / sh > r) { var cw0 = sh * r; c = { x: (sw - cw0) / 2, y: 0, w: cw0, h: sh }; }
+      else { var ch0 = sw / r; c = { x: 0, y: (sh - ch0) / 2, w: sw, h: ch0 }; }
+    }
+    if (!c) c = { x: 0, y: 0, w: sw, h: sh };
+    var x = Math.max(0, Math.min(c.x, sw - 1)), y = Math.max(0, Math.min(c.y, sh - 1));
+    var cw = Math.max(1, Math.min(c.w, sw - x)), ch = Math.max(1, Math.min(c.h, sh - y));
+    var k = N / Math.max(cw, ch), w = Math.max(1, Math.round(cw * k)), h = Math.max(1, Math.round(ch * k));
+    return { w: w, h: h, sx: x, sy: y, sw: cw, sh: ch, dx: 0, dy: 0, dw: w, dh: h };
   }
 
   // Halves big pictures a step at a time before the last draw, so a 4K photo doesn't come out jagged. Pure.
@@ -251,7 +266,7 @@
       var d = e.data;
       createImageBitmap(d.file).then(function (bmp) {
         self.postMessage({ id: d.id, stage: 'decoded' });
-        var p = plan(bmp.width, bmp.height, d.shape);
+        var p = plan(bmp.width, bmp.height, d.opts);
         var out = draw(function (w, h) { return new OffscreenCanvas(w, h); }, bmp, p);
         var sw = bmp.width, sh = bmp.height;
         bmp.close();
@@ -285,7 +300,7 @@
   }
 
   // Fallback on the page itself: anything an <img> can show (SVG, or when the worker can't read the file).
-  function convertHere(file, shape, stage) {
+  function convertHere(file, opts, stage) {
     return new Promise(function (resolve, reject) {
       var url = URL.createObjectURL(file);
       var img = new Image();
@@ -294,7 +309,7 @@
         // let the pop-up paint before the (blocking) canvas work
         setTimeout(function () {
           var sw = img.naturalWidth || 512, sh = img.naturalHeight || 512;
-          var p = plan(sw, sh, shape);
+          var p = plan(sw, sh, opts);
           var out = draw(function (w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }, img, p);
           stage('resized');
           out.toBlob(function (blob) {
@@ -309,14 +324,14 @@
     });
   }
 
-  function convert(file, shape, stage) {
+  function convert(file, opts, stage) {
     var w = background();
     var first = w ? new Promise(function (resolve, reject) {
       var id = ++seq;
       bgWaiting[id] = { stage: stage, done: function (d) { if (d.error) reject(new Error(d.error)); else resolve(d); } };
-      w.postMessage({ id: id, file: file, shape: shape });
+      w.postMessage({ id: id, file: file, opts: opts });
     }) : Promise.reject(new Error('no worker'));
-    return first.catch(function () { return convertHere(file, shape, stage); }).catch(function () {
+    return first.catch(function () { return convertHere(file, opts, stage); }).catch(function () {
       var ext = (/\.([a-z0-9]+)$/i.exec(file.name || '') || [])[1] || file.type || 'this';
       var hint = /heic|heif/i.test(ext) ? ' (iPhone photos: Safari can read these, or save the photo as JPG first)' :
         /psd|tiff?|raw|cr2|nef|dng/i.test(ext) ? ' (export it as PNG or JPG first)' : '';
@@ -455,13 +470,8 @@
 
   function renderToolbar() {
     var inSugg = S.folder === SUGG;
-    show($('imShape'), canAdd() && !inSugg);
     show('imUpload', canAdd() && !inSugg);
     $('imUploadText').textContent = canEdit() ? 'Upload' : 'Suggest images';
-    var cur = shapeFor(S.folder);
-    document.querySelectorAll('#imShape [data-shape]').forEach(function (b) {
-      b.setAttribute('aria-checked', String(b.getAttribute('data-shape') === cur));
-    });
     $('imSearch').placeholder = inSugg ? 'Find a suggestion' : 'Find an image';
     var note = KNOWN[S.folder] && KNOWN[S.folder].note;
     var how = !canAdd() ? 'View only'
@@ -844,38 +854,62 @@
     if (!files.length || !S.loaded || !canAdd()) return;
     if (job && job.phase !== 'done' && job.phase !== 'cancelled') { log('bad', 'Still working on the last batch. Drop these again when it finishes.'); openProg(); return; }
     if (job) { closeProg(); job = null; }
+    if (window.ScuffedCrop && window.ScuffedCrop.isOpen()) return;
     var folder = opts.folder || (S.folder === SUGG ? folders()[0] : S.folder);
     if (opts.replace) files = files.slice(0, 1);
-    var shape = shapeFor(folder);
     var mode = canEdit() ? 'save' : 'suggest';
+    // names first, so the cropper can say where each picture goes
     var taken = {};
     S.pending.forEach(function (it) { if (it.state !== 'failed' && it.state !== 'cancelled') taken[it.path] = true; });
-    var items = files.map(function (file) {
-      var path = opts.replace || newName(folder, file.name, taken);
-      taken[path] = true;
-      return { id: ++seq, file: file, folder: folder, path: path, name: nameOf(path), replaceSha: opts.replace ? S.files[opts.replace].sha : null, state: 'queued', shape: shape, mode: mode };
+    var paths = files.map(function (file) { var p = opts.replace || newName(folder, file.name, taken); taken[p] = true; return p; });
+    var cur = opts.replace ? S.manifest[opts.replace] || {} : null;
+    window.ScuffedCrop.open({
+      files: files,
+      prefs: prefsFor(folder),
+      replace: opts.replace ? { path: opts.replace, w: cur.w, h: cur.h } : null,
+      targetFor: function (f, i) { return paths[i]; },
+      title: mode === 'save' ? (opts.replace ? 'Replace ' + nameOf(opts.replace) : 'Crop & confirm') : (opts.replace ? 'Suggest a replacement for ' + nameOf(opts.replace) : 'Crop & suggest'),
+      confirmText: mode === 'save' ? (opts.replace ? 'Replace' : 'Upload') : 'Suggest'
+    }).then(function (res) {
+      if (!opts.replace) setPrefs(folder, res.prefs);
+      if (!res.items.length) { log('info', 'Nothing uploaded: cancelled in the cropper.'); return; }
+      var chosen = res.items.map(function (r) {
+        var i = files.indexOf(r.file);
+        return { id: ++seq, file: r.file, folder: folder, path: paths[i], name: nameOf(paths[i]), replaceSha: opts.replace ? S.files[opts.replace].sha : null, state: 'queued', opts: r.opts, mode: mode };
+      });
+      startJob(chosen, mode, opts.replace);
     });
+  }
+
+  // Convert the confirmed pictures one at a time in the background (progress pop-up open the whole time), check
+  // each really is a PNG, then save them (developers) or wait for "Send" (admins).
+  function startJob(items, mode, replace) {
     S.pending = S.pending.filter(function (it) { return it.state !== 'failed' && it.state !== 'cancelled'; }).concat(items);
     job = { items: items, mode: mode, started: Date.now(), popup: false, cancelled: false, phase: 'converting' };
     var j = job;
     setPhase('converting');
     setTimeout(function () { if (job === j && j.phase === 'converting') openProg(); }, POPUP_AFTER_MS);
-    var verb = mode === 'save' ? (opts.replace ? 'Replacing ' + opts.replace + ' with ' + files[0].name : 'Adding ' + plural(items.length, 'image') + ' to ' + label(folder))
-      : (opts.replace ? 'Suggesting ' + files[0].name + ' for ' + opts.replace : 'Suggesting ' + plural(items.length, 'image') + ' for ' + label(folder));
-    log('work', verb + ' (' + SHAPES[shape].toLowerCase() + ')…');
+    var verb = mode === 'save' ? (replace ? 'Replacing ' + replace + ' with ' + items[0].file.name : 'Adding ' + plural(items.length, 'image') + ' to ' + label(items[0].folder))
+      : (replace ? 'Suggesting ' + items[0].file.name + ' for ' + replace : 'Suggesting ' + plural(items.length, 'image') + ' for ' + label(items[0].folder));
+    log('work', verb + ' (' + items[0].opts.label + ')…');
     renderGrid();
 
-    // convert one at a time in the background, then save (developers) or wait for "Send" (admins)
     items.reduce(function (chain, it) {
       return chain.then(function () {
         if (j.cancelled) { setState(it, 'cancelled'); return; }
         setState(it, 'reading'); renderGrid();
-        return convert(it.file, it.shape, function (stage) { if (it.state !== 'cancelled') setState(it, stage); }).then(function (r) {
-          it.blob = r.blob; it.w = r.w; it.h = r.h;
-          it.url = URL.createObjectURL(r.blob);
+        return convert(it.file, it.opts, function (stage) { if (it.state !== 'cancelled') setState(it, stage); }).then(function (r) {
+          return isPng(r.blob).then(function (ok) {
+            if (!ok) throw new Error('The browser didn\'t produce a PNG, so it wasn\'t sent. Try another browser.');
+            return r;
+          });
+        }).then(function (r) {
+          it.blob = r.blob.type === 'image/png' ? r.blob : new Blob([r.blob], { type: 'image/png' });
+          it.w = r.w; it.h = r.h;
+          it.url = URL.createObjectURL(it.blob);
           if (j.cancelled) { setState(it, 'cancelled'); return; }
           setState(it, mode === 'save' ? 'converted' : 'ready');
-          log('info', it.file.name + ' (' + r.srcW + '×' + r.srcH + ', ' + kb(it.file.size) + ') → ' + it.name + ' ' + r.w + '×' + r.h + ' PNG, ' + kb(r.blob.size));
+          log('info', it.file.name + ' (' + r.srcW + '×' + r.srcH + ', ' + kb(it.file.size) + ') → ' + it.name + ' ' + r.w + '×' + r.h + ' PNG, ' + kb(it.blob.size));
         }, function (e) {
           fail(it, e.message);
         }).then(renderGrid);
@@ -1144,7 +1178,7 @@
       $('imDropTitle').textContent = c
         ? (canEdit() ? 'Drop to replace ' : 'Drop to suggest a replacement for ') + c.getAttribute('data-path')
         : (canEdit() ? 'Drop to add to ' : 'Drop to suggest for ') + label(target);
-      $('imDropSub').textContent = SHAPES[shapeFor(target)] + ' · converted to PNG · longest side 512px' + (canEdit() ? '' : ' · a developer approves it');
+      $('imDropSub').textContent = 'You crop and confirm first · saved as PNG, 512px or smaller' + (canEdit() ? '' : ' · a developer approves it');
     });
     document.addEventListener('drop', function (e) {
       if (!hasFiles(e)) return;
@@ -1177,13 +1211,6 @@
       replaceTarget = null;
     });
     SD.on('imSearch', 'input', function () { S.search = $('imSearch').value; renderGrid(); });
-    document.querySelectorAll('#imShape [data-shape]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        setShape(S.folder, b.getAttribute('data-shape'));
-        renderToolbar();
-        log('info', label(S.folder) + ': new images use ' + SHAPES[b.getAttribute('data-shape')].toLowerCase() + '.');
-      });
-    });
     document.querySelectorAll('#imLogFilter [data-log]').forEach(function (b) {
       b.setAttribute('aria-checked', String(b.getAttribute('data-log') === S.logFilter));
       b.addEventListener('click', function () {

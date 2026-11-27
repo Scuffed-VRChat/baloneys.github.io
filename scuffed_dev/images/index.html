@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="/games-social.css?v=20261011-8" />
     <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-7" />
     <link rel="stylesheet" href="/scuffed_dev/board.css?v=20261124-2" />
-    <link rel="stylesheet" href="/scuffed_dev/images.css?v=20261127-2" />
+    <link rel="stylesheet" href="/scuffed_dev/images.css?v=20261127-3" />
 
     <!-- the site's player accounts and social dock (profile, friends, notifications), same as /chat -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
@@ -43,7 +43,8 @@
     <script src="/games-config.js?v=20261010-25" defer></script>
     <script src="/games-social.js?v=20261011-8" defer></script>
     <script src="/scuffed_dev/core.js?v=20261124-2" defer></script>
-    <script src="/scuffed_dev/images.js?v=20261127-2" defer></script>
+    <script src="/scuffed_dev/images-crop.js?v=20261127-3" defer></script>
+    <script src="/scuffed_dev/images.js?v=20261127-3" defer></script>
     <link rel="stylesheet" href="/scuffed_dev/theme.css?v=20261124-2" />
   </head>
   <body>
@@ -150,11 +151,6 @@
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20l-3.5-3.5"/></g></svg>
               <input id="imSearch" type="search" placeholder="Find an image" aria-label="Find an image by name" autocomplete="off" />
             </label>
-            <div class="im-seg" id="imShape" role="radiogroup" aria-label="Shape for new uploads">
-              <button type="button" role="radio" data-shape="keep" title="Keep the picture's own shape; longest side 512px">Keep shape</button>
-              <button type="button" role="radio" data-shape="a4fill" title="Crop to fill an A4 poster (362×512)">A4 fill</button>
-              <button type="button" role="radio" data-shape="a4fit" title="Fit inside an A4 poster (362×512) without cropping">A4 fit</button>
-            </div>
             <button class="btn btn-sm btn-primary" id="imUpload" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0l-5 5m5-5l5 5M4 20h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span id="imUploadText">Upload</span>
@@ -197,7 +193,61 @@
       </section>
     </main>
 
-    <!-- conversion / upload progress: pops up when it takes more than a moment, so nobody thinks the page froze -->
+    <!-- crop & confirm: every upload / suggestion passes through here before anything is converted or sent -->
+    <dialog class="im-crop" id="imCrop" aria-labelledby="imCropTitle">
+      <div class="im-crop-head">
+        <h2 id="imCropTitle">Crop &amp; confirm</h2>
+        <span class="im-crop-count" id="imCropCount"></span>
+        <button class="im-icon" type="button" id="imCropClose" aria-label="Cancel"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="im-crop-body">
+        <div class="im-crop-stage im-checker" id="imCropStage" tabindex="0" aria-label="Crop area: drag the box to move it, drag a corner to resize, arrow keys nudge">
+          <img id="imCropImg" alt="" draggable="false" />
+          <div class="im-crop-box hidden" id="imCropBox">
+            <i class="im-crop-grid" aria-hidden="true"></i>
+            <span class="im-crop-tag" id="imCropSizeTag"></span>
+            <b data-h="nw"></b><b data-h="ne"></b><b data-h="sw"></b><b data-h="se"></b>
+            <b data-h="n" class="is-edge"></b><b data-h="s" class="is-edge"></b><b data-h="w" class="is-edge"></b><b data-h="e" class="is-edge"></b>
+          </div>
+          <p class="im-crop-error hidden" id="imCropError" role="alert"></p>
+        </div>
+        <aside class="im-crop-side">
+          <div class="im-crop-file">
+            <strong id="imCropName"></strong>
+            <span id="imCropSrc"></span>
+          </div>
+          <div class="im-crop-group">
+            <span class="option-label">Shape</span>
+            <div class="im-crop-shapes" id="imCropShapes" role="radiogroup" aria-label="Shape"></div>
+            <label class="im-crop-check" id="imCropPadRow"><input type="checkbox" id="imCropPad" /> Fit the whole picture (pad instead of crop)</label>
+          </div>
+          <div class="im-crop-group">
+            <label class="option-label" for="imCropRes">Resolution · Unity max size</label>
+            <div class="im-crop-res">
+              <select class="perms-input" id="imCropRes"></select>
+              <button class="btn btn-sm btn-outline" type="button" id="imCropReset" title="Put the crop box back in the middle">Reset crop</button>
+            </div>
+          </div>
+          <div class="im-crop-result">
+            <div class="im-crop-preview im-checker"><canvas id="imCropPreview" width="1" height="1" aria-label="Preview of the PNG"></canvas></div>
+            <div class="im-crop-result-text">
+              <span class="option-label">You'll get</span>
+              <strong id="imCropOut"></strong>
+              <span id="imCropOutSub"></span>
+            </div>
+          </div>
+          <p class="im-crop-warn hidden" id="imCropWarn"></p>
+          <label class="im-crop-check hidden" id="imCropAllRow"><input type="checkbox" id="imCropAll" /> Use this shape and size for the other <span id="imCropAllN"></span> (centred)</label>
+          <div class="im-crop-actions">
+            <button class="btn btn-sm btn-outline" type="button" id="imCropCancel">Cancel</button>
+            <button class="btn btn-sm btn-outline" type="button" id="imCropSkip">Skip</button>
+            <button class="btn btn-sm btn-primary" type="button" id="imCropOk">Confirm</button>
+          </div>
+        </aside>
+      </div>
+    </dialog>
+
+    <!-- conversion / upload progress: opens as soon as conversion starts, so nobody thinks the page froze -->
     <dialog class="im-prog" id="imProg" aria-labelledby="imProgTitle">
       <div class="im-prog-head">
         <h2 id="imProgTitle">Converting</h2>
