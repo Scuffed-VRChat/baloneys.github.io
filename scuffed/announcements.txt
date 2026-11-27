@@ -1,16 +1,25 @@
 Welcome to .SCUFFED.
 
-We're gearing up to add some new stuff in the coming days (when aren't we? xD)
+New version out!
+We've updated the world to address performance and lag across the board, we're testing fixes to UNO, the portable tablet, the props, and much more so let us know if you have any problems, we'll add known issues below.
+New additions:
+- Fast travel added to world tablet, alongside player teleporting too. We've added the feature to favourite people on the fast travel list with a star next to their name; anyone whose starred will appear on the top of your list.
+- We've added a new gamba tab to the portable tablet that'll enable spinning of the lucky wheel anywhere in the world, give it a go!
+- Props can be disabled in the settings menu, and are disabled in potato mode, this should vastly improve performance; props were updated to be optimised recently too.
+- The DJ lights that affect the world are now disabled in epilepsy mode, epilepsy mode can be enabled in spawn and this should improve your experience if you struggle with epilepsy.
+- Props placed with the prop menu can have their material and colour changed dynamically.
+- The global DJ lights have been removed on quest, and this should improve performance as they're no longer bundled with the build.
 
-Stay tuned over the coming days as we're preparing some big things.
+Thanks for bearing with us! Let us know if you have any problems, the world is still under heavy development and more optimisations should be seen around the corner!
 
 - the SCUFFED team
 
 KNOWN ISSUES:
 Syncing doesn't work for users who've never synced before, this will be fixed soon; it's a backend issue.
 Version checker may still appear if everyone in the lobby is on the same platform.
-The portable tablet may not reopen, use RIGHT TRIGGER and move your joystick up and down to open it using the alternate method.
-The world has performance issues, these are currently being fixed.
+Chips and Bucks need to be swapped around.
 baloneys is tired
 Epsi is a femboy
 Fenic is hungry
+
+[notifier] @2026-11-27T14:02:18Z A new update was released yesterday! Check the patch notes in spawn as they're now live!
