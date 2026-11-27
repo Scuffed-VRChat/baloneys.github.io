@@ -69,6 +69,7 @@
   };
   var job = null;       // the current batch: { items, mode: 'save'|'suggest', started, popup, cancelled, phase }
   var saveChain = Promise.resolve();
+  var reserved = {};    // new-slot names held by crop windows that are still open / minimised
   var timer = 0;
   var seq = 0;
 
@@ -713,6 +714,8 @@
     show('imDlgDelete', canEdit());
     show('imDlgReplace', canAdd());
     $('imDlgReplace').textContent = canEdit() ? 'Replace…' : 'Suggest a replacement…';
+    show('imDlgCrop', canAdd());
+    $('imDlgCrop').textContent = canEdit() ? 'Crop…' : 'Suggest a crop…';
     var waiting = suggFor(p).length;
     show('imDlgSugg', waiting > 0);
     $('imDlgSugg').textContent = waiting ? plural(waiting, 'suggestion') + ' waiting for this slot. ' : '';
@@ -809,8 +812,9 @@
     var j = job;
     setPhase('done');
     var failed = j.items.some(function (it) { return it.state === 'failed'; });
-    if (failed) openProg();   // problems always get shown; a quick clean save never flashes a pop-up
-    if (!failed) setTimeout(function () { if (job === j && j.phase === 'done') { closeProg(); job = null; } }, j.mode === 'suggest' ? 2600 : 1300);
+    if (failed) { openProg(); return; }   // problems always get shown (the next batch waits for "Done")
+    if (jobQueue.length) return nextJob();
+    setTimeout(function () { if (job === j && j.phase === 'done') { closeProg(); job = null; } }, j.mode === 'suggest' ? 2600 : 1300);
   }
 
   function setState(it, state) { it.state = state; paintProg(); }
@@ -852,39 +856,85 @@
     opts = opts || {};
     var files = Array.prototype.filter.call(list || [], function (f) { return f && f.size > 0; });
     if (!files.length || !S.loaded || !canAdd()) return;
-    if (job && job.phase !== 'done' && job.phase !== 'cancelled') { log('bad', 'Still working on the last batch. Drop these again when it finishes.'); openProg(); return; }
-    if (job) { closeProg(); job = null; }
-    if (window.ScuffedCrop && window.ScuffedCrop.isOpen()) return;
+    if (window.ScuffedCrop.full()) {
+      log('bad', window.ScuffedCrop.MAX + ' crops are already waiting in the dock (bottom left). Finish or cancel one first.');
+      window.ScuffedCrop.flashDock();
+      return;
+    }
     var folder = opts.folder || (S.folder === SUGG ? folders()[0] : S.folder);
     if (opts.replace) files = files.slice(0, 1);
     var mode = canEdit() ? 'save' : 'suggest';
-    // names first, so the cropper can say where each picture goes
-    var taken = {};
+    // names first, so the cropper can say where each picture goes; names held by other crop windows count as taken
+    var taken = Object.assign({}, reserved);
     S.pending.forEach(function (it) { if (it.state !== 'failed' && it.state !== 'cancelled') taken[it.path] = true; });
     var paths = files.map(function (file) { var p = opts.replace || newName(folder, file.name, taken); taken[p] = true; return p; });
+    if (!opts.replace) paths.forEach(function (p) { reserved[p] = true; });
     var cur = opts.replace ? S.manifest[opts.replace] || {} : null;
+    var prefs = prefsFor(folder);
+    if (opts.recrop) {
+      // re-cropping a picture that's already up: start free, at the biggest size that doesn't enlarge it
+      var longest = Math.max(cur.w || 512, cur.h || 512);
+      prefs = { shape: 'free', size: window.ScuffedCrop.SIZES.filter(function (n) { return n <= longest; })[0] || 32, pad: false };
+    }
+    var name = opts.replace ? nameOf(opts.replace) : '';
     window.ScuffedCrop.open({
       files: files,
-      prefs: prefsFor(folder),
+      prefs: prefs,
+      startShape: opts.recrop ? 'free' : undefined,
       replace: opts.replace ? { path: opts.replace, w: cur.w, h: cur.h } : null,
       targetFor: function (f, i) { return paths[i]; },
-      title: mode === 'save' ? (opts.replace ? 'Replace ' + nameOf(opts.replace) : 'Crop & confirm') : (opts.replace ? 'Suggest a replacement for ' + nameOf(opts.replace) : 'Crop & suggest'),
-      confirmText: mode === 'save' ? (opts.replace ? 'Replace' : 'Upload') : 'Suggest'
+      title: opts.recrop ? (mode === 'save' ? 'Crop ' + name : 'Suggest a crop of ' + name)
+        : mode === 'save' ? (opts.replace ? 'Replace ' + name : 'Crop & confirm') : (opts.replace ? 'Suggest a replacement for ' + name : 'Crop & suggest'),
+      confirmText: mode === 'save' ? (opts.recrop ? 'Save crop' : opts.replace ? 'Replace' : 'Upload') : 'Suggest'
     }).then(function (res) {
-      if (!opts.replace) setPrefs(folder, res.prefs);
+      paths.forEach(function (p) { delete reserved[p]; });   // from here S.pending holds the names
       if (!res.items.length) { log('info', 'Nothing uploaded: cancelled in the cropper.'); return; }
+      if (!opts.replace) setPrefs(folder, res.prefs);   // remembered only when something was confirmed
+      if (opts.replace && !S.files[opts.replace]) { log('bad', opts.replace + ' was deleted while you were cropping, so nothing was sent.'); return; }
       var chosen = res.items.map(function (r) {
         var i = files.indexOf(r.file);
         return { id: ++seq, file: r.file, folder: folder, path: paths[i], name: nameOf(paths[i]), replaceSha: opts.replace ? S.files[opts.replace].sha : null, state: 'queued', opts: r.opts, mode: mode };
       });
-      startJob(chosen, mode, opts.replace);
+      // hold the names straight away, even if the batch has to wait its turn
+      S.pending = S.pending.filter(function (it) { return it.state !== 'failed' && it.state !== 'cancelled'; }).concat(chosen);
+      renderGrid();
+      runJob(function () { startJob(chosen, mode, opts.replace); });
+    });
+  }
+
+  // One batch converts / uploads at a time. A crop confirmed while another batch is busy waits here.
+  var jobQueue = [];
+  function busy() { return !!job && job.phase !== 'done' && job.phase !== 'cancelled'; }
+  function runJob(fn) {
+    if (busy()) { jobQueue.push(fn); log('info', 'Queued: it starts when the current batch finishes.'); return; }
+    if (job) { closeProg(); job = null; }
+    fn();
+  }
+  function nextJob() {
+    if (!jobQueue.length || busy()) return;
+    var fn = jobQueue.shift();
+    setTimeout(function () { if (busy()) { jobQueue.unshift(fn); return; } if (job) { closeProg(); job = null; } fn(); }, 300);
+  }
+
+  // Crop a picture that's already on the site: fetch the PNG that's up now and open it in the cropper; the result
+  // replaces it (developers) or is suggested as its replacement (admins).
+  function recrop(p) {
+    if (!canAdd() || !S.files[p]) return;
+    log('work', 'Opening ' + p + ' in the cropper…');
+    fetch(thumb(p), { cache: 'force-cache' }).then(function (r) {
+      if (!r.ok) throw new Error('the site answered ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      addFiles([new File([blob], nameOf(p), { type: blob.type || 'image/png' })], { replace: p, folder: folderOf(p), recrop: true });
+    }).catch(function (e) {
+      log('bad', 'Couldn\'t open ' + p + ' for cropping: ' + SD.errText(e));
     });
   }
 
   // Convert the confirmed pictures one at a time in the background (progress pop-up open the whole time), check
   // each really is a PNG, then save them (developers) or wait for "Send" (admins).
   function startJob(items, mode, replace) {
-    S.pending = S.pending.filter(function (it) { return it.state !== 'failed' && it.state !== 'cancelled'; }).concat(items);
+    S.pending = S.pending.filter(function (it) { return it.state !== 'failed' && it.state !== 'cancelled' && items.indexOf(it) < 0; }).concat(items);
     job = { items: items, mode: mode, started: Date.now(), popup: false, cancelled: false, phase: 'converting' };
     var j = job;
     setPhase('converting');
@@ -934,6 +984,7 @@
       closeProg();
       job = null;
       renderGrid();
+      nextJob();
     }
   }
 
@@ -1225,17 +1276,18 @@
     SD.on('imDlgRename', 'click', rename);
     SD.on('imDlgName', 'keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); rename(); } });
     SD.on('imDlgReplace', 'click', function () { var p = dlgPath; closeDialog(); pickFile(p); });
+    SD.on('imDlgCrop', 'click', function () { var p = dlgPath; closeDialog(); recrop(p); });
     SD.on('imDlgDelete', 'click', function () { var p = dlgPath; closeDialog(); removePaths([p]); });
     $('imDialog').addEventListener('click', function (e) { if (e.target === $('imDialog')) closeDialog(); });
     SD.on('imProgCancel', 'click', cancelJob);
     SD.on('imProgSend', 'click', sendSuggestions);
-    SD.on('imProgDone', 'click', function () { closeProg(); job = null; });
+    SD.on('imProgDone', 'click', function () { closeProg(); job = null; nextJob(); });
     // Esc: cancels while converting or waiting to send; can't close the pop-up mid-upload
     $('imProg').addEventListener('cancel', function (e) {
       e.preventDefault();
       if (!job) return closeProg();
       if (job.phase === 'converting' || job.phase === 'ready') cancelJob();
-      else if (job.phase === 'done' || job.phase === 'cancelled') { closeProg(); job = null; }
+      else if (job.phase === 'done' || job.phase === 'cancelled') { closeProg(); job = null; nextJob(); }
     });
     document.addEventListener('keydown', function (e) {
       if (e.key === '/' && document.activeElement === document.body && SD.me()) { e.preventDefault(); $('imSearch').focus(); }

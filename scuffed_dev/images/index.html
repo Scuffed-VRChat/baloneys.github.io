@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="/games-social.css?v=20261011-8" />
     <link rel="stylesheet" href="/scuffed_perms/perms.css?v=20261120-7" />
     <link rel="stylesheet" href="/scuffed_dev/board.css?v=20261124-2" />
-    <link rel="stylesheet" href="/scuffed_dev/images.css?v=20261127-3" />
+    <link rel="stylesheet" href="/scuffed_dev/images.css?v=20261127-6" />
 
     <!-- the site's player accounts and social dock (profile, friends, notifications), same as /chat -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
@@ -43,8 +43,8 @@
     <script src="/games-config.js?v=20261010-25" defer></script>
     <script src="/games-social.js?v=20261011-8" defer></script>
     <script src="/scuffed_dev/core.js?v=20261124-2" defer></script>
-    <script src="/scuffed_dev/images-crop.js?v=20261127-3" defer></script>
-    <script src="/scuffed_dev/images.js?v=20261127-3" defer></script>
+    <script src="/scuffed_dev/images-crop.js?v=20261127-6" defer></script>
+    <script src="/scuffed_dev/images.js?v=20261127-6" defer></script>
     <link rel="stylesheet" href="/scuffed_dev/theme.css?v=20261124-2" />
   </head>
   <body>
@@ -193,18 +193,50 @@
       </section>
     </main>
 
-    <!-- crop & confirm: every upload / suggestion passes through here before anything is converted or sent -->
+    <!-- minimised crop windows wait here (bottom left); click one to bring it back -->
+    <div class="im-dock hidden" id="imCropDock" role="region" aria-label="Minimised crops">
+      <div class="im-dock-head"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Crops</span><b id="imCropDockN">0/3</b></div>
+      <div class="im-dock-tabs" id="imCropDockTabs"></div>
+    </div>
+
+    <!-- crop & confirm: every upload / suggestion / re-crop passes through here before anything is converted or sent.
+         The options bar follows Photoshop's crop tool: ratio presets, W ⇄ H ratio, Clear, size, overlay, reset / cancel / commit. -->
     <dialog class="im-crop" id="imCrop" aria-labelledby="imCropTitle">
       <div class="im-crop-head">
+        <span class="im-crop-badge" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         <h2 id="imCropTitle">Crop &amp; confirm</h2>
         <span class="im-crop-count" id="imCropCount"></span>
-        <button class="im-icon" type="button" id="imCropClose" aria-label="Cancel"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <span class="im-crop-miniout" id="imCropMiniOut"></span>
+        <div class="im-crop-headbtns">
+          <button class="im-icon" type="button" id="imCropMin" aria-label="Minimise" title="Minimise: keep this crop and look at the page"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="im-icon" type="button" id="imCropClose" aria-label="Cancel" title="Cancel"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+      <div class="im-crop-bar" role="toolbar" aria-label="Crop options">
+        <span class="im-crop-tool" title="Crop tool"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <i class="im-crop-sep" aria-hidden="true"></i>
+        <span class="im-crop-ratioico" id="imCropRatioIco" title="Current ratio" aria-hidden="true"><i></i></span>
+        <select class="im-crop-select im-crop-ratio" id="imCropRatio" aria-label="Ratio preset" title="Ratio preset"></select>
+        <input class="im-crop-num" id="imCropW" inputmode="decimal" autocomplete="off" aria-label="Ratio width" title="Ratio width: type your own" />
+        <button class="im-crop-btn" type="button" id="imCropSwap" title="Swap width and height (X)" aria-label="Swap width and height"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <input class="im-crop-num" id="imCropH" inputmode="decimal" autocomplete="off" aria-label="Ratio height" title="Ratio height: type your own" />
+        <button class="im-crop-btn is-text" type="button" id="imCropClear" title="Clear the ratio (free crop)">Clear</button>
+        <i class="im-crop-sep" aria-hidden="true"></i>
+        <label class="im-crop-field" title="Unity max size: the longest side of the PNG"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 15l5-5l4 4l3-3l4 4M15 8.5h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Size</span><select class="im-crop-select" id="imCropRes"></select></label>
+        <i class="im-crop-sep" aria-hidden="true"></i>
+        <label class="im-crop-field" title="Crop overlay (O)"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><select class="im-crop-select" id="imCropOverlay" aria-label="Crop overlay"></select></label>
+        <label class="im-crop-check" id="imCropPadRow"><input type="checkbox" id="imCropPad" /><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM8 9h8v6H8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Fit (pad)</label>
+        <span class="im-crop-spacer"></span>
+        <button class="im-crop-btn" type="button" id="imCropReset" title="Reset crop (R)" aria-label="Reset crop"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="im-crop-btn is-cancel" type="button" id="imCropAbort" title="Cancel (Esc)" aria-label="Cancel"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="im-crop-btn is-commit" type="button" id="imCropCommit" title="Commit (Enter)" aria-label="Commit"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
       <div class="im-crop-body">
-        <div class="im-crop-stage im-checker" id="imCropStage" tabindex="0" aria-label="Crop area: drag the box to move it, drag a corner to resize, arrow keys nudge">
+        <div class="im-crop-stage im-checker" id="imCropStage" tabindex="0" aria-label="Crop area: drag the box to move it, drag a corner to resize, arrow keys nudge, Enter commits">
+          <span class="im-crop-loading" aria-hidden="true"><i></i>Loading</span>
           <img id="imCropImg" alt="" draggable="false" />
           <div class="im-crop-box hidden" id="imCropBox">
-            <i class="im-crop-grid" aria-hidden="true"></i>
+            <i class="im-crop-grid ov-thirds" id="imCropGrid" aria-hidden="true"></i>
             <span class="im-crop-tag" id="imCropSizeTag"></span>
             <b data-h="nw"></b><b data-h="ne"></b><b data-h="sw"></b><b data-h="se"></b>
             <b data-h="n" class="is-edge"></b><b data-h="s" class="is-edge"></b><b data-h="w" class="is-edge"></b><b data-h="e" class="is-edge"></b>
@@ -216,28 +248,21 @@
             <strong id="imCropName"></strong>
             <span id="imCropSrc"></span>
           </div>
-          <div class="im-crop-group">
-            <span class="option-label">Shape</span>
-            <div class="im-crop-shapes" id="imCropShapes" role="radiogroup" aria-label="Shape"></div>
-            <label class="im-crop-check" id="imCropPadRow"><input type="checkbox" id="imCropPad" /> Fit the whole picture (pad instead of crop)</label>
-          </div>
-          <div class="im-crop-group">
-            <label class="option-label" for="imCropRes">Resolution · Unity max size</label>
-            <div class="im-crop-res">
-              <select class="perms-input" id="imCropRes"></select>
-              <button class="btn btn-sm btn-outline" type="button" id="imCropReset" title="Put the crop box back in the middle">Reset crop</button>
-            </div>
-          </div>
           <div class="im-crop-result">
+            <span class="option-label">You'll get</span>
             <div class="im-crop-preview im-checker"><canvas id="imCropPreview" width="1" height="1" aria-label="Preview of the PNG"></canvas></div>
             <div class="im-crop-result-text">
-              <span class="option-label">You'll get</span>
-              <strong id="imCropOut"></strong>
-              <span id="imCropOutSub"></span>
+              <strong><span id="imCropOut"></span> <em>PNG</em></strong>
+              <span class="im-crop-chip" id="imCropOutShape"></span>
             </div>
+            <span class="im-crop-dest" id="imCropOutSub"></span>
           </div>
           <p class="im-crop-warn hidden" id="imCropWarn"></p>
-          <label class="im-crop-check hidden" id="imCropAllRow"><input type="checkbox" id="imCropAll" /> Use this shape and size for the other <span id="imCropAllN"></span> (centred)</label>
+          <ul class="im-crop-keys" aria-label="Keyboard shortcuts">
+            <li><kbd>Enter</kbd> commit</li><li><kbd>Esc</kbd> cancel</li><li><kbd>X</kbd> swap ratio</li>
+            <li><kbd>O</kbd> overlay</li><li><kbd>R</kbd> reset</li><li><kbd>←↑→↓</kbd> nudge</li>
+          </ul>
+          <label class="im-crop-check hidden" id="imCropAllRow"><input type="checkbox" id="imCropAll" /> Use this ratio and size for the other <span id="imCropAllN"></span> (centred)</label>
           <div class="im-crop-actions">
             <button class="btn btn-sm btn-outline" type="button" id="imCropCancel">Cancel</button>
             <button class="btn btn-sm btn-outline" type="button" id="imCropSkip">Skip</button>
@@ -292,6 +317,7 @@
           </div>
           <div class="im-dlg-actions">
             <button class="btn btn-sm btn-primary" type="button" id="imDlgReplace">Replace…</button>
+            <button class="btn btn-sm btn-outline" type="button" id="imDlgCrop">Crop…</button>
             <a class="btn btn-sm btn-outline" id="imDlgDownload" target="_blank" rel="noopener">Open full size</a>
             <button class="btn btn-sm btn-outline im-danger-text" type="button" id="imDlgDelete">Delete</button>
           </div>
