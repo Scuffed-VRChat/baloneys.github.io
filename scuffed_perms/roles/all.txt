@@ -16,6 +16,7 @@ ScaryPanda
 ### FILE: Testers.txt
 obama the tester
 Devoury
+soup canyon
 
 ### FILE: devs.txt
 EpsiFrost
