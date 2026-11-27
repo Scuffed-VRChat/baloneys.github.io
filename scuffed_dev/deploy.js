@@ -121,16 +121,33 @@
         var why = run
           ? (run.status === 'queued' ? 'Queued on GitHub Pages…' : run.status === 'completed' ? 'GitHub skipped this build for a newer one; waiting for that…' : 'GitHub Pages is building the site…')
           : (latest && latest.status !== 'completed' ? 'Waiting for the build in front of it…' : 'Waiting for GitHub Pages to start…');
-        return stallOr(e, 'building', why, (run || latest || {}).url);
+        // GitHub's list of builds can lag behind the site itself, and the files are the real answer. While the
+        // build isn't reported done, check one small "sentinel" file per poll (cheap); if it's live, check them all.
+        var sentinel = pickSentinel(ours);
+        return served(sentinel).then(function (ok) {
+          if (!ok) return stallOr(e, 'building', why, (run || latest || {}).url);
+          return verifyAll(e, ours, run || latest);
+        });
       }
-      return Promise.all(ours.map(served)).then(function (ok) {
-        var good = ok.filter(Boolean).length;
-        if (good === ours.length) return finish(e.id, 'live', ours.length === 1 ? 'Live on kanaris-beans.com.' : 'All ' + ours.length + ' files live on kanaris-beans.com.');
-        return stallOr(e, 'checking', 'Built. ' + good + ' of ' + ours.length + ' files live so far…', (run || latest || {}).url);
-      });
+      return verifyAll(e, ours, run || latest);
     }, function (err) {
       if (err.status === 401 || err.status === 403) return change(e.id, function (x) { x.detail = 'Sign in as staff on a scuffed_dev page to keep checking.'; });
       return change(e.id, function (x) { x.detail = 'Couldn\'t check just now (' + err.message + '). Trying again…'; });
+    });
+  }
+
+  // the cheapest file to fetch: a deletion (just a 404), then text (manifest / lists), then anything
+  function pickSentinel(files) {
+    return files.filter(function (f) { return f.sha === null; })[0] ||
+      files.filter(function (f) { return /\.(json|txt|js|css|html)$/i.test(f.path); })[0] || files[0];
+  }
+
+  // Every file of ours must be served exactly as committed (deleted ones gone) before it counts as live.
+  function verifyAll(e, ours, run) {
+    return Promise.all(ours.map(served)).then(function (ok) {
+      var good = ok.filter(Boolean).length;
+      if (good === ours.length) return finish(e.id, 'live', ours.length === 1 ? 'Live on kanaris-beans.com.' : 'All ' + ours.length + ' files live on kanaris-beans.com.');
+      return stallOr(e, 'checking', 'Built. ' + good + ' of ' + ours.length + ' files live so far…', (run || {}).url);
     });
   }
 
