@@ -2,7 +2,7 @@
 //   - shows push notifications sent by the scuffed-perms Worker (src/push.js) and opens the right screen on tap
 //   - keeps the app shell available offline (network first, so updates show up straight away)
 // Bump VERSION when the shell list changes.
-const VERSION = "scd-app-v4";
+const VERSION = "scd-app-v5";
 const SHELL = [
   "./", "./app.css", "./app.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/badge-96.png",

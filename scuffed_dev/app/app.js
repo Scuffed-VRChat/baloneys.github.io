@@ -54,7 +54,7 @@
   function icon(n) { var s = h('span', { html: ic(n) }); return s.firstChild; }
   function clear(e) { while (e.firstChild) e.removeChild(e.firstChild); return e; }
   function errText(e) { return (e && (e.message || e.details || e.error)) || String(e || 'Something went wrong'); }
-  function time(v) { var t = Date.parse(v); return isNaN(t) ? 0 : t; }
+  function time(v) { return Number.isFinite(v) ? v : Date.parse(v) || 0; }
   function ago(v) {
     var s = Math.max(0, (Date.now() - time(v)) / 1000);
     if (s < 45) return 'just now';
@@ -1368,6 +1368,7 @@
       history.replaceState(history.state, '', current.pathname + current.search + current.hash);
     }
     if (code) pendingSignin = code;
+    return code;
   }
   function confirmSignin(code) {
     var prof = window.GameSocial && window.GameSocial.me && window.GameSocial.me();
@@ -1522,7 +1523,9 @@
     applyLook();
     // Android Back: close the sheet first, then step back through screens
     window.addEventListener('popstate', function () { if (backPending) backLanded(); else if (sheetOpen) closeSheet(true); });
-    window.addEventListener('hashchange', route);
+    window.addEventListener('hashchange', function () {
+      if (takeSigninFromUrl()) boot(); else route();
+    });
     $('scrim').addEventListener('click', function () { closeSheet(); });
     $('sheetClose').addEventListener('click', function () { closeSheet(); });
     document.querySelectorAll('.nav button').forEach(function (b) { b.addEventListener('click', function () { haptic(5); var g = b.getAttribute('data-go'); if (S.route === g) { $('main').scrollTop = 0; refreshCurrent(); } else go(g); }); });

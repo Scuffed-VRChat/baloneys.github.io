@@ -128,11 +128,11 @@
     render();
   }
 
-  function describeRun(run, current, latestSuccess) {
+  function describeRun(run, current, verifying) {
     if (run.status === 'completed') {
       if (run.conclusion === 'success') {
         if (run.sha === current) return { state: 'live', title: 'Live', stage: 3 };
-        if (run === latestSuccess) return { state: 'checking', title: 'Verifying', stage: 2, detail: 'Waiting for kanaris-beans.com to serve this commit.' };
+        if (verifying) return { state: 'checking', title: 'Verifying', stage: 2, detail: 'Waiting for kanaris-beans.com to serve this commit.' };
         return { state: 'past', title: 'Build completed' };
       }
       if (['skipped', 'cancelled', 'neutral'].indexOf(run.conclusion) >= 0) {
@@ -153,9 +153,12 @@
   function siteEntries() {
     if (!site.data) return [];
     var data = site.data, runs = data.runs;
-    var latestSuccess = runs.find(function (run) { return run.status === 'completed' && run.conclusion === 'success'; });
-    var entries = runs.map(function (run) {
-      var e = describeRun(run, data.live, latestSuccess);
+    var successIndex = runs.findIndex(function (run) { return run.status === 'completed' && run.conclusion === 'success'; });
+    var liveIndex = runs.findIndex(function (run) { return run.sha === data.live; });
+    var entries = runs.map(function (run, index) {
+      // Pages can serve the new revision while GitHub still reports it as publishing.
+      var verifying = index === successIndex && (liveIndex < 0 || index < liveIndex);
+      var e = describeRun(run, data.live, verifying);
       e.id = 'pages-' + run.id;
       e.commit = run.sha;
       e.created = Date.parse(run.created) || 0;

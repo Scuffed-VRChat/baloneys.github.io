@@ -14,7 +14,7 @@
 
   if (code) {
     openWeb.href = signin.url(code).replace('#', '?web=1#');
-    openWeb.textContent = 'Sign in in browser';
+    openWeb.textContent = 'Continue in browser';
   }
   if (ios) {
     download.hidden = true;
@@ -53,11 +53,13 @@
     try {
       if (sessionStorage.getItem(key) === url.hash) return markRequested();
     } catch (err) { /* The download link still works without storage. */ }
-    setTimeout(function () {
-      if (requested) return;
-      if (document.hidden) return;
+    function startDownload() {
+      if (requested || document.hidden) return;
+      document.removeEventListener('visibilitychange', startDownload);
       try { sessionStorage.setItem(key, url.hash); } catch (err) { /* fine */ }
       download.click();
-    }, 700);
+    }
+    document.addEventListener('visibilitychange', startDownload);
+    setTimeout(startDownload, 700);
   });
 })();
