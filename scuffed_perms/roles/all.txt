@@ -26,6 +26,7 @@ Baloneys
 ### FILE: djs.txt
 PrimordialAbyss
 OnlyMutes
+test dj
 
 ### FILE: groupowners.txt
 Merry Martian
