@@ -1,6 +1,13 @@
 {
  "about": "Written by kanaris-beans.com/scuffed_dev/images/ (and the scuffed-perms Worker). Who uploaded each image, from what file.",
  "files": {
+  "ads/1000022848.png": {
+   "w": 512,
+   "h": 512,
+   "from": "1000022848.webp",
+   "by": "Seany (dev)",
+   "at": "2026-11-28T00:45:18.757Z"
+  },
   "ads/heirja-1.png": {
    "w": 512,
    "h": 289,
