@@ -1,6 +1,6 @@
 // scuffed_dev/app/cage/cage-tetris.js: Cage Escape, the scuffed_dev app's Easter egg. On the bottom bar tap
 // Inbox, Inbox, Board, Board, Announce, More, Announce, More, Images, Images, Images (app.js cageCode) and this loads.
-// The story run: you against a sleepy "Nikola Tesla" CPU, first to 40 lines frees Nicolas Cage, every skull on.
+// The story run: you against a sleepy "Nikola Tesla" CPU, with all skulls except Mirror.
 // Winning it unlocks Cage Escape in More (custom games: race Tesla or solo, any skulls) and the Vault in Settings.
 //
 // The game is the site's own Tetris (/tetris.js), not a rewrite. These sections are copied from it unchanged:
@@ -837,11 +837,11 @@
   var DIR = '/scuffed_dev/app/cage/';
   var ALL_SKULLS = SKULLS.map(function (s) { return s.id; });
 
-  // Story: the unlock run. Every skull on for both of you, first to 40 lines, Tesla on "Sleepy" so a steady player
+  // Story: the unlock run. All skulls except Mirror, first to 40 lines, Tesla on "Sleepy" so a steady player
   // wins: he thinks for two seconds a piece, misplaces almost half of them and suffers the same skulls.
   // You get 3 lives, Tesla gets 1 (in custom races too: the setup picks your lives only).
   var TESLA_LIVES = 1;
-  var STORY = { mode: 'race', lines: 40, cpu: 'story', lives: 3, skulls: ALL_SKULLS.slice(), story: true };
+  var STORY = { mode: 'race', lines: 40, cpu: 'story', lives: 3, skulls: ALL_SKULLS.filter(function (id) { return id !== 'mirror'; }), story: true };
   Cpu.LEVELS.story = { label: 'Sleepy', think: 2.0, step: 0.4, mistake: 0.45, noise: 2.6, hold: false, hard: true, look: false };
   var CPU_CHOICES = [['story', 'Sleepy'], ['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard'], ['ultra', 'Ultra hard']];
   var GAME_TYPES = [[GT.SPRINT, 'Sprint 40'], [GT.MARATHON, 'Marathon'], [GT.ULTRA, 'Ultra 2:00'], [GT.DIG, 'Dig'], [GT.SURVIVAL, 'Survival']];
@@ -1396,9 +1396,9 @@
     c.appendChild(el('h2', 'cg-title', 'CAGE ESCAPE'));
     c.appendChild(el('p', null, 'Nikola Tesla has locked Nicolas Cage in a cage. Clear ' + STORY.lines + ' lines before Tesla does to set him free.'));
     var sk = el('div', 'cg-skullrow');
-    SKULLS.forEach(function (s) { sk.appendChild(skullIcon(s)); });
+    STORY.skulls.forEach(function (id) { sk.appendChild(skullIcon(SKULL_BY_ID[id])); });
     c.appendChild(sk);
-    c.appendChild(el('p', 'cg-small', 'Every skull is on for both of you: Mirror, Blind, No Ghost, Lights Out, Thunderstorm, the lot. You get ' + STORY.lives + ' lives, Tesla gets ' + TESLA_LIVES + '. He is half asleep, so keep stacking and you\'ll get there.'));
+    c.appendChild(el('p', 'cg-small', 'You both play with every skull except Mirror. You get ' + STORY.lives + ' lives, Tesla gets ' + TESLA_LIVES + '. He is half asleep, so keep stacking and you\'ll get there.'));
     c.appendChild(el('p', 'cg-small', fine() ? 'Keys: ← → move · ↓ soft drop · ↑ / Space hard drop · Z / X rotate · C hold · Esc menu · Tab skulls'
       : 'D-pad moves (↑ hard drops, ↓ soft drops) · the big button rotates · Drop · Hold · Menu pauses'));
     var row = el('div', 'cg-row');
@@ -1416,7 +1416,7 @@
       cpu: Cpu.LEVELS[s.cpu] ? s.cpu : 'story',
       lives: [1, 3, 5].indexOf(s.lives) >= 0 ? s.lives : 3,
       gameType: GAME_TYPES.some(function (g) { return g[0] === s.gameType; }) ? s.gameType : GT.SPRINT,
-      skulls: cleanSkulls(Array.isArray(s.skulls) ? s.skulls : ALL_SKULLS)
+      skulls: cleanSkulls(Array.isArray(s.skulls) ? s.skulls : STORY.skulls)
     };
     var c = panel('setup');
     c.appendChild(el('div', 'cg-kicker', 'Custom game'));

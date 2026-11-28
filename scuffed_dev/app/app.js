@@ -414,8 +414,45 @@
   // Swipe along the bottom bar (down the side rail on wide screens) to change page. The tab under your finger
   // lights up as you slide, with a tick as you cross each one; letting go opens it with the wipe, sweeping the
   // way your finger went. A short flick that doesn't reach another tab moves one tab over.
-  function navSwipe() {
-    var nav = $('nav'), btns = Array.prototype.slice.call(nav.querySelectorAll('button')), st = null, swallowAt = 0;
+  function wireNav() {
+    var nav = $('nav'), btns = Array.prototype.slice.call(nav.querySelectorAll('button'));
+    var st = null, swallowClick = false, konami = false, konamiStep = 0, flashTimer;
+    var directions = { history: ['↑', 'Up'], board: ['↓', 'Down'], announce: ['←', 'Left'], more: ['→', 'Right'] };
+    var keys = btns.map(function (button) {
+      var glyph = h('span', { class: 'konami-key', 'aria-hidden': 'true' });
+      button.querySelector('.pill').appendChild(glyph);
+      return { button: button, glyph: glyph, page: button.getAttribute('data-go'), label: button.getAttribute('aria-label') };
+    });
+    function paintKonamiKeys() {
+      keys.forEach(function (key) {
+        if (!konami) {
+          if (key.label === null) key.button.removeAttribute('aria-label');
+          else key.button.setAttribute('aria-label', key.label);
+          return;
+        }
+        var value = directions[key.page];
+        if (key.page === 'images') {
+          var label = konamiStep === CAGE_CODE.length - 1 ? 'Start' : konamiStep === CAGE_CODE.length - 2 ? 'A' : 'B';
+          value = [label, label];
+        }
+        key.glyph.textContent = value[0];
+        key.button.setAttribute('aria-label', value[1]);
+      });
+    }
+    function showKonami(enabled) {
+      konami = enabled;
+      konamiStep = 0;
+      cageTaps = [];
+      nav.classList.toggle('konami', enabled);
+      paintKonamiKeys();
+      haptic(18);
+      if (!motionOk()) return;
+      nav.classList.remove('konami-flash');
+      void nav.offsetWidth;
+      nav.classList.add('konami-flash');
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(function () { nav.classList.remove('konami-flash'); }, 420);
+    }
     function vertical() { return nav.offsetHeight > nav.offsetWidth; }
     function tabAt(e) {
       var v = vertical(), p = v ? e.clientY : e.clientX, best = -1;
@@ -426,9 +463,15 @@
     function current() { var g = NAV_OF[S.route]; for (var i = 0; i < btns.length; i++) if (btns[i].getAttribute('data-go') === g) return i; return -1; }
     function peek(i) { btns.forEach(function (b, j) { b.classList.toggle('peek', j === i); }); }
     function reset() { st = null; nav.classList.remove('swiping'); peek(-1); }
+    function inside(el, e) {
+      var r = el.getBoundingClientRect();
+      return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom;
+    }
     nav.addEventListener('pointerdown', function (e) {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      st = { x: e.clientX, y: e.clientY, id: e.pointerId, start: current(), at: -1, moving: false, d: 0 };
+      if (e.isPrimary === false || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      swallowClick = false;
+      st = { x: e.clientX, y: e.clientY, id: e.pointerId, start: current(), at: -1, moving: false, d: 0,
+        fromInbox: inside(btns[0], e), reachedMore: false };
     });
     nav.addEventListener('pointermove', function (e) {
       if (!st || e.pointerId !== st.id) return;
@@ -440,13 +483,19 @@
         try { nav.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
       }
       var i = tabAt(e);
+      if (st.fromInbox && inside(btns[btns.length - 1], e)) st.reachedMore = true;
       if (i !== st.at) { st.at = i; peek(i); haptic(4); }
     });
     nav.addEventListener('pointerup', function (e) {
       if (!st || e.pointerId !== st.id) return;
       var s = st; reset();
       if (!s.moving) return;
-      swallowAt = Date.now();   // the click this swipe ends with isn't a tap
+      swallowClick = true;   // consume the release click, but let the next press through
+      if (s.reachedMore && inside(btns[0], e)) {
+        showKonami(!konami);
+        return;
+      }
+      if (konami) return;
       var to = s.at;
       if (to === s.start && Math.abs(s.d) > 30) to = Math.max(0, Math.min(btns.length - 1, s.start + (s.d > 0 ? 1 : -1)));
       if (to < 0 || to === s.start) return;
@@ -454,8 +503,34 @@
       pageFx = { kind: 'wipe', dir: s.d > 0 ? 1 : -1, t: Date.now() };
       go(btns[to].getAttribute('data-go'));
     });
-    nav.addEventListener('pointercancel', reset);
-    nav.addEventListener('click', function (e) { if (Date.now() - swallowAt < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
+    nav.addEventListener('pointercancel', function (e) { if (st && e.pointerId === st.id) reset(); });
+    nav.addEventListener('lostpointercapture', function (e) { if (e.target === nav && st && e.pointerId === st.id) reset(); });
+    nav.addEventListener('click', function (e) {
+      if (!swallowClick || !e.detail) return;
+      swallowClick = false;
+      e.stopPropagation();
+      e.preventDefault();
+    }, true);
+    keys.forEach(function (key) {
+      key.button.addEventListener('click', function () {
+        haptic(5);
+        if (konami) {
+          // Both codes use the same physical buttons. Images supplies B, A and Start in order.
+          if (key.page === CAGE_CODE[konamiStep]) konamiStep++;
+          else konamiStep = key.page === CAGE_CODE[0] ? (konamiStep === 2 ? 2 : 1) : 0;
+          if (konamiStep === CAGE_CODE.length) {
+            showKonami(false);
+            launchCage(true, false);
+          } else paintKonamiKeys();
+          return;
+        }
+        if (cageCode(key.page)) return;
+        if (S.route === key.page) {
+          $('main').scrollTop = 0;
+          refreshCurrent();
+        } else go(key.page);
+      });
+    });
   }
   function setFab(text, fn, iconName) {
     var f = $('fab');
@@ -602,7 +677,7 @@
   // Winning the story stores { wins, best } (CAGE_KEY), which unlocks Cage Escape in More (custom games) and the
   // Vault in Settings with the photo unblurred. While it's open the app's top bar stays; its buttons open the game's
   // Menu instead of leaving mid-game.
-  var CAGE_DIR = '/scuffed_dev/app/cage/', CAGE_V = '20261128-3', CAGE_KEY = 'scd-app-cage';
+  var CAGE_DIR = '/scuffed_dev/app/cage/', CAGE_V = '20261128-4', CAGE_KEY = 'scd-app-cage';
   var CAGE_CODE = ['history', 'history', 'board', 'board', 'announce', 'more', 'announce', 'more', 'images', 'images', 'images'];
   var cageTaps = [], cageLast = 0, cageLoad = null;
   function cageCode(g) {
@@ -611,7 +686,10 @@
     cageLast = now;
     cageTaps.push(g);
     if (cageTaps.length > CAGE_CODE.length) cageTaps.shift();
-    if (cageTaps.join() === CAGE_CODE.join()) { cageTaps = []; launchCage(true, false); }
+    if (cageTaps.join() !== CAGE_CODE.join()) return false;
+    cageTaps = [];
+    launchCage(true, false);
+    return true;
   }
   function cageClock(s) { s = Number(s) || 0; var m = Math.floor(s / 60), r = s - m * 60; return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1); }
   function cageUnlocked() { var c = load(CAGE_KEY, null); return !!(c && c.wins); }
@@ -628,7 +706,7 @@
         onOpen: function () { $('app').classList.add('gaming'); },
         onClose: function () { $('app').classList.remove('gaming'); if (S.route === 'more' || S.route === 'settings') route(); },
         onWin: function (r) {
-          if (!r.story) return;   // only the story run (every skull, 40 lines, Sleepy Tesla) counts
+          if (!r.story) return;   // only the story run counts
           var c = load(CAGE_KEY, null) || { wins: 0, best: 0 };
           c.wins = (c.wins || 0) + 1;
           c.best = c.best ? Math.min(c.best, r.time) : r.time;
@@ -1882,8 +1960,7 @@
     });
     $('scrim').addEventListener('click', function () { closeSheet(); });
     $('sheetClose').addEventListener('click', function () { closeSheet(); });
-    navSwipe();
-    document.querySelectorAll('.nav button').forEach(function (b) { b.addEventListener('click', function () { haptic(5); var g = b.getAttribute('data-go'); cageCode(g); if (S.route === g) { $('main').scrollTop = 0; refreshCurrent(); } else go(g); }); });
+    wireNav();
     $('barBell').addEventListener('click', function () { if (cageOpen()) return window.CageTetris.menu(); go('history'); });
     $('meBtn').addEventListener('click', function () { if (cageOpen()) return window.CageTetris.menu(); if (S.me) go('settings'); });
     $('barAction').addEventListener('click', function () { if (cageOpen()) return window.CageTetris.menu(); haptic(6); dropCaches(); refreshCurrent(); });

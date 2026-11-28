@@ -446,12 +446,35 @@ body {
 .gstop .rm svg { width: 12px; height: 12px; }
 .gstop.add { display: grid; place-items: center; height: 56px; border-radius: 14px; border: 1px dashed var(--line2); color: var(--ink2); font-size: 0.78rem; font-weight: 700; }
 
-/* ---------- bottom bar swipe (app.js navSwipe) ---------- */
+/* ---------- bottom bar swipe (app.js wireNav) ---------- */
 .nav { touch-action: none; }
 .nav button.peek .pill { border-color: color-mix(in srgb, var(--acc1) 70%, transparent); background: rgba(255, 255, 255, 0.1); box-shadow: 0 0 18px -2px color-mix(in srgb, var(--acc1) 60%, transparent); }
 .nav button.peek { color: var(--ink); }
 .nav button.peek svg { transform: scale(1.14); }
 .nav.swiping button.on:not(.peek) .pill { opacity: 0.45; }
+
+.nav .konami-key { display: none; }
+.nav.konami button > span:not(.pill),
+.nav.konami button .count,
+.nav.konami button .pill svg { display: none; }
+.nav.konami button .konami-key {
+  display: block;
+  color: var(--ink);
+  font: 800 min(1rem, 16px)/1 var(--mono);
+  text-transform: uppercase;
+}
+.nav.konami button:not(.peek) .pill { opacity: 1; border-color: var(--hot); background: var(--selected-fill); }
+.nav.konami button:active .pill { background: var(--fill); }
+.nav.konami-flash button .pill { animation: nav-key-flash 0.24s ease-out both; }
+.nav.konami-flash button:nth-child(2) .pill { animation-delay: 0.04s; }
+.nav.konami-flash button:nth-child(3) .pill { animation-delay: 0.08s; }
+.nav.konami-flash button:nth-child(4) .pill { animation-delay: 0.12s; }
+.nav.konami-flash button:nth-child(5) .pill { animation-delay: 0.16s; }
+@keyframes nav-key-flash {
+  0% { transform: scale(0.94); box-shadow: 0 0 4px var(--hot); }
+  40% { transform: scale(1.08); box-shadow: 0 0 18px var(--hot); }
+  100% { transform: none; box-shadow: none; }
+}
 
 /* ---------- first-run tour (app.js startTour) ---------- */
 .tour { position: fixed; inset: 0; z-index: 90; transition: opacity 0.25s ease; }
