@@ -382,7 +382,7 @@ async function handleAnnouncementSave(request, env, who) {
       const entry = [{ path, mode: "100644", type: "blob", content }];
       const commit = await gh.commit(head, entry,
         `${WORLDS[world]} announcements update\n\nSaved by ${who.actor} from kanaris-beans.com/scuffed_perms/`);
-      return { commit, sha: await textId(content), live: await liveFiles(entry), world, text: content };
+      return { commit, sha: await textId(content), live: await liveFiles(entry), world, text: content, before: current || "" };
     } catch (err) {
       if (err.github === 422 && attempt < SAVE_RETRIES) { await backoff(attempt); continue; }
       throw err;
@@ -899,17 +899,23 @@ async function handleRedeploy(request, env, who) {
   }
 }
 
-// The announcement notification: the title says whose board it is, the body is the whole announcement (the app's
-// history shows it in full if the push service had to trim it).
-function announceNotice(world, text) {
+// The announcement notification: the title says whose board it is. The file is the board text plus
+// "[notifier] @<time> text" lines (lobby pop-ups). The app keeps each pop-up's @time when you save again and stamps
+// new ones with the save time, so a pop-up line that wasn't in the file before (`before`) was just sent: when there
+// is one, the notification shows exactly that message. With no new pop-up (only the board text changed) it shows
+// the board text. The app's history keeps the same body, in full if the push service had to trim it.
+function announceNotice(world, text, before) {
   const name = WORLDS[world] || world;
-  // the file is the board text plus "[notifier] @<time> text" lines (lobby pop-ups): show those as 🔔 lines
-  const board = [], pops = [];
-  String(text || "").replace(/\r/g, "").split("\n").forEach((line) => {
-    const m = /^\s*\[notifier\]\s*(?:@\S+\s+)?(.*)$/i.exec(line);
-    if (m) { if (m[1].trim()) pops.push(`🔔 ${m[1].trim()}`); } else board.push(line);
+  const NOTE = /^\s*\[notifier\]\s*(?:@\S+\s+)?(.*)$/i;
+  const lines = (t) => String(t || "").replace(/\r/g, "").split("\n");
+  const old = new Set(lines(before).filter((l) => NOTE.test(l)).map((l) => l.trim()));
+  const board = [], fresh = [];
+  lines(text).forEach((line) => {
+    const m = NOTE.exec(line);
+    if (!m) board.push(line);
+    else if (m[1].trim() && !old.has(line.trim())) fresh.push(m[1].trim());
   });
-  const body = [board.join("\n").trim(), pops.join("\n")].filter(Boolean).join("\n\n");
+  const body = fresh.length ? fresh.join("\n") : board.join("\n").trim();
   return { kind: "announce", title: `📣 ${name} announcement`, body: body || "(the announcements were cleared)",
     url: `/scuffed_dev/app/#announce/${world}`, tag: `announce-${world}` };
 }
@@ -971,9 +977,26 @@ export default {
       }
       if (request.method === "POST" && pathname === "/announcements") {
         const who = await staffOf(request, env, MODERATOR_LEVEL);
-        const res = await handleAnnouncementSave(request, env, who);
-        if (res.commit && pushReady(env)) ctx.waitUntil(notify(env, announceNotice(res.world, res.text)).catch((e) => console.error("announce push:", e)));
+        const { before, ...res } = await handleAnnouncementSave(request, env, who);
+        if (res.commit && pushReady(env)) ctx.waitUntil(notify(env, announceNotice(res.world, res.text, before)).catch((e) => console.error("announce push:", e)));
         return json(res, 200, cors);
+      }
+      // App-only announcement (the app's Announcements > App only): a notification and an Inbox entry for everyone
+      // on the scuffed_dev app who gets announcements (moderator and up, per-phone prefs as usual). Nothing in the
+      // worlds changes and nothing is committed. Its url opens the Inbox, which is how the app tells these apart
+      // from world announcements (those open #announce/<world>).
+      if (request.method === "POST" && pathname === "/announcements/app") {
+        const who = await staffOf(request, env, MODERATOR_LEVEL);
+        let body;
+        try { body = await request.json(); } catch { throw new HttpError(400, "Body must be JSON."); }
+        const text = String((body && body.text) || "").replace(/\r/g, "").trim();
+        const title = String((body && body.title) || "").replace(/[\r\n]+/g, " ").trim().slice(0, 120);
+        if (!text) throw new HttpError(400, "Write the announcement first.");
+        if (text.length > MAX_ANNOUNCEMENT) throw new HttpError(400, `Announcements can be at most ${MAX_ANNOUNCEMENT} characters.`);
+        if (!pushReady(env)) throw new HttpError(503, "Notifications aren't switched on yet on the server.");
+        const r = await notify(env, { kind: "announce", title: `📣 ${title || "scuffed_dev announcement"}`, body: `${text}\n\n— ${who.actor}`,
+          url: "/scuffed_dev/app/#history", tag: `app-announce-${Date.now()}`, meta: { app: true, by: who.actor } });
+        return json(r, 200, cors);
       }
       if (request.method === "GET" && pathname === "/images") {
         const who = await staffOf(request, env, IMAGE_LEVEL);

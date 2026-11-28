@@ -15,7 +15,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.1.0';
+  var VERSION = '1.3.0';
   var WORKER = 'https://scuffed-perms.seanboyle20126.workers.dev';
   var SITE = 'https://kanaris-beans.com';
   var RAW = 'https://raw.githubusercontent.com/Scuffed-VRChat/baloneys.github.io/';
@@ -29,7 +29,8 @@
     { id: 'complete', label: 'Complete', sym: '●' }
   ];
   var ST = {}; STATUSES.forEach(function (s) { ST[s.id] = s; });
-  var KIND_ICON = { announce: '📣', board: '🧩', world: '🌍', deploy: '🚀', suggest: '💡', test: '🔔' };
+  // notification kinds -> sprite icons (index.html), shared by the Inbox list and the notification settings
+  var KIND_ICON = { announce: 'megaphone', board: 'board', world: 'globe', deploy: 'rocket', suggest: 'bulb', test: 'bell' };
 
   /* ======================================================================= helpers */
 
@@ -399,7 +400,7 @@
       edge.style.cssText = 'top:' + m.top + 'px;height:' + m.height + 'px;left:' + s.left + 'px;--w:' + s.width + 'px';
       $('app').appendChild(edge);
     }
-    var t = setTimeout(done, kind === 'wipe' ? 540 : kind === 'slide' ? 380 : 300);
+    var t = setTimeout(done, kind === 'wipe' ? 540 : kind === 'slide' ? 440 : 300);
     function done() {
       clearTimeout(t);
       if (fxEnd === done) fxEnd = null;
@@ -531,7 +532,7 @@
   function noteRow(n, unread) {
     var open = !!hist.open[n.id];
     var row = h('button', { class: 'note k-' + n.kind + (unread ? ' unread' : '') + (open ? ' open' : ''), type: 'button', 'aria-expanded': String(open) },
-      h('span', { class: 'kico', text: KIND_ICON[n.kind] || '•' }),
+      h('span', { class: 'kico', html: ic(KIND_ICON[n.kind] || 'bell') }),
       h('span', { class: 'nt' }, h('b', { text: String(n.title || '').replace(/^(?:\p{Extended_Pictographic}|️)+\s*/u, '') }), n.body ? h('p', { text: n.body }) : null, h('time', { text: ago(n.created_at), title: fullDate(n.created_at) })));
     row.addEventListener('click', function () {
       hist.open[n.id] = !hist.open[n.id];
@@ -586,15 +587,69 @@
     if (isDev()) k.push(['deploy', 'Deploys', 'Live on kanaris-beans.com, or a failed build'], ['suggest', 'Suggestions', 'New image and board suggestions']);
     return k;
   }
-  var KIND_ICONS = { announce: 'megaphone', world: 'globe', board: 'board', deploy: 'rocket', suggest: 'image' };
   // one switch per kind; saved on this phone and sent to the server with the subscription
   function kindToggles() {
     return notifKinds().map(function (k) {
-      return settingRow(KIND_ICONS[k[0]], k[1], k[2], sw(prefs.kinds[k[0]] !== false, function (v) {
+      return settingRow(KIND_ICON[k[0]], k[1], k[2], sw(prefs.kinds[k[0]] !== false, function (v) {
         prefs.kinds[k[0]] = v; savePrefs();
         if (push.sub) registerSub(push.sub).catch(function (e) { toast(errText(e), 'bad'); });
       }));
     });
+  }
+
+  // Easter egg: Inbox, Inbox, Board, Board, Announce, More, Announce, More, Images, Images, Images tapped on the bottom
+  // bar (each within 3 seconds of the last) starts Cage Escape's story run. Its code and art (cage/) load only then.
+  // Winning the story stores { wins, best } (CAGE_KEY), which unlocks Cage Escape in More (custom games) and the
+  // Vault in Settings with the photo unblurred. While it's open the app's top bar stays; its buttons open the game's
+  // Menu instead of leaving mid-game.
+  var CAGE_DIR = '/scuffed_dev/app/cage/', CAGE_V = '20261128-3', CAGE_KEY = 'scd-app-cage';
+  var CAGE_CODE = ['history', 'history', 'board', 'board', 'announce', 'more', 'announce', 'more', 'images', 'images', 'images'];
+  var cageTaps = [], cageLast = 0, cageLoad = null;
+  function cageCode(g) {
+    var now = Date.now();
+    if (now - cageLast > 3000) cageTaps = [];
+    cageLast = now;
+    cageTaps.push(g);
+    if (cageTaps.length > CAGE_CODE.length) cageTaps.shift();
+    if (cageTaps.join() === CAGE_CODE.join()) { cageTaps = []; launchCage(true, false); }
+  }
+  function cageClock(s) { s = Number(s) || 0; var m = Math.floor(s / 60), r = s - m * 60; return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1); }
+  function cageUnlocked() { var c = load(CAGE_KEY, null); return !!(c && c.wins); }
+  function cageOpen() { return !!(window.CageTetris && window.CageTetris.isOpen && window.CageTetris.isOpen()); }
+  // custom: the setup screen (only once unlocked); otherwise the story run
+  function launchCage(found, custom) {
+    if (found) haptic([30, 50, 30, 50, 90]);
+    if (!document.querySelector('link[data-cage]')) document.head.appendChild(h('link', { rel: 'stylesheet', href: CAGE_DIR + 'cage-tetris.css?v=' + CAGE_V, 'data-cage': '' }));
+    cageLoad = cageLoad || loadScript(CAGE_DIR + 'cage-tetris.js?v=' + CAGE_V);
+    cageLoad.then(function () {
+      if (sheetOpen) closeSheet();
+      window.CageTetris.open({
+        custom: !!custom && cageUnlocked(), accent: accentPair()[0], image: CAGE_DIR + 'cage.jpg', haptic: haptic,
+        onOpen: function () { $('app').classList.add('gaming'); },
+        onClose: function () { $('app').classList.remove('gaming'); if (S.route === 'more' || S.route === 'settings') route(); },
+        onWin: function (r) {
+          if (!r.story) return;   // only the story run (every skull, 40 lines, Sleepy Tesla) counts
+          var c = load(CAGE_KEY, null) || { wins: 0, best: 0 };
+          c.wins = (c.wins || 0) + 1;
+          c.best = c.best ? Math.min(c.best, r.time) : r.time;
+          save(CAGE_KEY, c);
+        },
+        onReward: function () { go('settings'); setTimeout(function () { var v = $('vault'); if (v) v.scrollIntoView({ behavior: 'smooth', block: 'start' }); showCageReward(); }, 450); }
+      });
+    }, function (e) { cageLoad = null; toast(errText(e), 'bad'); });
+  }
+  // The reward: the photo full screen, no blur. Tap anywhere (or Back) to close.
+  function showCageReward() {
+    if ($('cageView')) return;
+    var v = h('div', { class: 'cage-view', id: 'cageView', role: 'dialog', 'aria-label': 'Nicolas Cage, unblurred' },
+      h('img', { src: CAGE_DIR + 'cage.jpg', alt: 'Nicolas Cage' }), h('span', { class: 'cage-view-hint', text: 'Tap to close' }));
+    function shut() { window.removeEventListener('popstate', onBack); v.classList.add('out'); setTimeout(function () { v.remove(); }, 250); }
+    function onBack() { shut(); }
+    v.addEventListener('click', function () { shut(); if (history.state && history.state.cageView) history.back(); });
+    history.pushState({ cageView: 1 }, '', location.hash);
+    window.addEventListener('popstate', onBack);
+    document.body.appendChild(v);
+    haptic(10);
   }
 
   // First launch: a short spotlight tour of the app (once per phone; Settings > Feel > App tour replays it). The
@@ -1153,13 +1208,14 @@
   }
   function renderAnnounce(scr, arg) {
     clear(scr);
-    if (arg === 'scuffed' || arg === 'straya') { if (ann.world !== arg) ann.data = null; ann.world = arg; }
-    scr.appendChild(bigHeader('Announcements', 'The spawn board text and lobby pop-ups. Saving notifies the team.'));
+    if (arg === 'scuffed' || arg === 'straya' || arg === 'app') { if (ann.world !== arg) ann.data = null; ann.world = arg; }
+    scr.appendChild(bigHeader('Announcements', ann.world === 'app' ? 'A message for the scuffed_dev app only: a notification and an Inbox card. The worlds stay as they are.' : 'The spawn board text and lobby pop-ups. Saving notifies the team.'));
     var seg = h('div', { class: 'chips' });
-    [['scuffed', 'Scuffed'], ['straya', 'Straya']].forEach(function (w) { seg.appendChild(h('button', { class: 'chip' + (ann.world === w[0] ? ' on' : ''), type: 'button', text: w[1], onclick: function () { if (ann.world !== w[0]) { ann.world = w[0]; ann.data = null; renderAnnounce(scr); } } })); });
+    [['scuffed', 'Scuffed'], ['straya', 'Straya'], ['app', 'App only']].forEach(function (w) { seg.appendChild(h('button', { class: 'chip' + (ann.world === w[0] ? ' on' : ''), type: 'button', text: w[1], onclick: function () { if (ann.world !== w[0]) { ann.world = w[0]; ann.data = null; renderAnnounce(scr); } } })); });
     scr.appendChild(seg);
     keepChips(seg, 'announce');
     var box = h('div'); scr.appendChild(box);
+    if (ann.world === 'app') { renderAppAnnounce(scr, box); return; }
     if (!ann.data) {
       box.appendChild(skeleton(2, 160));
       worker('/announcements?world=' + ann.world).then(function (d) { ann.data = d; ann.parts = splitAnn(d.text); if (S.route === 'announce') renderAnnounce(scr); }, function (e) { clear(box).appendChild(emptyState('!', 'Couldn\'t load the announcements', errText(e))); });
@@ -1173,7 +1229,7 @@
     function drawNotes() {
       clear(nl);
       notes.forEach(function (n, i) {
-        nl.appendChild(h('div', { class: 'noteline' }, h('span', { text: '🔔 ' + n }), ann.stamps[n] ? h('time', { text: ago(ann.stamps[n]) }) : h('time', { text: 'new' }),
+        nl.appendChild(h('div', { class: 'noteline' }, h('span', { class: 'nl-ico', html: ic('bell') }), h('span', { class: 'nl-txt', text: n }), ann.stamps[n] ? h('time', { text: ago(ann.stamps[n]) }) : h('time', { text: 'new' }),
           h('button', { class: 'icon-btn', type: 'button', html: ic('x'), 'aria-label': 'Remove', style: 'width:36px;height:36px', onclick: function () { notes.splice(i, 1); drawNotes(); } })));
       });
       if (!notes.length) nl.appendChild(h('p', { style: 'margin:0;color:var(--ink3);font-size:.84rem', text: 'No lobby pop-ups. Add one below: it pops up for everyone in the lobby once.' }));
@@ -1201,6 +1257,42 @@
     }, 'check');
   }
 
+  // Announcements > App only: a notification and an Inbox card for everyone on the scuffed_dev app who gets
+  // announcements (moderator and up). Worker POST /announcements/app; nothing in the worlds changes. App-only
+  // announcements open the Inbox (#history), which is how the "Sent recently" list picks them out of the history.
+  function renderAppAnnounce(scr, box) {
+    var title = h('input', { class: 'input', maxlength: '120', placeholder: 'Title (optional), e.g. Staff meeting tonight', 'aria-label': 'Title' });
+    var ta = h('textarea', { class: 'textarea', style: 'min-height:180px', maxlength: '8000', placeholder: 'What should everyone on the app know?', 'aria-label': 'Message' });
+    if (ann.draft) { title.value = ann.draft.title || ''; ta.value = ann.draft.text || ''; }
+    function keep() { ann.draft = { title: title.value, text: ta.value }; }
+    title.addEventListener('input', keep); ta.addEventListener('input', keep);
+    box.appendChild(h('div', { class: 'section', text: 'Title' }));
+    box.appendChild(title);
+    box.appendChild(h('div', { class: 'section', text: 'Message' }));
+    box.appendChild(ta);
+    box.appendChild(h('p', { style: 'margin:8px 4px 0;color:var(--ink3);font-size:.8rem', text: 'Your name is added at the end. Phones that switched announcements off in Settings don\'t get the notification, but it still shows in their Inbox.' }));
+    var recent = (hist.items || []).filter(function (n) { return n.kind === 'announce' && /#history$/.test(n.url || ''); }).slice(0, 5);
+    if (recent.length) {
+      box.appendChild(h('div', { class: 'section', text: 'Sent recently' }));
+      var rl = h('div');
+      recent.forEach(function (n) { rl.appendChild(noteRow(n, false)); });
+      box.appendChild(rl);
+    }
+    setFab('Send', function () {
+      var text = ta.value.trim();
+      if (!text) { toast('Write the message first.', 'bad'); return; }
+      confirmSheet('Send to the app?', 'Everyone on scuffed_dev who gets announcements gets this as a notification now, and it goes in their Inbox. The worlds don\'t change.', 'Send').then(function (ok) {
+        if (!ok) return;
+        worker('/announcements/app', { title: title.value.trim(), text: text }).then(function (res) {
+          toast('Sent' + (res && typeof res.sent === 'number' ? ' to ' + res.sent + (res.sent === 1 ? ' phone' : ' phones') : ''), 'good'); haptic(18);
+          ann.draft = null;
+          hist.items = null;
+          loadHistory().then(function () { paintBadges(); if (S.route === 'announce') renderAnnounce(scr); }, function () { if (S.route === 'announce') renderAnnounce(scr); });
+        }, function (e) { toast(errText(e), 'bad'); });
+      });
+    }, 'send');
+  }
+
   /* ======================================================================= More / Deploys / Permissions / Settings */
 
   function renderMore(scr) {
@@ -1214,6 +1306,7 @@
     var rows = [
       ['rocket', 'Deploys', status.error ? status.error.title : active ? active + (active === 1 ? ' active build' : ' active builds') : bad ? bad + ' need attention' : 'GitHub Pages build status', function () { go('deploys'); }],
       isAdmin() ? ['shield', 'Permissions', 'Who holds which role in the world', function () { go('perms'); }] : null,
+      cageUnlocked() ? ['board', 'Cage Escape', 'Play Cage Escape: race Tesla or play solo, with your choice of skulls', function () { launchCage(false, true); }] : null,
       ['gear', 'Settings', 'Notifications, appearance, account', function () { go('settings'); }],
       ['globe', 'Open the website', 'kanaris-beans.com/scuffed_dev', function () { window.open(SITE + '/scuffed_dev/', '_blank', 'noopener'); }],
       ['download', 'App updates', 'Get the newest APK from GitHub Releases', function () { window.open(RELEASES, '_blank', 'noopener'); }]
@@ -1482,6 +1575,17 @@
       settingRow(null, 'Reduce motion', 'Turn animations off', sw(!!prefs.calm, function (v) { prefs.calm = v; savePrefs(); applyLook(); })),
       h('button', { class: 'setting link', type: 'button', onclick: function () { startTour(null); } }, h('span', { class: 'ico', html: ic('hand') }),
         h('span', { class: 'txt' }, h('b', { text: 'App tour' }), h('small', { text: 'Show the quick tour again' })))));
+    // the Vault: only there once you've won Cage Tetris
+    var cg = load(CAGE_KEY, null);
+    if (cg && cg.wins) {
+      scr.appendChild(h('div', { class: 'section', id: 'vault', text: 'Vault' }));
+      scr.appendChild(h('div', { class: 'panel vault' },
+        h('button', { class: 'vault-pic', type: 'button', 'aria-label': 'View Nicolas Cage, unblurred', onclick: showCageReward },
+          h('img', { src: CAGE_DIR + 'cage.jpg', alt: '' }), h('span', { text: 'Nicolas Cage, unblurred' })),
+        settingRow(null, 'Freed ' + cg.wins + (cg.wins === 1 ? ' time' : ' times'), 'Best time ' + cageClock(cg.best)),
+        h('button', { class: 'setting link', type: 'button', onclick: function () { launchCage(false, true); } }, h('span', { class: 'ico', html: ic('board') }),
+          h('span', { class: 'txt' }, h('b', { text: 'Play Cage Escape' }), h('small', { text: 'Custom games: race Tesla or play solo, pick your skulls' })))));
+    }
     scr.appendChild(h('p', { style: 'margin:18px 4px;color:var(--ink3);font-family:var(--mono);font-size:.7rem', text: 'scuffed_dev ' + VERSION }));
   }
   // Settings > Appearance > Custom: build your own gradient from 2-3 colours and an angle. Every change shows
@@ -1779,10 +1883,10 @@
     $('scrim').addEventListener('click', function () { closeSheet(); });
     $('sheetClose').addEventListener('click', function () { closeSheet(); });
     navSwipe();
-    document.querySelectorAll('.nav button').forEach(function (b) { b.addEventListener('click', function () { haptic(5); var g = b.getAttribute('data-go'); if (S.route === g) { $('main').scrollTop = 0; refreshCurrent(); } else go(g); }); });
-    $('barBell').addEventListener('click', function () { go('history'); });
-    $('meBtn').addEventListener('click', function () { if (S.me) go('settings'); });
-    $('barAction').addEventListener('click', function () { haptic(6); dropCaches(); refreshCurrent(); });
+    document.querySelectorAll('.nav button').forEach(function (b) { b.addEventListener('click', function () { haptic(5); var g = b.getAttribute('data-go'); cageCode(g); if (S.route === g) { $('main').scrollTop = 0; refreshCurrent(); } else go(g); }); });
+    $('barBell').addEventListener('click', function () { if (cageOpen()) return window.CageTetris.menu(); go('history'); });
+    $('meBtn').addEventListener('click', function () { if (cageOpen()) return window.CageTetris.menu(); if (S.me) go('settings'); });
+    $('barAction').addEventListener('click', function () { if (cageOpen()) return window.CageTetris.menu(); haptic(6); dropCaches(); refreshCurrent(); });
     $('filePick').addEventListener('change', function () { var files = Array.prototype.slice.call($('filePick').files || []); var t = pickTarget; pickTarget = null; startUpload(files, t, false); });
     // large title collapses into the bar
     $('main').addEventListener('scroll', function () { $('app').classList.toggle('scrolled', $('main').scrollTop > 46); }, { passive: true });
