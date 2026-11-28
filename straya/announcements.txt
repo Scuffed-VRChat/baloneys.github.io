@@ -5,4 +5,4 @@ Write anything here - every line shows on the spawn board.
 
 A line starting with [notifier] is left off the board and pops up as a notification for the whole lobby instead.
 
-[notifier] @2026-11-21T00:15:48Z Sophie is very pretty, she must take a shot.
+[notifier] @2026-11-28T00:42:06Z Halo 2
