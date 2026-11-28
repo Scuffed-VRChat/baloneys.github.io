@@ -8,20 +8,29 @@
 .cage { position: fixed; top: calc(var(--bar, 56px) + var(--top, 0px)); left: 0; right: 0; bottom: 0; z-index: 100; display: flex; flex-direction: column; overflow: hidden; color: #fff; font-family: Inter, system-ui, sans-serif;
   padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   touch-action: none; user-select: none; -webkit-user-select: none; animation: cg-in 0.35s ease both; }
+.cage {
+  --cg-mint: #85ffe1;
+}
 .cage.out { animation: cg-out 0.25s ease both; }
 @keyframes cg-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes cg-out { to { opacity: 0; transform: translateY(8px); } }
 
 /* the photo under frosted glass */
 .cg-bg { position: absolute; inset: -40px; z-index: -2; background: #0a0608 center 30% / cover no-repeat; filter: blur(16px) saturate(1.25) brightness(0.85); transform: scale(1.06); }
-.cg-glass { position: absolute; inset: 0; z-index: -1; background: radial-gradient(120% 70% at 50% 40%, rgba(10, 6, 8, 0.02), rgba(6, 3, 5, 0.5)), linear-gradient(180deg, rgba(5, 2, 4, 0.3), transparent 25%, transparent 60%, rgba(5, 2, 4, 0.5)); }
+.cg-glass {
+  position: absolute; inset: 0; z-index: -1;
+  background:
+    radial-gradient(90% 62% at 0 5%, #19363c88, transparent 68%),
+    radial-gradient(90% 72% at 95% 5%, #6818457d, transparent 70%),
+    linear-gradient(180deg, #1e113655, #140e26a8 80%, #0c0818d9);
+}
 
 /* ---------- top strip ---------- */
 .cg-top { position: relative; flex: none; display: flex; align-items: flex-start; gap: 10px; height: 112px; padding: 8px 98px 0 10px; }
 .cg-opp { flex: none; display: flex; gap: 6px; }
 .cg-opp canvas.mini { border-radius: 4px; box-shadow: 0 0 16px -4px rgba(76, 201, 255, 0.7); }
 .cg-tag { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 34px; font-family: "JetBrains Mono", monospace; font-size: 0.56rem; font-weight: 800; color: #9fd8ff; }
-.cg-tag .face { width: 32px; height: 36px; image-rendering: pixelated; border-radius: 7px; background: radial-gradient(circle at 50% 40%, rgba(76, 201, 255, 0.35), rgba(6, 18, 63, 0.6)); box-shadow: inset 0 0 0 1px rgba(76, 201, 255, 0.4); transition: filter 0.1s; }
+.cg-tag .face { width: 32px; height: 36px; object-fit: contain; image-rendering: pixelated; border-radius: 3px; background: #173e47; box-shadow: inset 0 0 0 1px #46998c, 2px 2px 0 #29163d; transition: filter 0.1s; }
 .cg-tag .face.zap { filter: brightness(1.8) drop-shadow(0 0 8px #4cc9ff); }
 .cg-tag .lives { color: #7cc4ff; font-size: 0.55rem; letter-spacing: 1px; }
 .cage.solo .cg-opp { display: none; }
@@ -43,17 +52,17 @@
 .cg-status { min-height: 14px; margin-top: 4px; color: rgba(255, 255, 255, 0.5); font-family: "JetBrains Mono", monospace; font-size: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* top right: Nic in a cage */
-.cg-prisoner { position: absolute; top: 8px; right: 10px; width: 80px; height: 93px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6)); }
-.cg-prisoner canvas { position: absolute; left: 0; top: 0; width: 80px; height: 93px; image-rendering: pixelated; }
-.cg-prisoner .nic { animation: cg-bob 1.6s steps(2) infinite; }
+.cg-prisoner { position: absolute; top: 8px; right: 10px; width: 78px; height: 87px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6)); }
+.cg-prisoner canvas, .cg-prisoner img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.cg-prisoner .nic { object-fit: contain; object-position: center bottom; animation: cg-bob 1.6s steps(2) infinite; }
 .cg-prisoner .bars { transition: transform 0.9s cubic-bezier(0.5, -0.4, 0.4, 1), opacity 0.9s ease; }
-.cg-prisoner .lock { left: 32px; top: 73px; width: 17px; height: 23px; transition: transform 0.6s cubic-bezier(0.5, 0, 1, 1), opacity 0.6s ease; }
+.cg-prisoner .lock { left: 30px; top: 66px; width: 18px; height: 24px; transition: transform 0.6s cubic-bezier(0.5, 0, 1, 1), opacity 0.6s ease; }
 .cg-prisoner.free .bars { transform: translateY(-120%); opacity: 0; }
 .cg-prisoner.free .lock { transform: translateY(80px) rotate(40deg); opacity: 0; }
 .cg-prisoner.free .nic { animation: cg-cheer 0.5s steps(2) infinite; }
 @keyframes cg-bob { 50% { transform: translateY(2px); } }
 @keyframes cg-cheer { 50% { transform: translateY(-5px); } }
-.cg-bubble { position: absolute; right: 62px; top: -2px; padding: 3px 7px; border-radius: 8px 8px 2px 8px; background: #fff; color: #120a0e; font-family: "JetBrains Mono", monospace; font-size: 0.58rem; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); animation: cg-bob 1.2s steps(2) infinite; }
+.cg-bubble { position: absolute; right: 62px; top: -2px; padding: 3px 7px; border-radius: 8px 8px 2px 8px; background: #ffdfad; color: #3b193d; font-family: "JetBrains Mono", monospace; font-size: 0.58rem; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); animation: cg-bob 1.2s steps(2) infinite; }
 
 /* ---------- stage: Hold | your well | Next ---------- */
 .cg-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 8px; }
@@ -61,7 +70,7 @@
    backdrop-filter element can fail to show) */
 .cg-wellbox { position: relative; flex: none; isolation: isolate; }
 .cg-wellbox::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 6px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.cg-wellbox canvas.well { display: block; border-radius: 6px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 20px 50px -10px rgba(0, 0, 0, 0.85), 0 0 40px -10px color-mix(in srgb, var(--acc1) 60%, transparent); }
+.cg-wellbox canvas.well { display: block; border-radius: 6px; box-shadow: -1px -1px 0 #5eb9ad90, 1px 1px 0 #bd4f7f90, 0 20px 50px -10px #100817dc, 0 0 30px -12px #ba3b7e; }
 .cg-side { display: flex; flex-direction: column; align-items: center; gap: 4px; align-self: flex-start; margin-top: 2px; }
 .cg-side .lbl { font-family: "JetBrains Mono", monospace; font-size: 0.56rem; font-weight: 800; letter-spacing: 0.08em; color: rgba(255, 255, 255, 0.55); }
 .cg-side canvas { border-radius: 8px; background: rgba(6, 4, 10, 0.55); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1); }
@@ -148,6 +157,83 @@
 .cg-btn.mini { height: 26px; padding: 0 10px; border-radius: 99px; font-size: 0.68rem; }
 .cg-btn:active { transform: scale(0.97); }
 .cg-panel.win .cg-card { box-shadow: 0 0 60px -10px var(--acc1), 0 30px 70px -20px rgba(0, 0, 0, 0.9); }
+
+/* Tesla's lab prologue */
+.cage.in-cutscene { top: 0; background: #080818; }
+.cage.in-cutscene:not(.out), .cage.after-cutscene:not(.out) { animation: none; }
+.cage.in-cutscene > :not(.cg-panel) { visibility: hidden; }
+.cg-panel.cutscene {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  background: #080818;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
+}
+.cg-film {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+.cg-panel.cutscene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, transparent 0 3px, #0c09171c 3px 4px);
+  pointer-events: none;
+}
+.cg-film-summary {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.cg-cinematic-quote {
+  position: absolute;
+  z-index: 1;
+  inset: auto 0 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 28px 16px max(30px, calc(env(safe-area-inset-bottom) + 18px));
+  background: linear-gradient(transparent, #100916ef 65%);
+  color: #fff1d7;
+  text-align: center;
+}
+.cg-cinematic-quote[hidden] { display: none; }
+.cg-cinematic-quote b {
+  font: 800 0.68rem/1 var(--mono, monospace);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cg-mint);
+}
+.cg-cinematic-quote span {
+  font: italic 800 clamp(1.8rem, 8vw, 4.2rem)/1.1 var(--mono, monospace);
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 #9f316b, -1px 0 #66dccc;
+}
+.cg-panel.cutscene .cg-film-skip {
+  position: absolute;
+  z-index: 2;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  min-height: 42px;
+  border-radius: 4px;
+  border-color: #94577d;
+  background: #1c122cdc;
+  color: #ffe6ee;
+}
+.cg-panel.cutscene .cg-film-skip:focus-visible,
+.cg-panel.cutscene .cg-film-skip:hover { border-color: var(--cg-mint); }
+.cage.cg-reduced, .cage.cg-reduced .cg-panel,
+.cage.cg-reduced .cg-prisoner .nic, .cage.cg-reduced .cg-bubble { animation: none; }
+.cage.cg-reduced .cg-prisoner .bars, .cage.cg-reduced .cg-prisoner .lock { transition: none; }
 
 /* setup: chips like the app's filter chips, skulls as toggle tiles */
 .cg-setup { text-align: left; }

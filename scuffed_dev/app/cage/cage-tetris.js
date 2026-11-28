@@ -901,7 +901,10 @@
         game.players.forEach(function (p) { if (p.alive && game && !game.over) stepPlayer(p, dt); });
       }
     }
-    if (game && ui) render(now);
+    if (game && ui) {
+      if (ui.scene) tickCutscene(dt);
+      else render(now);
+    }
     raf = requestAnimationFrame(loop);
   }
 
@@ -1115,55 +1118,64 @@
 
   /* ---------- pixel art ---------- */
 
-  // Nicolas Cage, 20x24: the spiky swept-up hair, high forehead, heavy brows, pale blue eyes and the zebra-print
-  // suit from the photo. Drawn from character maps at 1 px per cell and scaled up with crisp pixels.
+  // Portraits share the same 22x25 pixel grid so they work in the HUD and in the lab scene.
   var NIC = [
-    '.....h.hHh.hh.h.....',
-    '....hhhhHHhhhhhhh...',
-    '...hhhhhHhhhhhhhhh..',
-    '...hhhssssshhhhhhh..',
-    '..hhhssssssssshhhh..',
-    '..hhssssssssssshhh..',
-    '..hhssssssssssssh...',
-    '..hssrrrrsssrrrrsh..',
-    '..hsssssssssssssh...',
-    '..hswbbsssssbbwssh..',
-    '..hssssssSsssssssh..',
-    '...sssssSSssssss....',
-    '...SssssSSSssssS....',
-    '...Ssssssssssss.....',
-    '....SsssmmmmssS.....',
-    '....SSsssssssSS.....',
-    '.....SSssssssS......',
-    '......SSSssSS.......',
-    '....kkkwssswkkk.....',
-    '..kkKkkwwttwwkkKk...',
-    '.kkKkkkkwttwkkkkKk..',
-    'kKkkkKkkwttwkkKkkkK.',
-    'kkkKkkkkkttkkkkKkkkk',
-    'kKkkkkKkkttkkKkkkkKk'
+    '.........ooooo........',
+    '......ooohhHooo.......',
+    '....oohhHhhhhhhHo.....',
+    '...oohhHhHhhhhhhho....',
+    '...oohhhhHhhhhhhhhho..',
+    '..oohhhHhhhhhHhhhhhho.',
+    '..ooohhhHHhhHHhhhhho..',
+    '..oohhhLLLMMLLhhhho...',
+    '...ohhLLLMMMMMMLhhho..',
+    '...ohhLLLMMMLMMSho....',
+    '...ohMMMrrLLLrrMSho...',
+    '...ohMrrrLLLLrrrMho...',
+    '..oMSMwiMLLwiiMSho....',
+    '..oMSMMMMMLLMMMMSo....',
+    '...oSSMMMMMMSMMMSSo...',
+    '...oDSMMMMSSSMMSSoo...',
+    '....oDSSMSMMSSSSDoo...',
+    '....oDSSSSmmmmSSDoo...',
+    '.....oDDSSmmmSSDDoo...',
+    '......ooDDSSSSDDoo....',
+    '.......oDDDSSDDooo....',
+    '.....oovvDDDDvvoo.....',
+    '...ookQvvWDDWvvQkoo...',
+    '..okQvkkvWtWvkvQkko...',
+    '.okvkQvkkWtWkkQvkkko..'
   ];
-  var NIC_PAL = { h: '#7a4a2a', H: '#a8703f', s: '#f0c6a6', S: '#d29a7c', r: '#4e2c18', w: '#f4f1ee', b: '#6fb2e0', m: '#a35d55', k: '#141117', K: '#3a3540', t: '#050506' };
-  // Nikola Tesla, 14x16: centre-parted black hair, moustache, high collar.
+  var NIC_PAL = { o: '#160c26', h: '#603153', H: '#dd7771', L: '#ffe9be', M: '#ffb28d', S: '#d26081', D: '#87406c', r: '#48203e', w: '#fff1d1', i: '#27557a', m: '#783153', k: '#34284c', v: '#6b3f70', Q: '#ed6b99', W: '#fef3dc', t: '#eb4e78' };
+
   var TESLA = [
-    '...kkkkkkkk...',
-    '..kkkkksskkkk.',
-    '..kkssssssskk.',
-    '.kksssssssssk.',
-    '.kssrrsssrrsk.',
-    '.kssbssssbssk.',
-    '.ksssssSsssss.',
-    '..sssssSsssss.',
-    '..ssmmmmmmmss.',
-    '..sssmmmmmss..',
-    '...sssssssss..',
-    '....SSSSSS....',
-    '..kkkwwwwkkk..',
-    '.kkkkwttwkkkk.',
-    'kkkkkwttwkkkkk',
-    'kkkkkkkkkkkkkk'
+    '.......ooooooo........',
+    '.....ooohHhhooo.......',
+    '....oohhHHhHhhho......',
+    '...ohhhHHhhHhhhho.....',
+    '...ohhhHhHhhhhhho.....',
+    '...ohhhHLLLhhhhhho....',
+    '...ohhLLLLLLLLhhho....',
+    '...ohhLLLMLLLLhhho....',
+    '...ohMLrrLMLrrMSho....',
+    '...ohMMrwiMLiwrSho....',
+    '...oSMMMMMLLMMSSho....',
+    '....oSSMMMMMSSMSSo....',
+    '....oSSMMMSSSMSSSo....',
+    '....oSSMMrrrrMSSoo....',
+    '.....oSMrrrrrrrSoo....',
+    '.....oDSMMSSMMDDoo....',
+    '......oDDSMMSSDDoo....',
+    '.......ooDDSSDDooo....',
+    '........ovDDDDSvoo....',
+    '......oovvWDDWvvoo....',
+    '....ookvkvWtWvkvkoo...',
+    '...okkvQkkWtWkkQvkkoo.',
+    '..okkvkkQWtWQkkvkkkko.',
+    '..okkkQkkkkttkkkkkkkko',
+    '..okkkkkkkkttkkkkkkkko'
   ];
-  var TESLA_PAL = { k: '#16141c', s: '#e8c3a2', S: '#c99a7a', r: '#1b1720', b: '#3a3a52', m: '#22191a', w: '#e9e9f0', t: '#2b2f4a' };
+  var TESLA_PAL = { o: '#0d1425', h: '#23213b', H: '#427a8b', L: '#eafadc', M: '#bce0be', S: '#739b9c', D: '#525878', r: '#23203b', w: '#fff5d8', i: '#304b69', k: '#172344', v: '#224c60', Q: '#399395', W: '#e7fff0', t: '#8d4cc0' };
 
   function pixelCanvas(map, pal, scale, pad) {
     pad = pad || 0;
@@ -1176,18 +1188,335 @@
     return c;
   }
 
-  // The cage: a frame with bars every 3 pixels, drawn over Nic at the same pixel scale, and a padlock.
   function cageCanvas(w, hgt, scale) {
-    var c = document.createElement('canvas'), x;
-    c.width = w * scale; c.height = hgt * scale;
-    x = c.getContext('2d');
-    function px(i, j, col) { x.fillStyle = col; x.fillRect(i * scale, j * scale, scale, scale); }
-    for (var i = 0; i < w; i++) { px(i, 0, '#8f96a8'); px(i, 1, '#4d5262'); px(i, hgt - 2, '#8f96a8'); px(i, hgt - 1, '#4d5262'); }
-    for (var b = 1; b < w; b += 3) for (var j = 2; j < hgt - 2; j++) px(b, j, j % 7 === 0 ? '#d5dbea' : '#9aa2b6');
+    var c = document.createElement('canvas');
+    c.width = w * scale;
+    c.height = hgt * scale;
+    var ctx = c.getContext('2d');
+    ctx.scale(scale, scale);
+    function box(x, y, width, height, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, width, height);
+    }
+
+    // Set the inner bars behind the steel rim and keep the center of the face readable.
+    [5, 11, 17, w - 6].forEach(function (x) {
+      box(x + 1, 3, 1, hgt - 6, 'rgba(16, 26, 45, 0.65)');
+      box(x, 3, 1, hgt - 6, 'rgba(132, 180, 199, 0.64)');
+      box(x, 4, 1, 4, '#c3deea');
+    });
+    box(0, 2, 3, hgt - 4, '#20273b');
+    box(w - 3, 2, 3, hgt - 4, '#20273b');
+    box(1, 3, 1, hgt - 6, '#729ab3');
+    box(w - 2, 3, 1, hgt - 6, '#52768e');
+    [0, hgt - 4].forEach(function (y) {
+      box(1, y, w - 2, 4, '#20273b');
+      box(2, y + 1, w - 4, 1, '#a5c9d3');
+      box(2, y + 2, w - 4, 1, '#52768e');
+      box(3, y + 2, 1, 1, '#ffe5aa');
+      box(w - 4, y + 2, 1, 1, '#ffe5aa');
+    });
     return c;
   }
+
   function lockCanvas(scale) {
-    return pixelCanvas(['.yyy.', 'y...y', 'y...y', 'YYYYY', 'YYkYY', 'YYkYY', 'YYYYY'], { y: '#c9cfdc', Y: '#ffcc33', k: '#3a2a00' }, scale);
+    return pixelCanvas([
+      '.osso.', 'os..so', 'os..so', 'oyyyyo',
+      'oYggyO', 'oYgkyO', 'oYgkyO', '.OOOO.'
+    ], { o: '#302039', O: '#825232', s: '#9ec2d4', y: '#e0a352', Y: '#ffe69d', g: '#c58242', k: '#302039' }, scale);
+  }
+
+  /* ---------- Fullscreen prologue ---------- */
+
+  var FILM_HEIGHT = 192;
+  var FILM_END = 8.1;
+  var FILM_SHOTS = [
+    { id: 'lab', at: 0, description: 'Nic stands in front of Tesla’s coil.' },
+    { id: 'blackout', at: 1.35, description: 'The lights go out.' },
+    { id: 'sparks', at: 1.85, description: 'Sparks from the coil light the lab blue.' },
+    { id: 'flash', at: 3.35, description: 'A flash engulfs Nic and the coil.' },
+    { id: 'caged', at: 3.57, description: 'Nic grabs the bars of a locked cage.' },
+    { id: 'tesla', at: 5.95, description: 'The camera pulls back to a grinning Tesla. Tesla says, “Cage Escape.”' }
+  ];
+
+  function characterImage(name, cls, map, palette) {
+    var image = el('img', cls);
+    image.alt = '';
+    image.addEventListener('error', function () {
+      image.src = pixelCanvas(map, palette, 3, 1).toDataURL();
+    }, { once: true });
+    image.src = DIR + 'art/' + name;
+    return image;
+  }
+
+  function imageReady(image) { return image.complete && image.naturalWidth > 0; }
+
+  function filmBox(ctx, x, y, w, hgt, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(hgt));
+  }
+
+  function filmBackdrop(width) {
+    var canvas = el('canvas');
+    canvas.width = width;
+    canvas.height = FILM_HEIGHT;
+    var ctx = canvas.getContext('2d');
+    var mid = Math.floor(width / 2);
+    function box(x, y, w, hgt, color) { filmBox(ctx, x, y, w, hgt, color); }
+    box(0, 0, width, FILM_HEIGHT, '#20132f');
+    box(0, 9, width, 3, '#623153');
+    box(0, 12, width, 2, '#b64b7b');
+    box(0, 15, width, 9, '#312342');
+    for (var x = 5; x < width; x += 24) {
+      box(x, 23, 1, 91, '#3b294a');
+      box(x + 1, 24, 1, 91, '#25182f');
+    }
+
+    // Neon skyline behind the safety glass, left of the coil.
+    var win = mid - 64;
+    box(win, 36, 53, 54, '#110f26');
+    box(win + 2, 38, 49, 50, '#8d366a');
+    box(win + 3, 62, 47, 24, '#db657e');
+    box(win + 3, 74, 47, 12, '#fb997e');
+    box(win + 29, 55, 9, 12, '#ffbe9a');
+    box(win + 27, 57, 13, 8, '#ffbe9a');
+    for (var i = 0; i < 7; i++) {
+      var roof = 69 + (i * 7 % 12);
+      box(win + 3 + i * 7, roof, 7, 86 - roof, '#44294f');
+      if (i % 2 === 0) box(win + 4 + i * 7, roof + 2, 1, 1, '#ffd4ae');
+    }
+    box(win + 25, 37, 1, 51, '#623246');
+    box(win, 89, 53, 2, '#d86c99');
+
+    // Breaker and conduit behind Tesla’s workbench.
+    var panel = mid + 23;
+    box(mid - 10, 27, 74, 2, '#624968');
+    box(panel + 5, 29, 2, 24, '#624968');
+    box(panel, 52, 20, 28, '#10152b');
+    box(panel + 1, 53, 18, 25, '#33435a');
+    box(panel + 3, 56, 14, 9, '#19233a');
+    box(panel + 5, 58, 3, 2, '#72e5d7');
+    box(panel + 11, 58, 2, 2, '#ff8f8c');
+    box(panel + 4, 71, 11, 2, '#59627b');
+
+    box(0, 112, width, 5, '#362342');
+    box(0, 116, width, 1, '#844265');
+    box(0, 117, width, FILM_HEIGHT - 117, '#251933');
+    for (var row = 0; row < 7; row++) {
+      for (var col = (row % 2) * 8 - 8; col < width; col += 16) {
+        var y = 118 + row * 11;
+        box(col, y, 15, 10, (row + col) % 3 ? '#492b4e' : '#3c284a');
+        box(col + ((col + row * 3) & 7), y + 6, 1, 1, '#6c3c62');
+      }
+    }
+    return canvas;
+  }
+
+  function shotAt(time) {
+    for (var i = FILM_SHOTS.length - 1; i > 0; i--) {
+      if (time >= FILM_SHOTS[i].at) return FILM_SHOTS[i];
+    }
+    return FILM_SHOTS[0];
+  }
+
+  function resizeCutscene() {
+    var scene = ui.scene;
+    if (!scene) return;
+    var rect = scene.canvas.getBoundingClientRect();
+    if (!rect.height) return;
+    var width = Math.max(1, Math.round(FILM_HEIGHT * rect.width / rect.height));
+    if (scene.backdrop && width === scene.canvas.width) return;
+    scene.canvas.width = width;
+    scene.canvas.height = FILM_HEIGHT;
+    scene.ctx.imageSmoothingEnabled = false;
+    scene.backdrop = filmBackdrop(width);
+    scene.frame = -1;
+  }
+
+  function filmProp(ctx, image, frame, x, y, size) {
+    if (imageReady(image)) ctx.drawImage(image, frame * 64, 0, 64, 64, Math.round(x), Math.round(y), size, size);
+  }
+
+  function filmPortrait(ctx, image, left, top, size) {
+    if (imageReady(image)) ctx.drawImage(image, Math.round(left), Math.round(top), Math.round(size), Math.round(size));
+  }
+
+  function filmGlow(ctx, x, y, radius, color) {
+    var glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, color);
+    glow.addColorStop(1, 'transparent');
+    filmBox(ctx, x - radius, y - radius, radius * 2, radius * 2, glow);
+  }
+
+  function filmArc(ctx, x, y, endX, endY, phase) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (var i = 1; i < 6; i++) {
+      var f = i / 6;
+      ctx.lineTo(Math.round(x + (endX - x) * f + Math.sin(i * 8 + phase) * 8), Math.round(y + (endY - y) * f));
+    }
+    ctx.lineTo(endX, endY);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#307af2';
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#b9faff';
+    ctx.stroke();
+  }
+
+  function drawOpening(scene, shot) {
+    var ctx = scene.ctx, width = scene.canvas.width, mid = width / 2;
+    var coilSize = 130, coilY = 4;
+    var nicSize = Math.min(width * 0.94, 111);
+    var nicTop = 180 - nicSize;
+    var frame = Math.floor(scene.time * 7);
+    var charged = shot.id === 'sparks' || shot.id === 'flash';
+    ctx.drawImage(scene.backdrop, 0, 0);
+
+    // Crop out the idle sprite's stray sparks while the room lights are still on.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(mid - 20, coilY, 40, coilSize);
+    ctx.clip();
+    filmProp(ctx, scene.coil, 0, mid - coilSize / 2, coilY, coilSize);
+    ctx.restore();
+
+    filmPortrait(ctx, scene.nic, mid - nicSize / 2, nicTop, nicSize);
+    if (shot.id === 'lab') return;
+
+    filmBox(ctx, 0, 0, width, FILM_HEIGHT, '#030720e8');
+    if (!charged) return;
+    var strength = 0.37 + 0.09 * Math.sin(scene.time * 12);
+    filmGlow(ctx, mid, 39, 99, 'rgba(54, 140, 255, ' + strength + ')');
+    filmGlow(ctx, mid, 105, 78, 'rgba(45, 86, 237, 0.23)');
+    ctx.save();
+    ctx.filter = 'grayscale(1) sepia(1) hue-rotate(165deg) saturate(2.2) brightness(0.72)';
+    filmProp(ctx, scene.coil, frame % 4, mid - coilSize / 2, coilY, coilSize);
+    filmPortrait(ctx, scene.nic, mid - nicSize / 2, nicTop, nicSize);
+    ctx.restore();
+
+    filmArc(ctx, mid - 1, 30, mid - 13, 67, frame);
+    filmArc(ctx, mid + 3, 32, mid + 13, nicTop + 24, frame + 7);
+    if (shot.id === 'flash') {
+      // One brief cyan exposure bridges the cut, without a white strobe.
+      var peak = 1 - Math.abs((scene.time - shot.at) / 0.22 * 2 - 1);
+      filmGlow(ctx, mid, 61, 116, 'rgba(174, 245, 255, ' + Math.max(0, peak) * 0.82 + ')');
+      filmArc(ctx, mid, 30, mid, nicTop + 24, 12);
+    }
+  }
+
+  function gripBar(ctx, x, y, scale, facing) {
+    var half = 3.4 * scale;
+    filmBox(ctx, x - half, y, half * 2, 7 * scale, '#491f42');
+    filmBox(ctx, x - half + scale, y + scale, half * 2 - 2 * scale, 5 * scale, '#c76973');
+    for (var finger = 0; finger < 3; finger++) {
+      filmBox(ctx, x - half + scale + (facing ? scale : 0), y + (1 + finger * 1.5) * scale, half * 2 - 3 * scale, scale, '#ffb493');
+    }
+    filmBox(ctx, x + facing * half - scale, y + 4 * scale, 2 * scale, 3 * scale, '#ffce9e');
+  }
+
+  function drawCapture(scene) {
+    var ctx = scene.ctx, width = scene.canvas.width;
+    var pull = Math.max(0, Math.min(1, (scene.time - 4.88) / 1.04));
+    pull = pull * pull * (3 - 2 * pull);
+    var base = Math.min(1.38, width / 86);
+    var zoom = base * (2.85 - 1.85 * pull);
+    var x = width / 2 - 19 * base * pull;
+    var y = 94 + 14 * pull;
+    var left = x - 13 * zoom, top = y - 17 * zoom;
+    var crop = 1 / (1 + 0.24 * (1 - pull));
+    var roomWidth = width * crop, roomHeight = FILM_HEIGHT * crop;
+    ctx.drawImage(scene.backdrop, (width - roomWidth) / 2, (FILM_HEIGHT - roomHeight) / 2, roomWidth, roomHeight,
+      0, 0, width, FILM_HEIGHT);
+    filmBox(ctx, 0, 0, width, FILM_HEIGHT, '#120a25aa');
+    filmGlow(ctx, x, y, 79, 'rgba(81, 145, 241, 0.29)');
+
+    // This shot starts on the bars and widens to fit Tesla in the same room.
+    var teslaX = x + 40 * zoom + (1 - pull) * Math.max(0, width / 2 - 36);
+    var teslaSize = 41 * zoom;
+    if (teslaX - teslaSize / 2 < width) {
+      filmGlow(ctx, teslaX, y + 1, 48, 'rgba(221, 61, 153, 0.34)');
+      filmBox(ctx, teslaX - 18 * zoom, y + 15.5 * zoom, 38 * zoom, 2.4 * zoom, '#160e24');
+      filmPortrait(ctx, scene.tesla, teslaX - teslaSize / 2, y - 24 * zoom, teslaSize);
+    }
+    filmPortrait(ctx, scene.nic, x - 12.5 * zoom, top + 7 * zoom, 25 * zoom);
+    ctx.drawImage(scene.cage, Math.round(left), Math.round(top), Math.round(26 * zoom), Math.round(35 * zoom));
+    gripBar(ctx, left + 5 * zoom, top + 20 * zoom, zoom, 1);
+    gripBar(ctx, left + 20 * zoom, top + 20.5 * zoom, zoom, -1);
+    ctx.drawImage(scene.lock, Math.round(x - 3 * zoom), Math.round(top + 27 * zoom), Math.round(6 * zoom), Math.round(8 * zoom));
+  }
+
+  function tickCutscene(dt) {
+    var scene = ui.scene;
+    if (!scene.backdrop || (!scene.still && document.hidden)) return;
+    var assetState = [scene.nic, scene.tesla, scene.coil].map(function (image) {
+      return imageReady(image) ? '1' : '0';
+    }).join('');
+    if (!scene.still) {
+      if (assetState !== '111' && scene.wait < 0.75) scene.wait += dt;
+      else scene.time += dt;
+    }
+    if (scene.time >= FILM_END) { finishCutscene(); return; }
+    var shot = shotAt(scene.time);
+    if (scene.shot !== shot) {
+      scene.shot = shot;
+      scene.panel.dataset.shot = shot.id;
+      scene.summary.textContent = shot.description;
+      scene.quote.hidden = shot.id !== 'tesla';
+    }
+    var frame = Math.floor(scene.time * 24);
+    if (scene.frame === frame && scene.assetState === assetState) return;
+    if (shot.id === 'caged' || shot.id === 'tesla') drawCapture(scene);
+    else drawOpening(scene, shot);
+    scene.frame = frame;
+    scene.assetState = assetState;
+  }
+
+  function showCutscene() {
+    closePanel();
+    ui.root.classList.add('in-cutscene');
+    var p = el('div', 'cg-panel cutscene');
+    var film = el('canvas', 'cg-film');
+    film.setAttribute('aria-hidden', 'true');
+    p.appendChild(film);
+
+    var summary = el('p', 'cg-film-summary');
+    summary.setAttribute('aria-live', 'polite');
+    summary.setAttribute('aria-atomic', 'true');
+    p.appendChild(summary);
+    var quote = el('div', 'cg-cinematic-quote');
+    quote.setAttribute('aria-hidden', 'true');
+    quote.appendChild(el('b', null, 'Tesla'));
+    quote.appendChild(el('span', null, 'Cage Escape.'));
+    quote.hidden = true;
+    p.appendChild(quote);
+
+    var still = reducedEffects || api.reduceMotion;
+    var skip = btn(still ? 'Continue' : 'Skip intro', 'cg-film-skip', finishCutscene);
+    p.appendChild(skip);
+    ui.root.appendChild(p);
+    ui.panel = p;
+    var coil = new Image();
+    coil.src = DIR + 'art/tesla-coil.png';
+    ui.scene = {
+      panel: p, canvas: film, ctx: film.getContext('2d'),
+      nic: ui.nicFace, tesla: ui.teslaFace, coil: coil,
+      cage: cageCanvas(26, 35, 1), lock: lockCanvas(1),
+      time: still ? 6.5 : 0, wait: 0, still: still, summary: summary, quote: quote
+    };
+    resizeCutscene();
+    tickCutscene(0);
+    skip.focus({ preventScroll: true });
+  }
+
+  function finishCutscene() {
+    if (!ui || !ui.scene) return;
+    ui.scene = null;
+    ui.root.classList.remove('in-cutscene');
+    ui.root.classList.add('after-cutscene');
+    layout();
+    showIntro();
+    ui.panel.querySelector('.cg-btn.primary').focus({ preventScroll: true });
   }
 
   /* ---------- drawing (ported from tetris.js drawPlayer, minus streak flames) ---------- */
@@ -1493,6 +1822,7 @@
   function toggleMenu() {
     if (!game || !ui) return;
     if (panelIs('menu')) { closePanel(); if (!game.over) game.paused = false; return; }
+    if (ui.scene) { finishCutscene(); return; }
     if (ui.panel) return;   // intro, setup and results have their own buttons
     if (!game.over) { game.paused = true; held = {}; }
     var c = panel('menu');
@@ -1567,6 +1897,7 @@
 
   function build() {
     var root = el('div', 'cage' + (fine() ? ' fine' : ' touch'));
+    if (reducedEffects || api.reduceMotion) root.classList.add('cg-reduced');
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-label', 'Cage Escape');
     var bg = el('div', 'cg-bg'); bg.style.backgroundImage = 'url("' + (api.image || DIR + 'cage.jpg') + '")';
@@ -1578,7 +1909,7 @@
     var opp = el('div', 'cg-opp');
     var teslaCv = el('canvas', 'mini');
     var tag = el('div', 'cg-tag');
-    var face = pixelCanvas(TESLA, TESLA_PAL, 3); face.className = 'face';
+    var face = characterImage('nikola-tesla.png', 'face', TESLA, TESLA_PAL);
     tag.appendChild(face); tag.appendChild(el('b', null, 'Tesla'));
     var teslaLives = el('span', 'lives', '');
     tag.appendChild(teslaLives);
@@ -1601,8 +1932,8 @@
     info.appendChild(status);
     top.appendChild(info);
     var pw = el('div', 'cg-prisoner');
-    var scale = 4;
-    var nic = pixelCanvas(NIC, NIC_PAL, scale, 2); nic.className = 'nic';
+    var scale = 3;
+    var nic = characterImage('nic-cage.png', 'nic', NIC, NIC_PAL);
     var cage = cageCanvas(NIC[0].length + 4, NIC.length + 4, scale); cage.className = 'bars';
     var lock = lockCanvas(scale); lock.className = 'lock';
     var bubble = el('span', 'cg-bubble', 'HELP!');
@@ -1643,16 +1974,16 @@
     document.body.appendChild(root);
     ui = { root: root, stage: stage, wellCv: wellCv, teslaCv: teslaCv, holdCv: holdCv, nextCv: nextCv, holdLbl: holdLbl, nextLbl: nextLbl,
       timer: timer, rowA: rowA, rowB: rowB, status: status, teslaLives: teslaLives,
-      count: count, flash: flash, prisonerWrap: pw, bubble: bubble, teslaFace: face, panel: null };
+      count: count, flash: flash, prisonerWrap: pw, bubble: bubble, teslaFace: face, nicFace: nic, panel: null };
     bindPad(pad);
   }
 
-  function onResize() { layout(); }
+  function onResize() { if (ui && ui.scene) resizeCutscene(); else layout(); }
   function onHide() { if (document.hidden && game && game.started && !game.over && !game.paused) toggleMenu(); }
   function onBlur() { held = {}; if (game && game.started && !game.over && !game.paused && !ui.panel) toggleMenu(); }
   function onPop() { close(true); }
 
-  // opts: { custom (true = the setup screen; false = the story run), accent, image, haptic, onWin, onReward, onOpen, onClose }
+  // opts: { custom (true = the setup screen; false = the story run), accent, image, haptic, reduceMotion, onWin, onReward, onOpen, onClose }
   function open(opts) {
     if (ui) return;
     api = opts || {};
@@ -1661,7 +1992,7 @@
     newGame();
     game.paused = true;      // the intro / setup is up; nothing runs until Start
     layout();
-    if (api.custom) showSetup(); else showIntro();
+    if (api.custom) showSetup(); else showCutscene();
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('keyup', onKey, true);
     window.addEventListener('resize', onResize);

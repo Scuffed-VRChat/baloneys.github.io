@@ -677,7 +677,7 @@
   // Winning the story stores { wins, best } (CAGE_KEY), which unlocks Cage Escape in More (custom games) and the
   // Vault in Settings with the photo unblurred. While it's open the app's top bar stays; its buttons open the game's
   // Menu instead of leaving mid-game.
-  var CAGE_DIR = '/scuffed_dev/app/cage/', CAGE_V = '20261128-4', CAGE_KEY = 'scd-app-cage';
+  var CAGE_DIR = '/scuffed_dev/app/cage/', CAGE_V = '20261129-3', CAGE_KEY = 'scd-app-cage';
   var CAGE_CODE = ['history', 'history', 'board', 'board', 'announce', 'more', 'announce', 'more', 'images', 'images', 'images'];
   var cageTaps = [], cageLast = 0, cageLoad = null;
   function cageCode(g) {
@@ -702,7 +702,7 @@
     cageLoad.then(function () {
       if (sheetOpen) closeSheet();
       window.CageTetris.open({
-        custom: !!custom && cageUnlocked(), accent: accentPair()[0], image: CAGE_DIR + 'cage.jpg', haptic: haptic,
+        custom: !!custom && cageUnlocked(), accent: accentPair()[0], image: CAGE_DIR + 'cage.jpg', haptic: haptic, reduceMotion: !motionOk(),
         onOpen: function () { $('app').classList.add('gaming'); },
         onClose: function () { $('app').classList.remove('gaming'); if (S.route === 'more' || S.route === 'settings') route(); },
         onWin: function (r) {

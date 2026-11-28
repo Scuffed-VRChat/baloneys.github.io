@@ -1,0 +1,17 @@
+Cage Escape lab sprites
+Both sheets by Frakassets / Pixor, licensed CC0 1.0 Universal.
+
+Tesla coil: https://pixor.art/library/lab/tesla-coil/
+Lab bench: https://pixor.art/library/lab/lab-bench/
+License: https://creativecommons.org/publicdomain/zero/1.0/
+
+Character art
+nic-cage.png: pixel-art adaptation of Guillaume Paumier's Nicolas Cage 2010 photograph
+(cropped by Hoangquan hientrang). Likeness reference used for a new illustrated sprite.
+https://commons.wikimedia.org/wiki/File:Nicolas_Cage_2010.jpg
+CC BY 3.0 Unported: https://creativecommons.org/licenses/by/3.0/
+
+nikola-tesla.png: pixel-art adaptation of Napoleon Sarony's circa-1893 Nikola Tesla portrait.
+Likeness reference used for a new illustrated sprite with a fictional expression.
+https://commons.wikimedia.org/wiki/File:Nikola_Tesla_by_Sarony_c1893.jpg
+Public domain: https://creativecommons.org/publicdomain/mark/1.0/
