@@ -21,7 +21,6 @@ soup canyon
 ### FILE: devs.txt
 EpsiFrost
 Fenic
-Baloneys
 
 ### FILE: djs.txt
 PrimordialAbyss
