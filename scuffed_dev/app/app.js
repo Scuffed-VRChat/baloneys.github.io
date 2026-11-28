@@ -15,7 +15,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.0.0';
+  var VERSION = '1.1.0';
   var WORKER = 'https://scuffed-perms.seanboyle20126.workers.dev';
   var SITE = 'https://kanaris-beans.com';
   var RAW = 'https://raw.githubusercontent.com/Scuffed-VRChat/baloneys.github.io/';
@@ -52,7 +52,29 @@
   function add(e, c) { if (c == null || c === false) return; if (Array.isArray(c)) c.forEach(function (x) { add(e, x); }); else e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); }
   function ic(n) { return '<svg aria-hidden="true"><use href="#i-' + n + '"/></svg>'; }
   function icon(n) { var s = h('span', { html: ic(n) }); return s.firstChild; }
-  function clear(e) { while (e.firstChild) e.removeChild(e.firstChild); return e; }
+  // Emptying something that was showing a loading skeleton means real content is arriving: mark it so that
+  // content fades up (CSS .reveal) instead of popping in.
+  function clear(e) {
+    if (e.querySelector && e.querySelector('.skel')) { e.classList.add('reveal'); setTimeout(function () { e.classList.remove('reveal'); }, 450); }
+    while (e.firstChild) e.removeChild(e.firstChild);
+    return e;
+  }
+  // Tapping a chip re-renders its screen, which builds a brand-new chip bar that would start scrolled back
+  // to the left. keepChips(bar, key) puts the bar back where it was last scrolled (per key, for this app
+  // session); a bar seen for the first time instead scrolls just far enough to show its selected chip.
+  // Call it after the bar is in the page, since scrollLeft does nothing on a detached element.
+  var chipScroll = {};
+  function keepChips(el, key) {
+    if (chipScroll[key] != null) el.scrollLeft = chipScroll[key];
+    else {
+      var on = el.querySelector('.chip.on');
+      if (on) { var x = on.getBoundingClientRect().left - el.getBoundingClientRect().left; if (x + on.offsetWidth > el.clientWidth) el.scrollLeft = x - 16; }
+    }
+    function remember() { chipScroll[key] = el.scrollLeft; }
+    el.addEventListener('scroll', remember, { passive: true });
+    el.addEventListener('click', remember, true);  // capture: runs before the chip's own handler re-renders the screen
+    return el;
+  }
   function errText(e) { return (e && (e.message || e.details || e.error)) || String(e || 'Something went wrong'); }
   function time(v) { return Number.isFinite(v) ? v : Date.parse(v) || 0; }
   function ago(v) {
@@ -127,12 +149,25 @@
   var ACCENTS = [['#ff1f3d', '#ff6b8b'], ['#e60065', '#ff8a00'], ['#9d00ff', '#e60065'], ['#7c3aed', '#db2777'], ['#2563eb', '#06b6d4'],
     ['#06b6d4', '#a78bfa'], ['#10b981', '#06b6d4'], ['#f59e0b', '#ef4444'], ['#ec4899', '#8b5cf6'], ['#a3a3a3', '#f5f5f5']];
   var SCENES = { tetris: ['Surge', 'Pulse', 'Tide', 'Afterglow', 'Strata', 'Storm', 'Warp', 'Stars', 'Circuit City', 'Pixel Aurora'], pong: ['Neon Court', 'Ping Waves', 'LED Rain', 'Arcade Sunset', 'Orbit'], battleships: ['Sonar Sweep', 'Night Swell', 'The Deep'], chess: ['Endless Board', 'Marble', 'Velvet', 'Star Board'] };
-  // look.accent: an index into ACCENTS, or a [from, to] pair (copied from /chat). look.bg 'gradient' uses look.grad.
-  var LOOK_DEFAULT = { bg: 'scuffed', solid: '#0b0608', image: null, grad: null, scene: 'tetris', sceneIndex: 0, pixel: 2, dim: 35, blur: 0, accent: 0, panel: 82, glass: 18, size: 16 };
+  // look.accent: an index into ACCENTS, or a [from, to] pair (copied from /chat). look.bg 'gradient' uses look.grad
+  // (from /chat); look.bg 'custom' uses look.custom, the gradient you build in Settings ({ stops: 2-3 hex, angle }).
+  var LOOK_DEFAULT = { bg: 'scuffed', solid: '#0b0608', image: null, grad: null, custom: null, scene: 'tetris', sceneIndex: 0, pixel: 2, dim: 35, blur: 0, accent: 0, panel: 82, glass: 18, size: 16 };
   var look = Object.assign({}, LOOK_DEFAULT, load(LOOK_KEY, {}));
   function saveLook() { save(LOOK_KEY, look); }
   function gradCss(t) { return 'linear-gradient(' + t.angle + 'deg, ' + t.stops.join(', ') + ')'; }
   function isHex(c) { return typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c); }
+  var CUSTOM_DEFAULT = { stops: ['#12001f', '#7331e5', '#eb389d'], angle: 150 };
+  function customGrad() {
+    var c = look.custom || {}, st = Array.isArray(c.stops) ? c.stops.filter(isHex).slice(0, 3) : [];
+    var a = Number(c.angle);
+    return st.length >= 2 ? { stops: st, angle: isFinite(a) ? ((Math.round(a) % 360) + 360) % 360 : 150 } : { stops: CUSTOM_DEFAULT.stops.slice(), angle: CUSTOM_DEFAULT.angle };
+  }
+  function hslHex(hue, s, l) {
+    s /= 100; l /= 100;
+    var a = s * Math.min(l, 1 - l);
+    function f(n) { var k = (n + hue / 30) % 12, v = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return ('0' + Math.round(v * 255).toString(16)).slice(-2); }
+    return '#' + f(0) + f(8) + f(4);
+  }
   function accentPair() {
     if (Array.isArray(look.accent) && isHex(look.accent[0])) return [look.accent[0], isHex(look.accent[1]) ? look.accent[1] : look.accent[0]];
     return ACCENTS[look.accent] || ACCENTS[0];
@@ -162,6 +197,7 @@
     var th = THEMES.filter(function (t) { return t.id === look.bg; })[0];
     if (th && th.stops) bg.style.background = gradCss(th);
     else if (look.bg === 'gradient' && look.grad && Array.isArray(look.grad.stops)) bg.style.background = gradCss({ angle: Number(look.grad.angle) || 150, stops: look.grad.stops.filter(isHex).slice(0, 3) });
+    else if (look.bg === 'custom') bg.style.background = gradCss(customGrad());
     else if (look.bg === 'solid') bg.style.background = look.solid;
     else if (look.bg === 'image' && look.image) { bg.style.background = '#000'; var d = h('div', { class: 'bg-img' }); d.style.setProperty('--img', 'url("' + look.image + '")'); bg.appendChild(d); }
     else if (sceneSrc) {
@@ -312,16 +348,113 @@
     if (!S.me) return;
     if (sheetOpen) closeSheet(true);
     var r = parseHash();
-    var changed = r.name !== S.route;
+    var changed = r.name !== S.route, main = $('main');
+    var fx = pageFx && Date.now() - pageFx.t < 1500 ? pageFx : null; pageFx = null;
+    endPageFx();
+    var from = changed && S.route ? $('scr-' + S.route) : null;
+    if (from && !from.classList.contains('on')) from = null;   // e.g. coming back from the sign-in gate
+    if (from && motionOk()) pinLeaving(from, main); else from = null;
     S.route = r.name; S.arg = r.arg;
     document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('on', s.id === 'scr-' + r.name); });
     document.querySelectorAll('.nav button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-go') === NAV_OF[r.name]); });
     var scr = $('scr-' + r.name);
     $('barTitle').textContent = scr.getAttribute('data-title') || '';
-    if (changed) $('main').scrollTop = 0;
+    // jump (not smooth-scroll) to the top of the new page: the old page is pinned separately while it leaves
+    if (changed) { try { main.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { main.scrollTop = 0; } }
     setFab(null);
     SCREENS[r.name](scr, r.arg);
+    if (changed) animatePage(from, scr, fx);
     if (changed && r.name === 'deploys' && window.ScuffedDeploy) window.ScuffedDeploy.refresh();
+  }
+
+  /* ======================================================================= page transitions */
+
+  // Changing page keeps the old page on screen for a moment (.leaving, pinned where you'd scrolled it) while the
+  // new one arrives: a slide from its side of the bar for taps, or a wipe for swipes along the bar (navSwipe
+  // sets pageFx just before it navigates). Sub-pages of More count as further right, so opening one slides in
+  // from the right and Back slides it away again. Reduce motion (Settings, or the phone's own setting) skips it.
+  var PAGE_ORDER = ['history', 'board', 'images', 'announce', 'more', 'deploys', 'perms', 'settings'];
+  var pageFx = null, fxEnd = null;
+  function motionOk() { return !prefs.calm && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  function endPageFx() { if (fxEnd) fxEnd(); }
+  function pinLeaving(el, main) {
+    var sy = main.scrollTop;
+    el.classList.add('leaving');
+    el.style.height = main.clientHeight + 'px';
+    el.scrollTop = sy;
+  }
+  function animatePage(from, to, fx) {
+    if (!motionOk()) return;
+    var a = from ? PAGE_ORDER.indexOf(from.id.slice(4)) : -1, b = PAGE_ORDER.indexOf(to.id.slice(4));
+    var dir = fx && fx.dir ? fx.dir : (b >= a ? 1 : -1);
+    var kind = !from ? 'fade' : fx && fx.kind === 'wipe' ? 'wipe' : 'slide';
+    var side = dir > 0 ? 'wipe-r' : 'wipe-l', edge = null;
+    to.style.setProperty('--dir', String(dir));
+    to.classList.add('enter-' + kind);
+    if (from) { from.style.setProperty('--dir', String(dir)); from.classList.add('exit-' + kind); }
+    if (kind === 'wipe') {
+      to.classList.add(side); from.classList.add(side);
+      var m = $('main').getBoundingClientRect(), s = to.getBoundingClientRect();
+      edge = h('div', { class: 'wipe-edge ' + side, 'aria-hidden': 'true' });
+      edge.style.cssText = 'top:' + m.top + 'px;height:' + m.height + 'px;left:' + s.left + 'px;--w:' + s.width + 'px';
+      $('app').appendChild(edge);
+    }
+    var t = setTimeout(done, kind === 'wipe' ? 540 : kind === 'slide' ? 380 : 300);
+    function done() {
+      clearTimeout(t);
+      if (fxEnd === done) fxEnd = null;
+      to.classList.remove('enter-' + kind, 'wipe-r', 'wipe-l'); to.style.removeProperty('--dir');
+      if (from) { from.classList.remove('leaving', 'exit-' + kind, 'wipe-r', 'wipe-l'); from.style.height = ''; from.style.removeProperty('--dir'); from.scrollTop = 0; }
+      if (edge && edge.parentNode) edge.parentNode.removeChild(edge);
+    }
+    fxEnd = done;
+  }
+
+  // Swipe along the bottom bar (down the side rail on wide screens) to change page. The tab under your finger
+  // lights up as you slide, with a tick as you cross each one; letting go opens it with the wipe, sweeping the
+  // way your finger went. A short flick that doesn't reach another tab moves one tab over.
+  function navSwipe() {
+    var nav = $('nav'), btns = Array.prototype.slice.call(nav.querySelectorAll('button')), st = null, swallowAt = 0;
+    function vertical() { return nav.offsetHeight > nav.offsetWidth; }
+    function tabAt(e) {
+      var v = vertical(), p = v ? e.clientY : e.clientX, best = -1;
+      btns.forEach(function (b, i) { var r = b.getBoundingClientRect(); if (p >= (v ? r.top : r.left) && p < (v ? r.bottom : r.right)) best = i; });
+      if (best < 0) { var f = btns[0].getBoundingClientRect(); best = p < (v ? f.top : f.left) ? 0 : btns.length - 1; }
+      return best;
+    }
+    function current() { var g = NAV_OF[S.route]; for (var i = 0; i < btns.length; i++) if (btns[i].getAttribute('data-go') === g) return i; return -1; }
+    function peek(i) { btns.forEach(function (b, j) { b.classList.toggle('peek', j === i); }); }
+    function reset() { st = null; nav.classList.remove('swiping'); peek(-1); }
+    nav.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      st = { x: e.clientX, y: e.clientY, id: e.pointerId, start: current(), at: -1, moving: false, d: 0 };
+    });
+    nav.addEventListener('pointermove', function (e) {
+      if (!st || e.pointerId !== st.id) return;
+      var v = vertical(), cross = v ? e.clientX - st.x : e.clientY - st.y;
+      st.d = v ? e.clientY - st.y : e.clientX - st.x;
+      if (!st.moving) {
+        if (Math.abs(st.d) < 14 || Math.abs(st.d) < Math.abs(cross)) return;
+        st.moving = true; nav.classList.add('swiping');
+        try { nav.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
+      }
+      var i = tabAt(e);
+      if (i !== st.at) { st.at = i; peek(i); haptic(4); }
+    });
+    nav.addEventListener('pointerup', function (e) {
+      if (!st || e.pointerId !== st.id) return;
+      var s = st; reset();
+      if (!s.moving) return;
+      swallowAt = Date.now();   // the click this swipe ends with isn't a tap
+      var to = s.at;
+      if (to === s.start && Math.abs(s.d) > 30) to = Math.max(0, Math.min(btns.length - 1, s.start + (s.d > 0 ? 1 : -1)));
+      if (to < 0 || to === s.start) return;
+      haptic(10);
+      pageFx = { kind: 'wipe', dir: s.d > 0 ? 1 : -1, t: Date.now() };
+      go(btns[to].getAttribute('data-go'));
+    });
+    nav.addEventListener('pointercancel', reset);
+    nav.addEventListener('click', function (e) { if (Date.now() - swallowAt < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
   }
   function setFab(text, fn, iconName) {
     var f = $('fab');
@@ -366,6 +499,7 @@
       chips.appendChild(h('button', { class: 'chip' + (hist.filter === k[0] ? ' on' : ''), type: 'button', role: 'tab', onclick: function () { hist.filter = k[0]; haptic(5); renderHistory(scr); } }, k[1], h('b', { text: String(n) })));
     });
     scr.appendChild(chips);
+    keepChips(chips, 'history');
     var box = h('div');
     scr.appendChild(box);
     if (!hist.items) {
@@ -463,6 +597,68 @@
     });
   }
 
+  // First launch: a short spotlight tour of the app (once per phone; Settings > Feel > App tour replays it). The
+  // notifications welcome below follows when it ends.
+  var TOUR_KEY = 'scd-app-toured';
+  function maybeTour(next) { if (load(TOUR_KEY, 0) || sheetOpen) next(); else startTour(next); }
+  function startTour(next) {
+    if ($('tour')) return;
+    var steps = [
+      { title: 'Welcome to scuffed_dev', text: 'Everything for running Scuffed, in your pocket. Here\'s a 20 second look around.' },
+      { el: 'nav', title: 'Your sections', text: 'Inbox, Board, Images, Announcements and More. Tap one, or slide your finger along the bar to whip between them.', finger: true },
+      { el: 'barBell', title: 'Notifications', text: 'Everything scuffed_dev tells you lands in your Inbox. A dot here means something new.' },
+      { el: 'barAction', title: 'Refresh', text: 'Tap here, or pull down on any page, to get the latest.' },
+      { el: 'meBtn', title: 'Make it yours', text: 'Your account and Settings: choose what you get notified about, and change the look with backgrounds, your own custom gradient and accent colours. You can replay this tour there too.' }
+    ];
+    var i = 0, card = null, finger = null, pad = 6;
+    var root = h('div', { class: 'tour', id: 'tour', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'App tour' });
+    var hole = h('div', { class: 'tour-hole none' });
+    root.appendChild(hole);
+    document.body.appendChild(root);
+    function show() {
+      var s = steps[i], el = s.el ? $(s.el) : null;
+      if (el && !el.offsetWidth) el = null;
+      if (card) root.removeChild(card);
+      if (finger) { root.removeChild(finger); finger = null; }
+      var r = el ? el.getBoundingClientRect() : null;
+      if (r) {
+        hole.classList.remove('none');
+        hole.style.cssText = 'top:' + (r.top - pad) + 'px;left:' + (r.left - pad) + 'px;width:' + (r.width + pad * 2) + 'px;height:' + (r.height + pad * 2) + 'px;border-radius:' + (el.id === 'meBtn' ? '50%' : '18px');
+      } else { hole.classList.add('none'); hole.style.cssText = 'top:50%;left:50%;width:0;height:0'; }
+      var last = i === steps.length - 1, dots = h('div', { class: 'tour-dots' });
+      steps.forEach(function (x, j) { dots.appendChild(h('i', { class: j === i ? 'on' : null })); });
+      card = h('div', { class: 'tour-card' }, h('div', { class: 'step', text: (i + 1) + ' / ' + steps.length }), h('h3', { text: s.title }), h('p', { text: s.text }),
+        h('div', { class: 'tour-foot' }, dots,
+          last ? null : h('button', { class: 'btn sm', type: 'button', text: 'Skip', onclick: finish }),
+          h('button', { class: 'btn sm primary', type: 'button', text: last ? 'Let\'s go' : 'Next', onclick: function () { haptic(6); i++; if (i >= steps.length) finish(); else show(); } })));
+      root.appendChild(card);
+      // the card sits on the far side of the spotlight from its target; centred when there's no target or the
+      // target is the tall side rail (wide screens)
+      if (!r || r.height > innerHeight * 0.6) {
+        card.style.top = Math.max(16, (innerHeight - card.offsetHeight) / 2) + 'px';
+        if (r) { card.style.left = (r.right + pad + 18) + 'px'; card.style.margin = '0'; }
+      } else if (r.top + r.height / 2 > innerHeight / 2) card.style.bottom = (innerHeight - r.top + pad + 14) + 'px';
+      else card.style.top = (r.bottom + pad + 14) + 'px';
+      if (s.finger && r) {
+        var b = el.querySelectorAll('button'), f0 = b[0].getBoundingClientRect(), f1 = b[b.length - 1].getBoundingClientRect(), v = r.height > r.width;
+        finger = h('div', { class: 'tour-finger' + (v ? ' v' : '') });
+        finger.style.left = (f0.left + f0.width / 2) + 'px';
+        finger.style.top = (f0.top + f0.height / 2) + 'px';
+        finger.style.setProperty('--travel', (v ? f1.top - f0.top : f1.left - f0.left) + 'px');
+        root.insertBefore(finger, card);
+      }
+    }
+    function finish() {
+      save(TOUR_KEY, 1);
+      window.removeEventListener('resize', show);
+      root.classList.add('out');
+      setTimeout(function () { if (root.parentNode) root.parentNode.removeChild(root); }, 260);
+      if (next) setTimeout(next, 380);
+    }
+    window.addEventListener('resize', show);
+    show();
+  }
+
   // First launch after signing in: ask for notifications (and say what they'll be about). Shown once per phone;
   // the camera is only asked for when you scan a sign-in QR.
   var WELCOME_KEY = 'scd-app-welcomed';
@@ -552,8 +748,9 @@
     var search = h('input', { class: 'input', type: 'search', placeholder: 'Search cards', value: board.q, 'aria-label': 'Search cards' });
     scr.appendChild(h('div', { class: 'search' }, icon('search'), search));
     scr.appendChild(chips);
+    keepChips(chips, 'board');
     scr.appendChild(box);
-    var fn = (F.filter(function (f) { return f[0] === board.filter; })[0] || F[0])[2];
+    var fn =(F.filter(function (f) { return f[0] === board.filter; })[0] || F[0])[2];
     function draw() {
       clear(box);
       var q = board.q.trim().toLowerCase();
@@ -643,6 +840,7 @@
     var body = h('textarea', { class: 'textarea', maxlength: '4000', placeholder: 'Details (optional)' });
     var kindSeg = h('div', { class: 'chips', style: 'margin-bottom:6px' });
     function paintKind() {
+      var keepX = kindSeg.scrollLeft;  // emptying the bar clamps its scroll to 0, so put it back after
       clear(kindSeg);
       (isDev() ? [['task', 'Task'], ['suggestion', 'Suggestion']] : [['suggestion', 'Suggestion']]).forEach(function (k) {
         kindSeg.appendChild(h('button', { class: 'chip' + (kind === k[0] ? ' on' : ''), type: 'button', text: k[1], onclick: function () { kind = k[0]; paintKind(); } }));
@@ -650,6 +848,7 @@
       [['low', 'Low'], ['normal', 'Normal'], ['high', 'High']].forEach(function (p) {
         kindSeg.appendChild(h('button', { class: 'chip' + (prio === p[0] ? ' on' : ''), type: 'button', text: p[1] + ' priority', onclick: function () { prio = p[0]; paintKind(); } }));
       });
+      kindSeg.scrollLeft = keepX;
     }
     paintKind();
     var create = h('button', { class: 'btn primary', type: 'button', text: 'Add card', onclick: function () {
@@ -726,6 +925,7 @@
     fs.forEach(function (f) { chips.appendChild(h('button', { class: 'chip' + (imgs.folder === f ? ' on' : ''), type: 'button', onclick: function () { imgs.folder = f; haptic(5); renderImages(scr); } }, folderLabel(f), h('b', { text: String(inFolder(f).length) }))); });
     chips.appendChild(h('button', { class: 'chip' + (imgs.folder === SUGG ? ' on' : ''), type: 'button', onclick: function () { imgs.folder = SUGG; renderImages(scr); } }, '💡 Suggestions', h('b', { text: String(imgs.data.suggestions.length) })));
     scr.appendChild(chips);
+    keepChips(chips, 'images');
     scr.appendChild(box);
     if (isAdmin() && imgs.folder !== SUGG) setFab(isDev() ? 'Upload' : 'Suggest', function () { pickFiles(null); }, 'upload');
     if (imgs.folder === SUGG) return drawSuggestions(box);
@@ -958,6 +1158,7 @@
     var seg = h('div', { class: 'chips' });
     [['scuffed', 'Scuffed'], ['straya', 'Straya']].forEach(function (w) { seg.appendChild(h('button', { class: 'chip' + (ann.world === w[0] ? ' on' : ''), type: 'button', text: w[1], onclick: function () { if (ann.world !== w[0]) { ann.world = w[0]; ann.data = null; renderAnnounce(scr); } } })); });
     scr.appendChild(seg);
+    keepChips(seg, 'announce');
     var box = h('div'); scr.appendChild(box);
     if (!ann.data) {
       box.appendChild(skeleton(2, 160));
@@ -1237,6 +1438,8 @@
     });
     var solid = h('button', { class: 'bgopt' + (look.bg === 'solid' ? ' on' : ''), type: 'button', text: 'Solid', onclick: function () { var c = h('input', { type: 'color', value: look.solid }); c.addEventListener('input', function () { look.solid = c.value; look.bg = 'solid'; saveLook(); applyLook(); }); c.addEventListener('change', function () { renderSettings(scr); }); c.click(); } });
     solid.style.background = look.solid;
+    var cust = h('button', { class: 'bgopt' + (look.bg === 'custom' ? ' on' : ''), type: 'button', text: 'Custom', onclick: function () { customGradientSheet(scr); } });
+    cust.style.background = look.custom ? gradCss(customGrad()) : 'conic-gradient(from 210deg at 50% 60%, #ff1f3d, #f59e0b, #10b981, #06b6d4, #7c3aed, #ff1f3d)';
     var photo = h('button', { class: 'bgopt' + (look.bg === 'image' ? ' on' : ''), type: 'button', text: 'Photo', onclick: function () {
       var f = h('input', { type: 'file', accept: 'image/*' });
       f.addEventListener('change', function () { var file = f.files[0]; if (!file) return; shrinkPhoto(file).then(function (url) { look.image = url; look.bg = 'image'; saveLook(); applyLook(); renderSettings(scr); }, function (e) { toast(errText(e), 'bad'); }); });
@@ -1245,12 +1448,13 @@
     if (look.image) photo.style.background = 'center / cover url("' + look.image + '")'; else photo.style.background = '#1a1015';
     var anim = h('button', { class: 'bgopt' + (look.bg === 'animated' ? ' on' : ''), type: 'button', text: 'Animated', onclick: function () { look.bg = 'animated'; saveLook(); applyLook(); renderSettings(scr); } });
     anim.style.background = 'linear-gradient(135deg,#7331e5,#eb389d,#256dde)';
-    bgs.appendChild(solid); bgs.appendChild(photo); bgs.appendChild(anim);
+    bgs.appendChild(solid); bgs.appendChild(cust); bgs.appendChild(photo); bgs.appendChild(anim);
     ap.appendChild(bgs);
     if (look.bg === 'animated') {
       var sc = h('div', { class: 'chips', style: 'margin-top:12px' });
       Object.keys(SCENES).forEach(function (g) { SCENES[g].forEach(function (n, i) { sc.appendChild(h('button', { class: 'chip' + (look.scene === g && look.sceneIndex === i ? ' on' : ''), type: 'button', text: n, onclick: function () { look.scene = g; look.sceneIndex = i; saveLook(); applyLook(); renderSettings(scr); } })); }); });
       ap.appendChild(sc);
+      keepChips(sc, 'scenes');
       ap.appendChild(liveSlider('Pixelation', 1, 5, look.pixel || 2, '×', function (v) { look.pixel = v; }, '12px'));
     }
     if (look.bg === 'image' || look.bg === 'animated') {
@@ -1275,8 +1479,54 @@
     scr.appendChild(h('div', { class: 'panel' },
       settingRow('phone', 'Haptics', 'A small buzz on taps and saves', sw(prefs.haptics !== false, function (v) { prefs.haptics = v; savePrefs(); })),
       settingRow(null, 'Compact layout', 'Tighter spacing, more on screen', sw(!!prefs.compact, function (v) { prefs.compact = v; savePrefs(); applyLook(); })),
-      settingRow(null, 'Reduce motion', 'Turn animations off', sw(!!prefs.calm, function (v) { prefs.calm = v; savePrefs(); applyLook(); }))));
+      settingRow(null, 'Reduce motion', 'Turn animations off', sw(!!prefs.calm, function (v) { prefs.calm = v; savePrefs(); applyLook(); })),
+      h('button', { class: 'setting link', type: 'button', onclick: function () { startTour(null); } }, h('span', { class: 'ico', html: ic('hand') }),
+        h('span', { class: 'txt' }, h('b', { text: 'App tour' }), h('small', { text: 'Show the quick tour again' })))));
     scr.appendChild(h('p', { style: 'margin:18px 4px;color:var(--ink3);font-family:var(--mono);font-size:.7rem', text: 'scuffed_dev ' + VERSION }));
+  }
+  // Settings > Appearance > Custom: build your own gradient from 2-3 colours and an angle. Every change shows
+  // straight away behind the sheet; Cancel, or closing the sheet any other way, puts the old background back.
+  function customGradientSheet(scr) {
+    var before = { bg: look.bg, custom: look.custom }, saved = false;
+    var g = customGrad(), draft = { stops: g.stops.slice(), angle: g.angle };
+    var preview = h('div', { class: 'grad-preview' }), stopsBox = h('div', { class: 'gstops' });
+    var angleOut = h('b', { text: draft.angle + '°', style: 'color:var(--ink);font-family:var(--mono);font-weight:700' });
+    var angle = slider(0, 359, draft.angle, function (v) { draft.angle = v; angleOut.textContent = v + '°'; paint(); });
+    function paint() {
+      preview.style.background = gradCss(draft);
+      look.bg = 'custom'; look.custom = { stops: draft.stops.slice(), angle: draft.angle };
+      applyLook();
+    }
+    function drawStops() {
+      clear(stopsBox);
+      draft.stops.forEach(function (c, i) {
+        var inp = h('input', { type: 'color', value: c, 'aria-label': 'Colour ' + (i + 1) }), lab = h('small', { text: c });
+        inp.addEventListener('input', function () { draft.stops[i] = inp.value; lab.textContent = inp.value; paint(); });
+        stopsBox.appendChild(h('label', { class: 'gstop' }, inp, lab, draft.stops.length > 2
+          ? h('button', { class: 'rm', type: 'button', html: ic('x'), 'aria-label': 'Remove colour ' + (i + 1), onclick: function (e) { e.preventDefault(); draft.stops.splice(i, 1); drawStops(); paint(); } }) : null));
+      });
+      if (draft.stops.length < 3) stopsBox.appendChild(h('button', { class: 'gstop add', type: 'button', html: ic('plus') + 'Add colour', onclick: function () { draft.stops.push(accentPair()[1]); drawStops(); paint(); } }));
+    }
+    function shuffle() {
+      var hue = Math.floor(Math.random() * 360), spread = 30 + Math.floor(Math.random() * 70);
+      draft.stops = [hslHex(hue, 70, 7), hslHex((hue + spread) % 360, 75, 28), hslHex((hue + spread * 2) % 360, 85, 55)];
+      draft.angle = Math.floor(Math.random() * 360);
+      angle.value = String(draft.angle); angleOut.textContent = draft.angle + '°';
+      drawStops(); paint(); haptic(8);
+    }
+    function flip() { draft.stops.reverse(); drawStops(); paint(); haptic(6); }
+    drawStops();
+    var body = h('div', null, preview,
+      h('div', { class: 'field' }, h('span', { text: 'Colours' })), stopsBox,
+      h('div', { class: 'field' }, h('span', { class: 'row', style: 'justify-content:space-between' }, 'Angle', angleOut), angle),
+      h('div', { class: 'row', style: 'gap:8px' },
+        h('button', { class: 'btn sm', type: 'button', html: ic('refresh') + 'Shuffle', onclick: shuffle }),
+        h('button', { class: 'btn sm', type: 'button', text: '⇄ Flip colours', onclick: flip })));
+    openSheet('Custom gradient', body, [
+      h('button', { class: 'btn', type: 'button', text: 'Cancel', onclick: function () { closeSheet(); } }),
+      h('button', { class: 'btn primary', type: 'button', text: 'Use this', onclick: function () { saved = true; saveLook(); closeSheet(); renderSettings(scr); toast('Background saved', 'good'); haptic(12); } })
+    ], function () { if (!saved) { look.bg = before.bg; look.custom = before.custom; applyLook(); } });
+    paint();
   }
   function shrinkPhoto(file) {
     return createImageBitmap(file).then(function (b) {
@@ -1507,7 +1757,7 @@
           $('nav').classList.remove('hidden');
           route();
           if (pendingSignin) { var sc = pendingSignin; pendingSignin = null; setTimeout(function () { confirmSignin(sc); }, 300); }
-          else setTimeout(maybeWelcome, 700);
+          else setTimeout(function () { maybeTour(maybeWelcome); }, 700);
           // background: history badge, board badge, keep this phone's notification level/prefs current
           loadHistory().then(paintBadges, function () {});
           if (!board.data) loadBoard().catch(function () {});
@@ -1528,6 +1778,7 @@
     });
     $('scrim').addEventListener('click', function () { closeSheet(); });
     $('sheetClose').addEventListener('click', function () { closeSheet(); });
+    navSwipe();
     document.querySelectorAll('.nav button').forEach(function (b) { b.addEventListener('click', function () { haptic(5); var g = b.getAttribute('data-go'); if (S.route === g) { $('main').scrollTop = 0; refreshCurrent(); } else go(g); }); });
     $('barBell').addEventListener('click', function () { go('history'); });
     $('meBtn').addEventListener('click', function () { if (S.me) go('settings'); });
